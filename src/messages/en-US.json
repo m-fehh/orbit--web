@@ -1,0 +1,95 @@
+{
+  "common": {
+    "appName": "Orbit",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "retry": "Try again",
+    "search": "Search",
+    "close": "Close",
+    "empty": "Nothing here yet.",
+    "errorTitle": "Something went wrong",
+    "errorBody": "We couldn't load this. Please try again."
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "tickets": "Tickets",
+    "investigations": "Investigations",
+    "knowledge": "Knowledge",
+    "analytics": "Analytics",
+    "admin": "Administration",
+    "settings": "Settings",
+    "security": "Security",
+    "logout": "Sign out"
+  },
+  "login": {
+    "title": "Sign in to Orbit",
+    "subtitle": "Access the resolution intelligence platform",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in...",
+    "forgot": "Forgot password",
+    "tenantLabel": "Company",
+    "invalidCredentials": "Invalid email or password.",
+    "locked": "Account temporarily locked. Try again later.",
+    "deactivated": "User deactivated.",
+    "genericError": "Could not sign in. Please try again.",
+    "emailRequired": "Enter a valid email.",
+    "passwordRequired": "Enter your password."
+  },
+  "mfa": {
+    "verifyTitle": "Two-factor verification",
+    "verifySubtitle": "Enter the 6-digit code from your authenticator app.",
+    "code": "Code",
+    "verify": "Verify",
+    "verifying": "Verifying...",
+    "useRecovery": "Use a recovery code",
+    "useTotp": "Use authenticator code",
+    "invalidCode": "Invalid code. Please try again.",
+    "setupTitle": "Set up two-factor authentication",
+    "setupIntro": "Scan the QR code with your authenticator app (Google Authenticator, Authy, 1Password).",
+    "manualKey": "Or enter this key manually:",
+    "confirmCode": "Enter the generated code to confirm",
+    "enable": "Enable MFA",
+    "enabled": "MFA enabled successfully.",
+    "disable": "Disable MFA",
+    "disabled": "MFA disabled.",
+    "recoveryTitle": "Recovery codes",
+    "recoveryIntro": "Store these codes somewhere safe. Each can be used only once.",
+    "recoveryDone": "I saved my codes",
+    "status": "MFA status",
+    "statusEnabled": "Enabled",
+    "statusDisabled": "Disabled"
+  },
+  "search": {
+    "placeholder": "Search tickets, knowledge, root causes...",
+    "open": "Search",
+    "noResults": "No results for \"{q}\".",
+    "minChars": "Type at least 2 characters.",
+    "groups": {
+      "ticket": "Tickets",
+      "knowledge": "Knowledge",
+      "rootcause": "Root causes",
+      "resolution": "Resolutions"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "You're all caught up! No notifications.",
+    "markAllRead": "Mark all as read",
+    "unread": "{count} unread",
+    "live": "Real-time connected",
+    "offline": "Reconnecting..."
+  },
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "language": {
+    "label": "Language"
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "common": {
+    "appName": "Orbit",
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "retry": "Reintentar",
+    "search": "Buscar",
+    "close": "Cerrar",
+    "empty": "Aún no hay nada aquí.",
+    "errorTitle": "Algo salió mal",
+    "errorBody": "No se pudo cargar. Inténtalo de nuevo."
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "tickets": "Tickets",
+    "investigations": "Investigaciones",
+    "knowledge": "Conocimiento",
+    "analytics": "Analítica",
+    "admin": "Administración",
+    "settings": "Ajustes",
+    "security": "Seguridad",
+    "logout": "Salir"
+  },
+  "login": {
+    "title": "Entrar en Orbit",
+    "subtitle": "Accede a la plataforma de inteligencia de resolución",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "submit": "Entrar",
+    "submitting": "Entrando...",
+    "forgot": "Olvidé mi contraseña",
+    "tenantLabel": "Empresa",
+    "invalidCredentials": "Correo o contraseña inválidos.",
+    "locked": "Cuenta bloqueada temporalmente. Inténtalo más tarde.",
+    "deactivated": "Usuario desactivado.",
+    "genericError": "No se pudo entrar. Inténtalo de nuevo.",
+    "emailRequired": "Introduce un correo válido.",
+    "passwordRequired": "Introduce tu contraseña."
+  },
+  "mfa": {
+    "verifyTitle": "Verificación en dos pasos",
+    "verifySubtitle": "Introduce el código de 6 dígitos de tu app de autenticación.",
+    "code": "Código",
+    "verify": "Verificar",
+    "verifying": "Verificando...",
+    "useRecovery": "Usar código de recuperación",
+    "useTotp": "Usar código de la app",
+    "invalidCode": "Código inválido. Inténtalo de nuevo.",
+    "setupTitle": "Configurar autenticación en dos pasos",
+    "setupIntro": "Escanea el código QR con tu app de autenticación (Google Authenticator, Authy, 1Password).",
+    "manualKey": "O introduce esta clave manualmente:",
+    "confirmCode": "Introduce el código generado para confirmar",
+    "enable": "Activar MFA",
+    "enabled": "MFA activado con éxito.",
+    "disable": "Desactivar MFA",
+    "disabled": "MFA desactivado.",
+    "recoveryTitle": "Códigos de recuperación",
+    "recoveryIntro": "Guarda estos códigos en un lugar seguro. Cada uno se usa una sola vez.",
+    "recoveryDone": "Ya guardé mis códigos",
+    "status": "Estado del MFA",
+    "statusEnabled": "Activado",
+    "statusDisabled": "Desactivado"
+  },
+  "search": {
+    "placeholder": "Buscar tickets, conocimiento, causas raíz...",
+    "open": "Buscar",
+    "noResults": "Sin resultados para \"{q}\".",
+    "minChars": "Escribe al menos 2 caracteres.",
+    "groups": {
+      "ticket": "Tickets",
+      "knowledge": "Conocimiento",
+      "rootcause": "Causas raíz",
+      "resolution": "Resoluciones"
+    }
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "¡Estás al día! Sin notificaciones.",
+    "markAllRead": "Marcar todo como leído",
+    "unread": "{count} sin leer",
+    "live": "Tiempo real conectado",
+    "offline": "Reconectando..."
+  },
+  "theme": {
+    "toggle": "Cambiar tema",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "language": {
+    "label": "Idioma"
+  }
+}

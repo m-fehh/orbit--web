@@ -1,0 +1,116 @@
+/* ============================================================================
+   ORBIT · DESIGN TOKENS  —  "Deep Space" futuristic system
+   Fonte única de verdade do tema. TUDO é variável: cores, fontes, tamanhos,
+   espaçamentos, bordas, raios, sombras, glass e glows.
+
+   - :root            → tokens base (modo claro)
+   - .dark            → overrides do modo escuro (experiência principal)
+   - branding/tenant  → --orbit-color-primary* sobrescritos em runtime (whitelabel)
+   ============================================================================ */
+
+:root {
+  /* ---- Tipografia ---- */
+  --orbit-font-sans: 'Segoe UI', system-ui, -apple-system, 'Inter', sans-serif;
+  --orbit-font-mono: 'Cascadia Mono', 'JetBrains Mono', 'Consolas', ui-monospace, monospace;
+
+  --orbit-text-xs: 0.6875rem;
+  --orbit-text-sm: 0.8125rem;
+  --orbit-text-base: 0.875rem;
+  --orbit-text-lg: 1rem;
+  --orbit-text-xl: 1.25rem;
+  --orbit-text-2xl: 1.625rem;
+
+  /* ---- Espaçamentos ---- */
+  --orbit-space-xs: 0.25rem;
+  --orbit-space-sm: 0.5rem;
+  --orbit-space-md: 0.875rem;
+  --orbit-space-lg: 1.25rem;
+  --orbit-space-xl: 1.75rem;
+  --orbit-space-2xl: 2.5rem;
+
+  /* ---- Bordas e raios ---- */
+  --orbit-border-width: 1px;
+  --orbit-border-width-thick: 2px;
+  --orbit-radius-sm: 8px;
+  --orbit-radius: 12px;
+  --orbit-radius-md: 16px;
+  --orbit-radius-lg: 22px;
+  --orbit-radius-full: 9999px;
+
+  /* ---- Cores (modo claro) — neutros frios, painéis nítidos, bom contraste ---- */
+  --orbit-color-bg: #eef1f7;
+  --orbit-color-bg-subtle: #e7ebf3;
+  --orbit-color-panel: #ffffff;
+  --orbit-color-panel-2: #f3f5fa;
+  --orbit-color-border: #dde2ec;
+  --orbit-color-border-strong: #c4ccdb;
+  --orbit-color-text: #161b29;
+  --orbit-color-muted: #51596b;
+  --orbit-color-dim: #828b9e;
+
+  --orbit-color-primary: #6d28d9;
+  --orbit-color-primary-fg: #ffffff;
+  --orbit-color-primary-soft: rgba(109, 40, 217, 0.10);
+  --orbit-color-primary-strong: #5b21b6;
+  --orbit-color-primary-soft-solid: #ede9fe;
+
+  --orbit-color-success: #0f9d6b;
+  --orbit-color-warning: #c2660a;
+  --orbit-color-danger: #d92d20;
+  --orbit-color-info: #2563eb;
+
+  /* ---- Glass / superfícies ---- */
+  --orbit-glass-bg: rgba(255, 255, 255, 0.78);
+  --orbit-glass-border: rgba(214, 221, 234, 0.9);
+  --orbit-glass-blur: 14px;
+
+  /* ---- Gradientes & glow ---- */
+  --orbit-gradient-primary: linear-gradient(135deg, var(--orbit-color-primary), #8b5cf6);
+  --orbit-gradient-text: linear-gradient(120deg, var(--orbit-color-text), var(--orbit-color-primary));
+  --orbit-aurora: radial-gradient(70% 55% at 12% -5%, rgba(109, 40, 217, 0.07), transparent 72%),
+                  radial-gradient(55% 45% at 100% 0%, rgba(37, 99, 235, 0.06), transparent 72%);
+  --orbit-glow: 0 0 0 1px var(--orbit-color-primary-soft), 0 8px 24px -10px rgba(109, 40, 217, 0.35);
+
+  /* ---- Sombras (suaves, frias) ---- */
+  --orbit-shadow-sm: 0 1px 2px rgba(20, 27, 45, 0.05);
+  --orbit-shadow: 0 6px 24px -12px rgba(20, 27, 45, 0.16);
+  --orbit-shadow-lg: 0 24px 56px -24px rgba(20, 27, 45, 0.24);
+}
+
+.dark {
+  --orbit-color-bg: #060912;
+  --orbit-color-bg-subtle: #0b1020;
+  --orbit-color-panel: #0e1424;
+  --orbit-color-panel-2: #151d31;
+  --orbit-color-border: #1d2740;
+  --orbit-color-border-strong: #2c3a5c;
+  --orbit-color-text: #e7ecf7;
+  --orbit-color-muted: #97a3bd;
+  --orbit-color-dim: #5e6b86;
+
+  --orbit-color-primary: #8b5cf6;
+  --orbit-color-primary-fg: #ffffff;
+  --orbit-color-primary-soft: rgba(139, 92, 246, 0.18);
+  --orbit-color-primary-strong: #a78bfa;
+  --orbit-color-primary-soft-solid: #312554;
+
+  --orbit-color-success: #2dd4a7;
+  --orbit-color-warning: #fbbf24;
+  --orbit-color-danger: #f87171;
+  --orbit-color-info: #60a5fa;
+
+  --orbit-glass-bg: rgba(17, 24, 42, 0.55);
+  --orbit-glass-border: rgba(120, 140, 190, 0.18);
+  --orbit-glass-blur: 16px;
+
+  --orbit-gradient-primary: linear-gradient(135deg, var(--orbit-color-primary), #6366f1);
+  --orbit-gradient-text: linear-gradient(120deg, #ffffff, var(--orbit-color-primary-strong));
+  --orbit-aurora: radial-gradient(55% 45% at 12% -5%, rgba(139, 92, 246, 0.22), transparent 70%),
+                  radial-gradient(50% 40% at 105% 0%, rgba(56, 189, 248, 0.14), transparent 70%),
+                  radial-gradient(40% 40% at 85% 100%, rgba(99, 102, 241, 0.12), transparent 70%);
+  --orbit-glow: 0 0 0 1px var(--orbit-color-primary-soft), 0 0 30px -4px var(--orbit-color-primary);
+
+  --orbit-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --orbit-shadow: 0 12px 36px -12px rgba(0, 0, 0, 0.7);
+  --orbit-shadow-lg: 0 28px 70px -24px rgba(0, 0, 0, 0.85);
+}
