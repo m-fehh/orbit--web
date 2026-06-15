@@ -15,10 +15,12 @@ import type {
   TicketCreatedResponse,
   TicketCommentResponse,
   TicketAttachmentResponse,
+  AuditLogResponse,
   SlaSnapshotResponse,
   WorklogResponse,
   CreateTicketRequest,
   UpdateTicketRequest,
+  UpdateTicketTrackingRequest,
   PriorityValue,
   TicketStatusValue,
   AccessRuleResponse,
@@ -77,6 +79,8 @@ export const ticketsApi = {
   get: (id: number) => api.get<TicketDetailResponse>(`/tickets/${id}`),
   create: (body: CreateTicketRequest) => api.post<TicketCreatedResponse>('/tickets', body),
   update: (id: number, body: UpdateTicketRequest) => api.put<TicketResponse>(`/tickets/${id}`, body),
+  updateTracking: (id: number, body: UpdateTicketTrackingRequest) =>
+    api.patch<TicketResponse>(`/tickets/${id}/tracking`, body),
   assign: (id: number, userId: number, teamId?: number | null) =>
     api.patch<TicketResponse>(`/tickets/${id}/assign`, { userId, teamId: teamId ?? null }),
   changeStatus: (id: number, status: TicketStatusValue) =>
@@ -217,9 +221,26 @@ export const symptomsApi = {
   list: () => api.get<unknown>('/symptoms'),
 };
 
-/** Auditoria. */
+/** Auditoria. Captura quem / o quê / quando / contexto técnico de toda mudança. */
+export interface AuditLogQuery {
+  entityName?: string;
+  entityId?: string | number;
+  userId?: number;
+  action?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 export const auditApi = {
-  list: (params?: Record<string, string | number | boolean>) => api.get<unknown>('/auditlogs', { params }),
+  list: (params?: AuditLogQuery) =>
+    api.get<PagedResponse<AuditLogResponse>>('/auditlogs', { params: params as Record<string, string | number | boolean> | undefined }),
+  /** Histórico de mudanças de uma entidade específica (atalho para a timeline). */
+  forEntity: (entityName: string, entityId: number | string, pageSize = 100) =>
+    api.get<PagedResponse<AuditLogResponse>>('/auditlogs', {
+      params: { entityName, entityId, page: 1, pageSize },
+    }),
 };
 
 /** Webhooks */

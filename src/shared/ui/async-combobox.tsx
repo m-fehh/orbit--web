@@ -49,8 +49,7 @@ export function AsyncCombobox({
   }, [options, term]);
 
   return (
-    <div className="flex items-stretch gap-sm">
-    <div className="relative flex-1">
+    <div className="relative">
       <button
         type="button"
         onClick={() => {
@@ -86,14 +85,29 @@ export function AsyncCombobox({
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
           <div className="absolute left-0 right-0 z-20 mt-1 overflow-hidden rounded-md border border-border bg-panel shadow-lg">
-            <div className="border-b border-border p-1.5">
+            {/* Campo de busca com o botão "+" embutido à direita (criar nova entidade). */}
+            <div className="flex items-center gap-1 border-b border-border p-1.5">
               <input
                 ref={inputRef}
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
                 placeholder="Buscar…"
-                className="h-8 w-full rounded bg-bg-subtle px-md text-sm outline-none placeholder:text-dim"
+                className="h-8 flex-1 rounded bg-bg-subtle px-md text-sm outline-none placeholder:text-dim"
               />
+              {onCreate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    onCreate();
+                  }}
+                  title={createLabel}
+                  aria-label={createLabel}
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded text-muted transition-colors hover:bg-primary-soft hover:text-primary"
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                </button>
+              )}
             </div>
             <ul role="listbox" className="max-h-56 overflow-y-auto py-1">
               {filtered.length === 0 ? (
@@ -128,18 +142,6 @@ export function AsyncCombobox({
             </ul>
           </div>
         </>
-      )}
-    </div>
-      {onCreate && (
-        <button
-          type="button"
-          onClick={onCreate}
-          title={createLabel}
-          aria-label={createLabel}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-border bg-bg-subtle text-muted transition-colors hover:border-primary hover:text-primary"
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-        </button>
       )}
     </div>
   );

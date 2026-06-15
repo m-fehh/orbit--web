@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Pin, PinOff, Star, X } from 'lucide-react';
+import { ChevronDown, Pin, PinOff, Star, X } from 'lucide-react';
 import { useTabStore, currentLocation } from '@/features/workspace/tab-store';
 import { Icon } from './icons';
 import { cn } from '@/shared/lib/utils';
@@ -14,7 +14,39 @@ export function TabBar() {
     useTabStore();
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [favOpen, setFavOpen] = useState(false);
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const dragFrom = useRef<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Detecta quais abas estão fora da área visível para popular o overflow menu.
+  // Re-roda quando o tamanho da janela ou a lista de abas muda.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const recompute = () => {
+      const containerRect = el.getBoundingClientRect();
+      const hidden = new Set<string>();
+      tabs.forEach((tb) => {
+        const tabEl = tabRefs.current[tb.id];
+        if (!tabEl) return;
+        const r = tabEl.getBoundingClientRect();
+        if (r.right > containerRect.right - 2 || r.left < containerRect.left - 2) hidden.add(tb.id);
+      });
+      setHiddenIds(hidden);
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [tabs]);
+
+  // Mantém a aba ativa visível: scroll automático ao trocar de aba.
+  useEffect(() => {
+    const tabEl = activeId ? tabRefs.current[activeId] : null;
+    tabEl?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }, [activeId]);
 
   if (tabs.length === 0) return null;
 
@@ -59,13 +91,14 @@ export function TabBar() {
       </div>
 
       {/* Abas */}
-      <div className="flex flex-1 items-stretch gap-1 overflow-x-auto py-1.5">
+      <div ref={scrollRef} className="flex flex-1 items-stretch gap-1 overflow-x-auto py-1.5 scrollbar-thin">
         {tabs.map((tab, i) => {
           const loc = currentLocation(tab);
           const active = tab.id === activeId;
           return (
             <div
               key={tab.id}
+              ref={(el) => { tabRefs.current[tab.id] = el; }}
               draggable
               onDragStart={() => (dragFrom.current = i)}
               onDragOver={(e) => e.preventDefault()}
@@ -127,6 +160,44 @@ export function TabBar() {
           );
         })}
       </div>
+
+      {/* Overflow menu: abas que não cabem na barra */}
+      {hiddenIds.size > 0 && (
+        <div className="relative flex items-center">
+          <button
+            type="button"
+            onClick={() => setOverflowOpen((v) => !v)}
+            className="inline-flex h-8 items-center gap-1 rounded border border-border bg-panel px-2 text-xs text-muted hover:bg-panel-2 hover:text-text"
+            title={`${hiddenIds.size} aba(s) ocultas`}
+          >
+            <ChevronDown className="h-3.5 w-3.5" />
+            {hiddenIds.size}
+          </button>
+          {overflowOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setOverflowOpen(false)} aria-hidden />
+              <div className="absolute right-0 top-9 z-40 max-h-80 w-64 overflow-y-auto rounded border border-border bg-panel py-1 shadow-lg">
+                {tabs
+                  .filter((tb) => hiddenIds.has(tb.id))
+                  .map((tb) => {
+                    const loc = currentLocation(tb);
+                    return (
+                      <button
+                        key={tb.id}
+                        type="button"
+                        onClick={() => { setActive(tb.id); setOverflowOpen(false); }}
+                        className="flex w-full items-center gap-sm px-md py-1.5 text-left text-sm hover:bg-panel-2"
+                      >
+                        <Icon name={loc.icon} className="h-4 w-4 text-primary" />
+                        <span className="truncate">{loc.title}</span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Menu de contexto */}
       {menu && (

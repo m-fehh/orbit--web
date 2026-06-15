@@ -46,7 +46,9 @@ const nextId = () => `win_${++seq}`;
 
 export const useWindowStore = create<WindowState>((set, get) => ({
   windows: [],
-  topZ: 10,
+  // Drawer fica acima do header sticky (z-30), do botão de colapsar da sidebar
+  // (z-20) e dos popovers in-page (z ~30/40). Cada nova janela ganha z >= 100.
+  topZ: 100,
 
   open: (opts) => {
     const id = opts.id ?? nextId();

@@ -75,6 +75,9 @@ export interface TicketResponse {
   investigationsCount: number;
   createdAt: string | null;
   updatedAt: string | null;
+  estimateMinutes: number | null;
+  remainingMinutes: number | null;
+  completedMinutes: number;
 }
 
 export interface TicketCommentResponse {
@@ -95,6 +98,12 @@ export interface WorklogResponse {
   endedAt: string | null;
   durationMinutes: number;
   createdAt: string | null;
+}
+
+/** Tracking de tempo do ticket (estimativa/restante/completo) — estilo Azure Boards. */
+export interface UpdateTicketTrackingRequest {
+  estimateMinutes?: number | null;
+  remainingMinutes?: number | null;
 }
 
 /** Transições de status permitidas (espelha TicketStateMachine do backend, RN-003). */
@@ -135,6 +144,9 @@ export interface TicketDetailResponse {
   investigations: InvestigationResponse[];
   createdAt: string | null;
   updatedAt: string | null;
+  estimateMinutes: number | null;
+  remainingMinutes: number | null;
+  completedMinutes: number;
 }
 
 export interface IntakeRecommendation {
@@ -195,6 +207,31 @@ export interface TicketAttachmentResponse {
   fileSize: number;
   uploadedById: number;
   createdAt: string | null;
+}
+
+/* ---- Auditoria (espelha AuditLogResponse do backend) ---- */
+export type AuditAction = 'Insert' | 'Update' | 'Delete' | 'SoftDelete' | 'Restore';
+
+export interface AuditLogFieldResponse {
+  fieldName: string;
+  oldValue: string | null;
+  newValue: string | null;
+  fieldType: string;
+}
+
+export interface AuditLogResponse {
+  id: number;
+  entityName: string;
+  entityId: number;
+  action: AuditAction;
+  occurredAt: string;
+  userId: number | null;
+  userName: string | null;
+  ipAddress: string | null;
+  correlationId: string | null;
+  origin: string | null;
+  descriptionKey: string | null;
+  fields: AuditLogFieldResponse[];
 }
 
 /* ---- Requests de ticket ---- */

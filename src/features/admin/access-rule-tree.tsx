@@ -6,29 +6,111 @@ import { useState } from 'react';
 import type { AccessRuleResponse } from '@/shared/api/types';
 import { cn } from '@/shared/lib/utils';
 
-interface TreeNode extends AccessRuleResponse {
+interface TreeNode extends Omit<AccessRuleResponse, 'id'> {
+  id: number;          // > 0 = regra real; < 0 = nó sintético de módulo
+  isModule?: boolean;
   children: TreeNode[];
 }
 
+/** Rótulos amigáveis para os módulos derivados da `keyName` (ex.: "ticket.*"). */
+const MODULE_LABEL: Record<string, string> = {
+  ticket: 'Tickets',
+  worklog: 'Worklogs',
+  investigation: 'Investigações',
+  rootcause: 'Causas raiz',
+  resolution: 'Resoluções',
+  learning: 'Aprendizados',
+  knowledge: 'Base de conhecimento',
+  pattern: 'Padrões de resolução',
+  workitem: 'Work items',
+  sla: 'SLA',
+  auditlog: 'Auditoria',
+  analytics: 'Analytics',
+  intelligence: 'Inteligência',
+  notification: 'Notificações',
+  search: 'Busca',
+  symptom: 'Sintomas',
+  role: 'Papéis',
+  admin: 'Administração',
+};
+const ADMIN_SUB_LABEL: Record<string, string> = {
+  users: 'Usuários',
+  teams: 'Equipes',
+  tenants: 'Tenants',
+};
+
+/**
+ * Resolve o caminho hierárquico de uma regra a partir da `keyName`.
+ * Ex.: "admin.users.create" -> ["admin", "users"], "ticket.create" -> ["ticket"].
+ * Estratégia: prefixo é tudo menos o último segmento; "admin.X.Y" ganha submódulo "X".
+ */
+function modulePath(key: string): string[] {
+  const parts = key.split('.');
+  if (parts.length <= 1) return ['outros'];
+  if (parts[0] === 'admin' && parts.length >= 3) return ['admin', parts[1]];
+  return [parts[0]];
+}
+
+function moduleLabel(path: string[]): string {
+  if (path[0] === 'admin' && path[1]) {
+    return `${MODULE_LABEL.admin} · ${ADMIN_SUB_LABEL[path[1]] ?? path[1]}`;
+  }
+  return MODULE_LABEL[path[0]] ?? path[0];
+}
+
+let synth = 0;
+const nextSynthId = () => --synth; // ids negativos para nós sintéticos
+
+/**
+ * Constrói a árvore agrupando primeiro por MÓDULO (derivado da `keyName`),
+ * e mantendo a hierarquia via `ParentId` dentro de cada módulo quando aplicável.
+ */
 function buildTree(rules: AccessRuleResponse[]): TreeNode[] {
+  // Index original (ParentId hierarchy)
   const byId = new Map<number, TreeNode>();
   rules.forEach((r) => byId.set(r.id, { ...r, children: [] }));
-  const roots: TreeNode[] = [];
+  const realRoots: TreeNode[] = [];
   byId.forEach((node) => {
     const parent = node.parentId != null ? byId.get(node.parentId) : undefined;
     if (parent) parent.children.push(node);
-    else roots.push(node);
+    else realRoots.push(node);
   });
+
+  // Agrupa as raízes reais pelos módulos derivados da keyName.
+  const modules = new Map<string, TreeNode>();
+  for (const root of realRoots) {
+    const path = modulePath(root.keyName);
+    const key = path.join('/');
+    let mod = modules.get(key);
+    if (!mod) {
+      mod = {
+        id: nextSynthId(),
+        isModule: true,
+        description: moduleLabel(path),
+        keyName: key,
+        parentId: null,
+        forAdministratorOnly: false,
+        createdAt: null,
+        children: [],
+      };
+      modules.set(key, mod);
+    }
+    mod.children.push(root);
+  }
+
   const sortRec = (ns: TreeNode[]) => {
     ns.sort((a, b) => a.description.localeCompare(b.description));
     ns.forEach((n) => sortRec(n.children));
   };
-  sortRec(roots);
-  return roots;
+  const result = [...modules.values()];
+  sortRec(result);
+  return result;
 }
 
 function descendantIds(node: TreeNode): number[] {
-  return [node.id, ...node.children.flatMap(descendantIds)];
+  // Não incluir o próprio id quando for nó sintético de módulo.
+  const own = node.isModule ? [] : [node.id];
+  return [...own, ...node.children.flatMap(descendantIds)];
 }
 
 /**
@@ -137,8 +219,17 @@ function TreeRow({
             onChange={() => onToggle(node)}
             className="h-4 w-4 accent-[var(--orbit-color-primary)]"
           />
-          <span className="text-sm text-text">{node.description}</span>
-          <span className="font-mono text-[11px] text-dim">{node.keyName}</span>
+          <span className={cn('text-sm', node.isModule ? 'font-semibold text-text' : 'text-text')}>
+            {node.description}
+          </span>
+          {!node.isModule && (
+            <span className="font-mono text-[11px] text-dim">{node.keyName}</span>
+          )}
+          {node.isModule && (
+            <span className="ml-auto rounded-full bg-panel-2 px-1.5 text-[10px] font-medium text-dim">
+              {ids.length}
+            </span>
+          )}
         </label>
       </div>
       {hasChildren && open && (

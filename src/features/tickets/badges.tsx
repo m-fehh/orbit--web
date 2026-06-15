@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowDown, Minus, ArrowUp, Flame, type LucideIcon } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { PriorityName, TicketStatusName } from '@/shared/api/types';
 import { cn } from '@/shared/lib/utils';
 
@@ -16,18 +17,8 @@ const STATUS_STYLE: Record<TicketStatusName, string> = {
   Cancelled: 'bg-panel-2 text-dim',
 };
 
-const STATUS_LABEL: Record<TicketStatusName, string> = {
-  New: 'Novo',
-  Assigned: 'Atribuído',
-  InProgress: 'Em andamento',
-  PendingCustomer: 'Aguardando cliente',
-  PendingInternal: 'Aguardando interno',
-  Resolved: 'Resolvido',
-  Closed: 'Fechado',
-  Cancelled: 'Cancelado',
-};
-
 export function StatusBadge({ status, className }: { status: TicketStatusName; className?: string }) {
+  const t = useTranslations('ticketStatus');
   return (
     <span
       className={cn(
@@ -36,28 +27,27 @@ export function StatusBadge({ status, className }: { status: TicketStatusName; c
         className,
       )}
     >
-      {STATUS_LABEL[status] ?? status}
+      {t(status)}
     </span>
   );
 }
 
 /* ---- Prioridade: ícone + texto colorido (visual distinto do status) ---- */
-const PRIORITY: Record<PriorityName, { label: string; icon: LucideIcon; color: string }> = {
-  Low: { label: 'Baixa', icon: ArrowDown, color: 'text-muted' },
-  Medium: { label: 'Média', icon: Minus, color: 'text-info' },
-  High: { label: 'Alta', icon: ArrowUp, color: 'text-orange-400' },
-  Critical: { label: 'Crítica', icon: Flame, color: 'text-danger' },
+const PRIORITY_ICON: Record<PriorityName, { icon: LucideIcon; color: string }> = {
+  Low: { icon: ArrowDown, color: 'text-muted' },
+  Medium: { icon: Minus, color: 'text-info' },
+  High: { icon: ArrowUp, color: 'text-orange-400' },
+  Critical: { icon: Flame, color: 'text-danger' },
 };
 
 export function PriorityBadge({ priority, className }: { priority: PriorityName; className?: string }) {
-  const p = PRIORITY[priority] ?? PRIORITY.Medium;
+  const t = useTranslations('priority');
+  const p = PRIORITY_ICON[priority] ?? PRIORITY_ICON.Medium;
   const Icon = p.icon;
   return (
     <span className={cn('inline-flex items-center gap-1 text-xs font-medium', p.color, className)}>
       <Icon className="h-3.5 w-3.5" aria-hidden />
-      {p.label}
+      {t(priority)}
     </span>
   );
 }
-
-export { STATUS_LABEL };

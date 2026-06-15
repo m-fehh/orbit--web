@@ -5,35 +5,32 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
-  MessageSquare, Clock, Info, Send, Lock, ShieldAlert, Timer, Sparkles, User, Users,
-  Lightbulb, GitBranch, ChevronDown, UserPlus, Plus, Check,
+  MessageSquare, Clock, Info, Send, Lock, Timer, Sparkles, User, Users,
+  Lightbulb, GitBranch, ChevronDown, UserPlus, Plus, Check, History, Paperclip,
 } from 'lucide-react';
 import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi } from '@/shared/api/endpoints';
-import { TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, type TicketStatusValue, type TicketStatusName, type SlaSnapshotResponse } from '@/shared/api/types';
+import { TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, type TicketStatusValue, type TicketStatusName } from '@/shared/api/types';
 import type { Locale } from '@/shared/i18n/config';
 import { useBrandingStore } from '@/features/tenant/branding-store';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { LoadingState, ErrorState } from '@/shared/ui/states';
 import { AsyncCombobox, type ComboOption } from '@/shared/ui/async-combobox';
 import { Select } from '@/shared/ui/select';
-import { PriorityBadge, StatusBadge, STATUS_LABEL } from './badges';
+import { PriorityBadge, StatusBadge } from './badges';
 import { Can } from '@/features/auth/can';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { cn } from '@/shared/lib/utils';
+import { SlaPanel } from './sla-panel';
+import { TicketTimeline } from './timeline';
+import { AttachmentsTab } from './attachments';
 
-type SubTab = 'overview' | 'conversation' | 'worklogs' | 'intelligence';
-
-const SLA_STYLE: Record<SlaSnapshotResponse['status'], string> = {
-  OnTrack: 'text-success',
-  AtRisk: 'text-warning',
-  Breached: 'text-danger',
-  None: 'text-dim',
-};
+type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'attachments' | 'intelligence';
 
 export function TicketDetail({ id }: { id: number }) {
   const locale = useLocale() as Locale;
   const tSla = useTranslations('sla');
+  const tTicket = useTranslations('ticket');
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const qc = useQueryClient();
   const [sub, setSub] = useState<SubTab>('overview');
@@ -50,38 +47,52 @@ export function TicketDetail({ id }: { id: number }) {
   const userName = (uid: number | null) => (uid ? users.data?.items.find((u) => u.id === uid)?.name ?? `#${uid}` : '—');
   const teamName = (tid: number | null) => (tid ? teams.data?.find((t) => t.id === tid)?.name ?? `#${tid}` : '—');
 
+  const userEmail = (uid: number | null) => (uid ? users.data?.items.find((u) => u.id === uid)?.email ?? null : null);
+
   const changeStatus = useMutation({
     mutationFn: (status: TicketStatusValue) => ticketsApi.changeStatus(id, status),
     onSuccess: () => {
-      toast.success('Status atualizado');
+      toast.success(tTicket('statusUpdated'));
       qc.invalidateQueries({ queryKey: ['tickets'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Não foi possível mudar o status')),
+    onError: (err) => toast.error(apiErrorMessage(err, tTicket('statusError'))),
   });
 
-  if (isLoading) return <LoadingState label="Carregando ticket…" />;
+  if (isLoading) return <LoadingState label={tTicket('loading')} />;
   if (isError || !ticket)
-    return <ErrorState title="Erro ao carregar o ticket" onRetry={() => refetch()} retryLabel="Tentar de novo" />;
+    return <ErrorState title={tTicket('loadError')} onRetry={() => refetch()} retryLabel={tTicket('retry')} />;
 
   const tabs: { key: SubTab; label: string; icon: typeof Info; count?: number }[] = [
-    { key: 'overview', label: 'Visão geral', icon: Info },
-    { key: 'conversation', label: 'Conversa', icon: MessageSquare, count: ticket.comments.length },
-    { key: 'worklogs', label: 'Tempo', icon: Clock, count: ticket.worklogs.length },
-    { key: 'intelligence', label: 'Inteligência', icon: Sparkles },
+    { key: 'overview', label: tTicket('tabOverview'), icon: Info },
+    { key: 'timeline', label: tTicket('tabTimeline'), icon: History },
+    { key: 'conversation', label: tTicket('tabConversation'), icon: MessageSquare, count: ticket.comments.length },
+    { key: 'worklogs', label: tTicket('tabWorklogs'), icon: Clock, count: ticket.worklogs.length },
+    { key: 'attachments', label: tTicket('tabAttachments'), icon: Paperclip },
+    { key: 'intelligence', label: tTicket('tabIntelligence'), icon: Sparkles },
   ];
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="border-b border-border px-lg pt-lg">
-        {/* Linha 1: número + ações */}
-        <div className="flex items-center gap-sm">
-          <span className="font-mono text-xs font-semibold text-primary">{ticket.number}</span>
-          <div className="ml-auto flex items-center gap-sm">
+      {/* Header — padrão corporativo (Jira / Azure DevOps style):
+            Linha 1: número + título grande   |  ações
+            Linha 2: badges + meta (aberto/fechado) */}
+      <div className="border-b border-border bg-bg-subtle/30 px-lg pt-lg pb-md">
+        <div className="flex flex-wrap items-start gap-sm">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-sm">
+              <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-primary">
+                {ticket.number}
+              </span>
+            </div>
+            <h1 className="mt-1 truncate text-2xl font-bold leading-tight">{ticket.title}</h1>
+          </div>
+          <div className="flex shrink-0 items-center gap-sm">
             <Can permission="ticket.assign">
               <AssignControl
                 ticketId={id}
                 currentUserId={ticket.assignedUserId}
+                currentUserName={ticket.assignedUserId ? userName(ticket.assignedUserId) : null}
+                currentUserEmail={userEmail(ticket.assignedUserId)}
                 userOptions={userOptions}
                 resolveUserTeam={(uid) => users.data?.items.find((u) => u.id === uid)?.teamId ?? null}
               />
@@ -92,38 +103,45 @@ export function TicketDetail({ id }: { id: number }) {
           </div>
         </div>
 
-        {/* Título */}
-        <h1 className="mt-1 text-2xl font-bold leading-tight">{ticket.title}</h1>
-
-        {/* Meta: status, prioridade, responsável */}
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+        {/* Linha de meta */}
+        <div className="mt-md flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
           <StatusBadge status={ticket.status} />
           <PriorityBadge priority={ticket.priority} />
           <span className="text-dim">·</span>
-          <span className="inline-flex items-center gap-1.5 text-muted">
-            <UserPlus className="h-3.5 w-3.5" aria-hidden />
-            {ticket.assignedUserId ? userName(ticket.assignedUserId) : 'Não atribuído'}
+          <span className="inline-flex items-center gap-1">
+            <Clock className="h-3 w-3" aria-hidden />
+            {tTicket('openedAt')} {formatDateTime(ticket.openedAt, { locale, timeZone })}
           </span>
+          {ticket.closedAt && (
+            <>
+              <span className="text-dim">·</span>
+              <span className="inline-flex items-center gap-1 text-success">
+                <Check className="h-3 w-3" aria-hidden />
+                {tTicket('closedAt')} {formatDateTime(ticket.closedAt, { locale, timeZone })}
+              </span>
+            </>
+          )}
         </div>
+      </div>
 
-        <div className="mt-md flex gap-1 overflow-x-auto">
-          {tabs.map((tb) => (
-            <button
-              key={tb.key}
-              type="button"
-              onClick={() => setSub(tb.key)}
-              className={cn(
-                'inline-flex shrink-0 items-center gap-1.5 border-b-2 px-md py-2 text-sm transition-colors',
-                sub === tb.key ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-text',
-              )}
-            >
-              <tb.icon className="h-4 w-4" /> {tb.label}
-              {tb.count !== undefined && tb.count > 0 && (
-                <span className="rounded-full bg-panel-2 px-1.5 text-xs text-dim">{tb.count}</span>
-              )}
-            </button>
-          ))}
-        </div>
+      {/* Tab bar — separada do header para hierarquia visual mais clara */}
+      <div className="flex gap-1 overflow-x-auto border-b border-border px-lg">
+        {tabs.map((tb) => (
+          <button
+            key={tb.key}
+            type="button"
+            onClick={() => setSub(tb.key)}
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1.5 border-b-2 px-md py-2 text-sm transition-colors',
+              sub === tb.key ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-text',
+            )}
+          >
+            <tb.icon className="h-4 w-4" /> {tb.label}
+            {tb.count !== undefined && tb.count > 0 && (
+              <span className="rounded-full bg-panel-2 px-1.5 text-xs text-dim">{tb.count}</span>
+            )}
+          </button>
+        ))}
       </div>
 
       {/* Conteúdo */}
@@ -131,44 +149,45 @@ export function TicketDetail({ id }: { id: number }) {
         {sub === 'overview' && (
           <div className="grid items-start gap-lg lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <p className="mb-sm h-5 text-xs font-semibold uppercase tracking-wide text-dim">Descrição</p>
+              <p className="mb-sm h-5 text-xs font-semibold uppercase tracking-wide text-dim">{tTicket('description')}</p>
               <div className="card-surface min-h-[160px] whitespace-pre-wrap p-lg text-sm leading-relaxed text-text">
                 {ticket.description || '—'}
               </div>
             </div>
             <aside>
-              <p className="mb-sm h-5 text-xs font-semibold uppercase tracking-wide text-dim">Detalhes</p>
+              <p className="mb-sm h-5 text-xs font-semibold uppercase tracking-wide text-dim">{tTicket('details')}</p>
               <div className="card-surface flex flex-col gap-3 p-lg text-sm">
-                <Detail icon={User} label="Solicitante" value={userName(ticket.customerId)} />
-                <Detail icon={UserPlus} label="Responsável" value={userName(ticket.assignedUserId)} />
-                <Detail icon={Users} label="Equipe" value={teamName(ticket.assignedTeamId)} />
-                <Detail icon={Clock} label="Aberto em" value={formatDateTime(ticket.openedAt, { locale, timeZone })} />
+                <Detail icon={User} label={tTicket('requester')} value={userName(ticket.customerId)} />
+                <Detail icon={UserPlus} label={tTicket('assignee')} value={userName(ticket.assignedUserId)} />
+                <Detail icon={Users} label={tTicket('team')} value={teamName(ticket.assignedTeamId)} />
+                <Detail icon={Clock} label={tTicket('openedAt')} value={formatDateTime(ticket.openedAt, { locale, timeZone })} />
                 <div className="border-t border-border pt-3">
-                  <p className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wide text-dim">
+                  <p className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wide text-dim">
                     <Timer className="h-3.5 w-3.5" /> {tSla('label')}
                   </p>
-                  {sla ? (
-                    <span className={cn('inline-flex flex-wrap items-center gap-1.5 text-sm font-medium', SLA_STYLE[sla.status])}>
-                      {sla.status === 'Breached' ? <ShieldAlert className="h-4 w-4" /> : <Timer className="h-4 w-4" />}
-                      {tSla(sla.status)}
-                      {sla.dueAt && (
-                        <span className="text-dim">· {tSla('due')} {formatDateTime(sla.dueAt, { locale, timeZone })}</span>
-                      )}
-                    </span>
-                  ) : (
-                    <span className="text-dim">—</span>
-                  )}
+                  <SlaPanel sla={sla} />
                 </div>
               </div>
             </aside>
           </div>
         )}
 
+        {sub === 'timeline' && <TicketTimeline ticket={ticket} userName={userName} />}
+
         {sub === 'conversation' && <Conversation ticketId={id} comments={ticket.comments} userName={userName} locale={locale} timeZone={timeZone} />}
 
         {sub === 'worklogs' && (
-          <WorklogsTab ticketId={id} worklogs={ticket.worklogs} userName={userName} />
+          <WorklogsTab
+            ticketId={id}
+            worklogs={ticket.worklogs}
+            userName={userName}
+            estimateMinutesServer={ticket.estimateMinutes}
+            remainingMinutesServer={ticket.remainingMinutes}
+            completedMinutesServer={ticket.completedMinutes}
+          />
         )}
+
+        {sub === 'attachments' && <AttachmentsTab ticketId={id} userName={userName} />}
 
         {sub === 'intelligence' && <IntelligencePanel ticketId={id} />}
       </div>
@@ -229,14 +248,19 @@ function StatusPicker({
 function AssignControl({
   ticketId,
   currentUserId,
+  currentUserName,
+  currentUserEmail,
   userOptions,
   resolveUserTeam,
 }: {
   ticketId: number;
   currentUserId: number | null;
+  currentUserName: string | null;
+  currentUserEmail: string | null;
   userOptions: ComboOption[];
   resolveUserTeam: (userId: number) => number | null;
 }) {
+  const t = useTranslations('ticket');
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<number | null>(currentUserId);
@@ -245,31 +269,52 @@ function AssignControl({
     // Equipe atribuída automaticamente a partir do usuário escolhido.
     mutationFn: () => ticketsApi.assign(ticketId, userId!, resolveUserTeam(userId!)),
     onSuccess: () => {
-      toast.success('Ticket atribuído');
+      toast.success(t('assignedOk'));
       qc.invalidateQueries({ queryKey: ['tickets'] });
       setOpen(false);
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Não foi possível atribuir')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('assignError'))),
   });
+
+  const initials = (currentUserName ?? '?').split(' ').slice(0, 2).map((p) => p[0]?.toUpperCase()).join('');
 
   return (
     <div className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-panel px-md py-1.5 text-sm text-muted hover:border-border-strong hover:text-text"
+        className={cn(
+          'inline-flex items-center gap-2 rounded-md border bg-panel py-1.5 transition-colors hover:border-border-strong',
+          currentUserId ? 'border-border pl-1 pr-3' : 'border-dashed border-border px-md text-muted',
+        )}
+        title={currentUserId ? t('changeAssignee') : t('assign')}
       >
-        <UserPlus className="h-4 w-4" aria-hidden /> Atribuir
+        {currentUserId ? (
+          <>
+            <span className="grid h-7 w-7 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-fg">
+              {initials || '?'}
+            </span>
+            <span className="flex flex-col items-start text-left leading-tight">
+              <span className="text-sm font-medium text-text">{currentUserName}</span>
+              {currentUserEmail && <span className="text-[10px] text-dim">{currentUserEmail}</span>}
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 text-dim" aria-hidden />
+          </>
+        ) : (
+          <>
+            <UserPlus className="h-4 w-4" aria-hidden /> {t('assign')}
+          </>
+        )}
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
-          <div className="absolute right-0 z-40 mt-1 w-72 rounded-md border border-border bg-panel p-md shadow-lg">
-            <p className="mb-1.5 text-xs font-medium text-muted">Responsável</p>
-            <AsyncCombobox options={userOptions} value={userId} onChange={setUserId} placeholder="Selecionar usuário" allowClear={false} />
-            <p className="mt-1.5 text-xs text-dim">A equipe é definida automaticamente pela equipe do responsável.</p>
+          <div className="absolute right-0 z-40 mt-1 w-80 rounded-md border border-border bg-panel p-md shadow-lg">
+            <p className="mb-1.5 text-xs font-medium text-muted">{t('assignee')}</p>
+            <AsyncCombobox options={userOptions} value={userId} onChange={setUserId} placeholder={t('selectUser')} allowClear={false} />
+            <p className="mt-1.5 text-xs text-dim">{t('teamAutoHint')}</p>
             <Button className="mt-md w-full justify-center" disabled={!userId || assign.isPending} loading={assign.isPending} onClick={() => assign.mutate()}>
-              Atribuir
+              {t('assign')}
             </Button>
           </div>
         </>
@@ -291,15 +336,18 @@ function Detail({ icon: Icon, label, value }: { icon: typeof User; label: string
 }
 
 /* ---- Tempo (timetracker) ---- */
-const WORKLOG_TYPES: { value: number; label: string }[] = [
-  { value: 1, label: 'Investigação' },
-  { value: 2, label: 'Reunião' },
-  { value: 3, label: 'Desenvolvimento' },
-  { value: 4, label: 'Validação' },
-  { value: 5, label: 'Atendimento' },
-  { value: 6, label: 'Documentação' },
-  { value: 7, label: 'Outro' },
-];
+function useWorklogTypes() {
+  const t = useTranslations('worklogType');
+  return [
+    { value: 1, label: t('investigation') },
+    { value: 2, label: t('meeting') },
+    { value: 3, label: t('development') },
+    { value: 4, label: t('validation') },
+    { value: 5, label: t('customerSupport') },
+    { value: 6, label: t('documentation') },
+    { value: 7, label: t('other') },
+  ];
+}
 
 function fmtMin(min: number): string {
   const h = Math.floor(min / 60);
@@ -316,19 +364,54 @@ function WorklogsTab({
   ticketId,
   worklogs,
   userName,
+  estimateMinutesServer,
+  remainingMinutesServer,
+  completedMinutesServer,
 }: {
   ticketId: number;
-  worklogs: { id: number; userId: number; type: string; description: string; durationMinutes: number }[];
+  worklogs: { id: number; userId: number; type: string; description: string; durationMinutes: number; startedAt: string | null }[];
   userName: (id: number | null) => string;
+  estimateMinutesServer: number | null;
+  remainingMinutesServer: number | null;
+  completedMinutesServer: number;
 }) {
+  const t = useTranslations('worklog');
+  const types = useWorklogTypes();
   const qc = useQueryClient();
   const [type, setType] = useState(3);
   const [description, setDescription] = useState('');
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
 
-  const totalMin = worklogs.reduce((acc, w) => acc + (w.durationMinutes || 0), 0);
+  // "Completed" vem do server (Sum(worklogs)), com fallback no array recém-carregado.
+  const totalMin = completedMinutesServer || worklogs.reduce((acc, w) => acc + (w.durationMinutes || 0), 0);
   const duration = (Number(hours) || 0) * 60 + (Number(minutes) || 0);
+
+  // Estimate/Remaining vêm do server (PATCH /tickets/{id}/tracking).
+  const estimateMin = Math.max(0, estimateMinutesServer ?? 0);
+  const remainingMin =
+    remainingMinutesServer != null ? Math.max(0, remainingMinutesServer) : Math.max(0, estimateMin - totalMin);
+  const overMin = Math.max(0, totalMin - estimateMin);
+  const progress = estimateMin > 0 ? Math.min(100, (totalMin / estimateMin) * 100) : 0;
+  const isOver = overMin > 0;
+
+  const [estimateInput, setEstimateInput] = useState<string>(estimateMin > 0 ? String(estimateMin / 60) : '');
+  const [remainingInput, setRemainingInput] = useState<string>(
+    remainingMinutesServer != null ? String(remainingMinutesServer / 60) : '',
+  );
+
+  const saveTracking = useMutation({
+    mutationFn: () =>
+      ticketsApi.updateTracking(ticketId, {
+        estimateMinutes: estimateInput.trim() === '' ? null : Math.round(Number(estimateInput) * 60),
+        remainingMinutes: remainingInput.trim() === '' ? null : Math.round(Number(remainingInput) * 60),
+      }),
+    onSuccess: () => {
+      toast.success('Tracking atualizado');
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Não foi possível atualizar')),
+  });
 
   // Resumo por pessoa (estilo Azure Boards: tempo lançado por usuário).
   const perUser = Object.values(
@@ -339,6 +422,7 @@ function WorklogsTab({
       return acc;
     }, {}),
   ).sort((a, b) => b.minutes - a.minutes);
+  const perUserMax = Math.max(1, ...perUser.map((u) => u.minutes));
 
   const log = useMutation({
     mutationFn: async () => {
@@ -347,13 +431,13 @@ function WorklogsTab({
       return created;
     },
     onSuccess: () => {
-      toast.success('Tempo registrado');
+      toast.success(t('loggedOk'));
       setDescription('');
       setHours('');
       setMinutes('');
       qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Não foi possível registrar o tempo')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('logError'))),
   });
 
   const canLog = description.trim().length > 0 && duration > 0;
@@ -369,47 +453,106 @@ function WorklogsTab({
           className="card-surface flex flex-wrap items-end gap-sm p-md"
         >
           <label className="flex w-44 flex-col gap-1 text-xs text-muted">
-            Tipo
-            <Select value={type} onChange={setType} options={WORKLOG_TYPES} />
+            {t('type')}
+            <Select value={type} onChange={setType} options={types} />
           </label>
           <label className="flex flex-1 flex-col gap-1 text-xs text-muted" style={{ minWidth: 180 }}>
-            O que foi feito
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição do trabalho" />
+            {t('what')}
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('descriptionPh')} />
           </label>
           <label className="flex w-20 flex-col gap-1 text-xs text-muted">
-            Horas
+            {t('hours')}
             <Input type="number" min={0} value={hours} onChange={(e) => setHours(e.target.value)} placeholder="0" />
           </label>
           <label className="flex w-20 flex-col gap-1 text-xs text-muted">
-            Minutos
+            {t('minutes')}
             <Input type="number" min={0} max={59} value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="0" />
           </label>
           <Button type="submit" disabled={!canLog} loading={log.isPending}>
-            <Plus className="h-4 w-4" /> Registrar
+            <Plus className="h-4 w-4" /> {t('log')}
           </Button>
         </form>
       </Can>
 
-      {/* Resumo por pessoa */}
+      {/* Painel estilo Azure 7pace: Estimate / Completed / Remaining + barra */}
+      <div className="card-surface p-lg">
+        <div className="grid grid-cols-1 gap-md sm:grid-cols-3">
+          <KpiTile label="Estimate" value={fmtMin(estimateMin)} hint={estimateMin ? '' : 'defina abaixo'} />
+          <KpiTile label="Completed work" value={fmtMin(totalMin)} accent="primary" />
+          <KpiTile
+            label="Remaining"
+            value={isOver ? `+${fmtMin(overMin)}` : fmtMin(remainingMin)}
+            accent={isOver ? 'danger' : remainingMin === 0 && estimateMin > 0 ? 'success' : undefined}
+          />
+        </div>
+
+        <div className="mt-md">
+          <div className="mb-1 flex items-center justify-between text-xs text-muted">
+            <span>Progresso</span>
+            <span>{estimateMin > 0 ? `${Math.round(progress)}%` : '—'}</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-panel-2">
+            <div
+              className={cn('h-full rounded-full transition-all', isOver ? 'bg-danger' : 'bg-primary')}
+              style={{ width: `${estimateMin > 0 ? progress : 0}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="mt-md flex flex-wrap items-end gap-sm">
+          <label className="flex w-32 flex-col gap-1 text-xs text-muted">
+            Estimativa (h)
+            <Input
+              type="number"
+              min={0}
+              step="0.5"
+              value={estimateInput}
+              onChange={(e) => setEstimateInput(e.target.value)}
+              placeholder="0"
+            />
+          </label>
+          <label className="flex w-32 flex-col gap-1 text-xs text-muted">
+            Restante (h)
+            <Input
+              type="number"
+              min={0}
+              step="0.5"
+              value={remainingInput}
+              onChange={(e) => setRemainingInput(e.target.value)}
+              placeholder="auto"
+            />
+          </label>
+          <Button type="button" variant="secondary" onClick={() => saveTracking.mutate()} loading={saveTracking.isPending}>
+            Salvar tracking
+          </Button>
+        </div>
+      </div>
+
+      {/* Distribuição por pessoa (barras) */}
       <div>
         <div className="mb-sm flex items-center justify-between">
-          <p className="text-sm font-semibold">Tempo por pessoa</p>
-          <span className="text-sm text-muted">Total: <strong className="text-text">{fmtMin(totalMin)}</strong></span>
+          <p className="text-sm font-semibold">{t('byPerson')}</p>
+          <span className="text-sm text-muted">{t('total')}: <strong className="text-text">{fmtMin(totalMin)}</strong></span>
         </div>
         {perUser.length === 0 ? (
-          <p className="text-sm text-dim">Nenhum tempo registrado ainda.</p>
+          <p className="text-sm text-dim">{t('emptyPerson')}</p>
         ) : (
-          <div className="grid gap-sm sm:grid-cols-2">
+          <div className="card-surface flex flex-col gap-2.5 p-md">
             {perUser.map((u) => (
-              <div key={u.userId} className="card-surface flex items-center gap-sm p-md">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-fg">
+              <div key={u.userId} className="flex items-center gap-sm">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-fg">
                   {initials(userName(u.userId)) || '?'}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{userName(u.userId)}</p>
-                  <p className="text-xs text-dim">{u.count} lançamento(s)</p>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="truncate font-medium">{userName(u.userId)}</span>
+                    <span className="shrink-0 text-primary">{fmtMin(u.minutes)}</span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-panel-2">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${(u.minutes / perUserMax) * 100}%` }} />
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-dim">{t('entries', { count: u.count })}</p>
                 </div>
-                <span className="shrink-0 text-sm font-semibold text-primary">{fmtMin(u.minutes)}</span>
               </div>
             ))}
           </div>
@@ -419,14 +562,17 @@ function WorklogsTab({
       {/* Lançamentos detalhados */}
       {worklogs.length > 0 && (
         <div>
-          <p className="mb-sm text-sm font-semibold">Lançamentos</p>
+          <p className="mb-sm text-sm font-semibold">{t('entriesTitle')}</p>
           <div className="flex flex-col gap-sm">
             {worklogs.map((w) => (
               <div key={w.id} className="card-surface flex items-center gap-sm p-md">
                 <span className="shrink-0 rounded bg-panel-2 px-1.5 py-0.5 text-xs font-medium text-muted">{w.type}</span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm">{w.description || '—'}</p>
-                  <p className="text-xs text-dim">{userName(w.userId)}</p>
+                  <p className="text-xs text-dim">
+                    {userName(w.userId)}
+                    {w.startedAt && <> · {new Date(w.startedAt).toLocaleString()}</>}
+                  </p>
                 </div>
                 <span className="shrink-0 text-sm font-semibold text-primary">{fmtMin(w.durationMinutes)}</span>
               </div>
@@ -438,32 +584,62 @@ function WorklogsTab({
   );
 }
 
+function KpiTile({
+  label,
+  value,
+  hint,
+  accent,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  accent?: 'primary' | 'success' | 'danger';
+}) {
+  return (
+    <div className="rounded-md border border-border bg-panel-2/40 p-md">
+      <p className="text-[11px] uppercase tracking-wide text-dim">{label}</p>
+      <p
+        className={cn(
+          'mt-1 text-xl font-bold',
+          accent === 'primary' && 'text-primary',
+          accent === 'success' && 'text-success',
+          accent === 'danger' && 'text-danger',
+        )}
+      >
+        {value}
+      </p>
+      {hint && <p className="text-[11px] text-dim">{hint}</p>}
+    </div>
+  );
+}
+
 /* ---- Inteligência ---- */
 function IntelligencePanel({ ticketId }: { ticketId: number }) {
+  const t = useTranslations('intelligence');
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['tickets', 'intelligence', ticketId],
     queryFn: () => intelligenceApi.ticketReport(ticketId),
   });
 
-  if (isLoading) return <LoadingState label="Analisando a demanda…" />;
+  if (isLoading) return <LoadingState label={t('analyzing')} />;
   if (isError || !data)
-    return <ErrorState title="Não foi possível analisar" onRetry={() => refetch()} retryLabel="Tentar de novo" />;
+    return <ErrorState title={t('analysisError')} onRetry={() => refetch()} retryLabel={t('retry')} />;
 
   return (
     <div className="flex flex-col gap-lg">
       <section>
         <p className="mb-sm flex items-center gap-1.5 text-sm font-semibold">
-          <GitBranch className="h-4 w-4 text-primary" /> Causas raiz prováveis
+          <GitBranch className="h-4 w-4 text-primary" /> {t('rootCauses')}
         </p>
         {data.rootCauseCandidates.length === 0 ? (
-          <p className="text-sm text-dim">Sem sinal suficiente no histórico.</p>
+          <p className="text-sm text-dim">{t('noSignal')}</p>
         ) : (
           <ul className="flex flex-col gap-sm">
             {data.rootCauseCandidates.map((c, i) => (
               <li key={i} className="card-surface p-md">
                 <div className="flex items-center gap-sm">
                   <span className="rounded bg-panel-2 px-1.5 py-0.5 text-xs font-medium text-muted">{c.category}</span>
-                  {c.aiEnhanced && <span className="inline-flex items-center gap-1 text-xs text-primary"><Sparkles className="h-3 w-3" /> IA</span>}
+                  {c.aiEnhanced && <span className="inline-flex items-center gap-1 text-xs text-primary"><Sparkles className="h-3 w-3" /> {t('ai')}</span>}
                   <span className="ml-auto rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary">
                     {Math.round(c.confidenceScore * 100)}%
                   </span>
@@ -477,10 +653,10 @@ function IntelligencePanel({ ticketId }: { ticketId: number }) {
 
       <section>
         <p className="mb-sm flex items-center gap-1.5 text-sm font-semibold">
-          <Lightbulb className="h-4 w-4 text-warning" /> Resoluções recomendadas
+          <Lightbulb className="h-4 w-4 text-warning" /> {t('resolutions')}
         </p>
         {data.resolutionSuggestions.length === 0 ? (
-          <p className="text-sm text-dim">Nenhuma resolução similar encontrada.</p>
+          <p className="text-sm text-dim">{t('noResolutions')}</p>
         ) : (
           <ul className="flex flex-col gap-sm">
             {data.resolutionSuggestions.map((r) => (
@@ -491,7 +667,7 @@ function IntelligencePanel({ ticketId }: { ticketId: number }) {
                     {Math.round(r.similarityScore * 100)}%
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-dim">Reusada {r.reusedCount}× · sucesso {Math.round(r.successRate * 100)}%</p>
+                <p className="mt-1 text-xs text-dim">{t('reused', { count: r.reusedCount })} · {t('success')} {Math.round(r.successRate * 100)}%</p>
               </li>
             ))}
           </ul>
@@ -500,6 +676,8 @@ function IntelligencePanel({ ticketId }: { ticketId: number }) {
     </div>
   );
 }
+
+type CommentFilter = 'all' | 'public' | 'internal';
 
 function Conversation({
   ticketId,
@@ -514,9 +692,11 @@ function Conversation({
   locale: Locale;
   timeZone: string;
 }) {
+  const t = useTranslations('comments');
   const qc = useQueryClient();
   const [text, setText] = useState('');
   const [internal, setInternal] = useState(false);
+  const [filter, setFilter] = useState<CommentFilter>('all');
 
   const add = useMutation({
     mutationFn: () => ticketsApi.addComment(ticketId, text.trim(), internal),
@@ -524,20 +704,59 @@ function Conversation({
       setText('');
       qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Não foi possível comentar')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('addError'))),
   });
+
+  const filtered = comments.filter((c) =>
+    filter === 'all' ? true : filter === 'internal' ? c.isInternal : !c.isInternal,
+  );
+  const counts = {
+    all: comments.length,
+    public: comments.filter((c) => !c.isInternal).length,
+    internal: comments.filter((c) => c.isInternal).length,
+  };
 
   return (
     <div className="flex h-full w-full flex-col gap-md">
+      <div className="flex items-center gap-1 text-xs">
+        {(['all', 'public', 'internal'] as CommentFilter[]).map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setFilter(f)}
+            className={cn(
+              'rounded-full border px-2.5 py-1 transition-colors',
+              filter === f ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted hover:text-text',
+            )}
+          >
+            {t(`filter.${f}`)} · {counts[f]}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-1 flex-col gap-sm">
-        {comments.length === 0 ? (
-          <p className="text-sm text-dim">Sem comentários ainda.</p>
+        {filtered.length === 0 ? (
+          <p className="text-sm text-dim">{t('empty')}</p>
         ) : (
-          comments.map((c) => (
-            <div key={c.id} className={cn('card-surface p-md', c.isInternal && 'border-warning/40 bg-warning/5')}>
+          filtered.map((c) => (
+            <div
+              key={c.id}
+              className={cn(
+                'card-surface p-md',
+                c.isInternal ? 'border-warning/40 bg-warning/5' : 'border-l-2 border-l-primary/40',
+              )}
+            >
               <div className="mb-1 flex items-center gap-sm text-xs text-muted">
                 <span className="font-medium text-text">{userName(c.userId)}</span>
-                {c.isInternal && <span className="inline-flex items-center gap-1 text-warning"><Lock className="h-3 w-3" /> interno</span>}
+                {c.isInternal ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-warning/20 px-1.5 py-0.5 text-warning">
+                    <Lock className="h-3 w-3" /> {t('internal')}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-primary">
+                    {t('public')}
+                  </span>
+                )}
                 {c.createdAt && <span className="text-dim">{formatDateTime(c.createdAt, { locale, timeZone })}</span>}
               </div>
               <p className="whitespace-pre-wrap text-sm">{c.message}</p>
@@ -547,21 +766,21 @@ function Conversation({
       </div>
 
       <Can permission="ticket.comment.add">
-        <div className="card-surface p-md">
+        <div className={cn('card-surface p-md', internal && 'border-warning/40 bg-warning/5')}>
           <textarea
             rows={3}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Escreva um comentário…"
+            placeholder={internal ? t('placeholderInternal') : t('placeholderPublic')}
             className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-dim"
           />
           <div className="mt-sm flex items-center justify-between">
             <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted">
               <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} />
-              Comentário interno
+              <Lock className="h-3 w-3" /> {t('internalToggle')}
             </label>
             <Button size="sm" disabled={!text.trim() || add.isPending} loading={add.isPending} onClick={() => add.mutate()}>
-              <Send className="h-3.5 w-3.5" /> Comentar
+              <Send className="h-3.5 w-3.5" /> {t('submit')}
             </Button>
           </div>
         </div>
