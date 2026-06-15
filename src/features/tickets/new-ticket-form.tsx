@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Sparkles, Lightbulb, ArrowRight, Loader2 } from 'lucide-react';
-import { ticketsApi, usersApi, teamsApi } from '@/shared/api/endpoints';
+import { ticketsApi, usersApi } from '@/shared/api/endpoints';
 import { Priority, apiErrorMessage, type PriorityValue, type TicketCreatedResponse } from '@/shared/api/types';
 import { useWindowStore } from '@/features/windows/window-store';
 import { openTicketTab } from '@/features/tickets/ticket-actions';
@@ -27,14 +27,13 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
   const [priority, setPriority] = useState<PriorityValue>(Priority.Medium);
   const [requesterId, setRequesterId] = useState<number | null>(null);
   const [assigneeId, setAssigneeId] = useState<number | null>(null);
-  const [teamId, setTeamId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<TicketCreatedResponse | null>(null);
 
   const users = useQuery({ queryKey: ['users', 'options'], queryFn: () => usersApi.list(1, 100) });
-  const teams = useQuery({ queryKey: ['teams'], queryFn: () => teamsApi.list() });
   const userOptions: ComboOption[] = (users.data?.items ?? []).map((u) => ({ id: u.id, label: u.name, hint: u.email }));
-  const teamOptions: ComboOption[] = (teams.data ?? []).map((t) => ({ id: t.id, label: t.name }));
+  // Equipe herdada automaticamente do responsável.
+  const assigneeTeamId = assigneeId ? users.data?.items.find((u) => u.id === assigneeId)?.teamId ?? null : null;
 
   const canSubmit = title.trim().length >= 3 && description.trim().length >= 5 && requesterId;
 
@@ -48,7 +47,7 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
         priority,
         customerId: requesterId!,
         assignedUserId: assigneeId,
-        assignedTeamId: teamId,
+        assignedTeamId: assigneeTeamId,
       });
       qc.invalidateQueries({ queryKey: ['tickets'] });
       setResult(created); // mostra a análise inteligente
@@ -63,7 +62,8 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
   // Etapa 2: ticket criado → análise inteligente.
   if (result) {
     return (
-      <div className="flex flex-col gap-md p-lg">
+      <div className="flex h-full flex-col">
+        <div className="flex flex-1 flex-col gap-md overflow-auto p-lg">
         <div className="flex items-center gap-sm rounded-md border border-success/30 bg-success/10 px-md py-sm text-sm text-success">
           <Sparkles className="h-4 w-4" /> Ticket <strong>{result.ticket.number}</strong> criado e analisado.
         </div>
@@ -95,7 +95,8 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
           )}
         </div>
 
-        <div className="mt-sm flex justify-end gap-sm">
+        </div>
+        <div className="flex shrink-0 justify-end gap-sm border-t border-border bg-panel p-md">
           <Button
             variant="secondary"
             onClick={() => {
@@ -127,8 +128,9 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
         e.preventDefault();
         void submit();
       }}
-      className="flex flex-col gap-md p-lg"
+      className="flex h-full flex-col"
     >
+      <div className="flex flex-1 flex-col gap-md overflow-auto p-lg">
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Assunto
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Resumo do problema" autoFocus />
@@ -163,17 +165,15 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
             ]}
           />
         </div>
-        <div className="flex flex-col gap-1.5 text-sm font-medium">
+        <div className="flex flex-col gap-1.5 text-sm font-medium sm:col-span-2">
           Responsável
           <AsyncCombobox options={userOptions} value={assigneeId} onChange={setAssigneeId} loading={users.isLoading} placeholder="Atribuir a…" onCreate={openUsersIndexWindow} createLabel="Gerenciar usuários" />
-        </div>
-        <div className="flex flex-col gap-1.5 text-sm font-medium">
-          Equipe
-          <AsyncCombobox options={teamOptions} value={teamId} onChange={setTeamId} loading={teams.isLoading} placeholder="Equipe responsável" />
+          {assigneeTeamId != null && <span className="text-xs text-dim">Equipe definida automaticamente pelo responsável.</span>}
         </div>
       </div>
 
-      <div className="mt-sm flex items-center justify-between">
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-sm border-t border-border bg-panel p-md">
         <span className="flex items-center gap-1.5 text-xs text-dim">
           <Sparkles className="h-3.5 w-3.5 text-primary" /> Ao criar, o Orbit analisa e sugere soluções
         </span>

@@ -5,7 +5,7 @@
       "name": "Next.js: server-side (dev)",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm run dev",
+      "command": "npx kill-port 3000 && npm run dev",
       "cwd": "${workspaceFolder}",
       "skipFiles": ["<node_internals>/**"]
     },

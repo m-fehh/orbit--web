@@ -29,7 +29,7 @@ export function FloatingWindow({ win }: { win: OrbitWindow }) {
             <X className="h-4 w-4" aria-hidden />
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-auto">{win.content}</div>
+        <div className="flex min-h-0 flex-1 flex-col">{win.content}</div>
       </aside>
     </div>
   );

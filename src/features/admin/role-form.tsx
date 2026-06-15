@@ -44,8 +44,9 @@ export function RoleForm({ windowId }: { windowId: string }) {
         e.preventDefault();
         if (canSave) save.mutate();
       }}
-      className="flex flex-col gap-md p-lg"
+      className="flex h-full flex-col"
     >
+      <div className="flex flex-1 flex-col gap-md overflow-auto p-lg">
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Nome
         <Input value={name} onChange={(e) => onName(e.target.value)} placeholder="Ex.: Analista N2" autoFocus />
@@ -59,7 +60,8 @@ export function RoleForm({ windowId }: { windowId: string }) {
         Descrição (opcional)
         <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Para que serve este papel" />
       </label>
-      <div className="mt-sm flex justify-end gap-sm">
+      </div>
+      <div className="flex shrink-0 justify-end gap-sm border-t border-border bg-panel p-md">
         <Button type="button" variant="secondary" onClick={() => closeWindow(windowId)}>
           Cancelar
         </Button>
