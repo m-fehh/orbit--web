@@ -15,6 +15,7 @@ import { useAuthStore } from '@/features/auth/auth-store';
 export function AuthBootstrap({ children }: { children: React.ReactNode }) {
   const setUser = useAuthStore((s) => s.setUser);
   const setStatus = useAuthStore((s) => s.setStatus);
+  const syncPermissions = useAuthStore((s) => s.syncPermissionsFromToken);
   const ran = useRef(false);
 
   useEffect(() => {
@@ -30,6 +31,7 @@ export function AuthBootstrap({ children }: { children: React.ReactNode }) {
       .me()
       .then((user) => {
         setUser(user);
+        syncPermissions(); // token já foi renovado pelo interceptor; lê as claims
         setStatus('authenticated');
       })
       .catch(() => {

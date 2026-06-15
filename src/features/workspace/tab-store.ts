@@ -63,6 +63,7 @@ interface TabState {
 }
 
 const STORAGE_KEY = 'orbit.tabs';
+const MAX_TABS = 12;
 let seq = 0;
 const nextId = () => `tab_${Date.now().toString(36)}_${++seq}`;
 
@@ -128,11 +129,20 @@ export const useTabStore = create<TabState>((set, get) => ({
     const tab: WorkspaceTab = {
       id,
       pinned: opts?.pinned ?? false,
-      favorite: false,
+      // Reflete o estado persistido de favoritos para este local.
+      favorite: get().favorites.some((f) => f.key === key),
       history: [loc],
       index: 0,
     };
-    set((s) => ({ tabs: [...s.tabs, tab], activeId: opts?.background ? s.activeId : id }));
+    set((s) => {
+      let tabs = [...s.tabs, tab];
+      // Limite de abas: ao exceder, fecha a aba mais antiga que não esteja fixada nem ativa.
+      if (tabs.length > MAX_TABS) {
+        const victim = tabs.find((t) => !t.pinned && t.id !== id && t.id !== s.activeId);
+        if (victim) tabs = tabs.filter((t) => t.id !== victim.id);
+      }
+      return { tabs, activeId: opts?.background ? s.activeId : id };
+    });
     persist(get());
     return id;
   },

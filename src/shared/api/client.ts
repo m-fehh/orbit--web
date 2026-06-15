@@ -106,16 +106,36 @@ async function rawFetch(path: string, opts: RequestOptions): Promise<Response> {
   });
 }
 
+/** Executa o fetch tratando falha de rede (cert self-signed, API fora, CORS) com erro claro. */
+async function safeFetch(path: string, opts: RequestOptions): Promise<Response> {
+  try {
+    return await rawFetch(path, opts);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    // "Failed to fetch" normalmente = API fora do ar, CORS, ou certificado HTTPS
+    // self-signed não confiável. Logamos em dev para facilitar o diagnóstico.
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[orbit-api] Falha de rede em ${opts.method ?? 'GET'} ${path}: ${detail}\n` +
+          `→ Verifique: a API está rodando? O cert HTTPS é confiável (dotnet dev-certs https --trust)? ` +
+          `NEXT_PUBLIC_API_URL = ${API_URL}`,
+      );
+    }
+    throw new ApiError(0, 'Não foi possível conectar à API. Verifique se ela está no ar e o certificado HTTPS.');
+  }
+}
+
 /* ── API pública: request<T> desempacota o envelope e trata 401 ────────────── */
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  let res = await rawFetch(path, opts);
+  let res = await safeFetch(path, opts);
 
   // 401 → tenta refresh uma vez e re-executa (exceto em rotas de auth).
   const isAuthFree = AUTH_FREE.some((p) => path.startsWith(p));
   if (res.status === 401 && !opts.skipAuthRefresh && !isAuthFree) {
     const ok = await ensureRefresh();
     if (ok) {
-      res = await rawFetch(path, opts);
+      res = await safeFetch(path, opts);
     } else {
       tokenStore.clear();
       redirectToLogin();

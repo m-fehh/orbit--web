@@ -11,8 +11,6 @@
   }
   body {
     background-color: var(--orbit-color-bg);
-    background-image: var(--orbit-aurora);
-    background-attachment: fixed;
     color: var(--orbit-color-text);
     font-family: var(--orbit-font-sans);
     font-size: var(--orbit-text-base);
@@ -54,35 +52,26 @@
     border-radius: var(--orbit-radius-md);
     box-shadow: var(--orbit-shadow-sm);
   }
+  /* Sem gradiente: texto sólido. */
   .gradient-text {
-    background: var(--orbit-gradient-text);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: var(--orbit-color-text);
   }
+  /* "Ring" sutil de seleção (sem glow forte). */
   .glow-ring {
-    box-shadow: var(--orbit-glow);
+    box-shadow: inset 0 0 0 1px var(--orbit-color-primary-soft);
   }
+  /* Botão primário sólido (sem gradiente). */
   .btn-primary {
-    background-image: var(--orbit-gradient-primary);
+    background-color: var(--orbit-color-primary);
     color: var(--orbit-color-primary-fg);
-    transition: box-shadow 0.2s, filter 0.2s;
+    transition: background-color 0.15s;
   }
   .btn-primary:hover:not(:disabled) {
-    box-shadow: var(--orbit-glow);
-    filter: brightness(1.06);
+    background-color: var(--orbit-color-primary-strong);
   }
-  /* Hairline superior luminosa no topo de cards (estética futurista). */
+  /* Sem hairline com gradiente. */
   .top-hairline {
     position: relative;
-  }
-  .top-hairline::before {
-    content: '';
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--orbit-color-primary), transparent);
-    opacity: 0.5;
   }
 }
 
@@ -111,6 +100,10 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes orbit-slide-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
 @keyframes orbit-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
@@ -127,6 +120,7 @@
 }
 
 .animate-rise { animation: orbit-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-slide-in { animation: orbit-slide-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .animate-fade { animation: orbit-fade-in 0.6s ease both; }
 .animate-float { animation: orbit-float 6s ease-in-out infinite; }
 .animate-spin-slow { animation: orbit-spin 22s linear infinite; }
@@ -147,5 +141,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animate-rise, .animate-fade, .animate-float, .animate-spin-slow,
-  .animate-spin-slower, .skeleton { animation: none; }
+  .animate-spin-slower, .animate-slide-in, .skeleton { animation: none; }
 }

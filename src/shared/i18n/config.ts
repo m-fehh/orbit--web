@@ -12,6 +12,13 @@ export const localeNames: Record<Locale, string> = {
   'es-ES': 'Español (España)',
 };
 
+/** Bandeira (emoji) de cada cultura, para o seletor de idioma. */
+export const localeFlags: Record<Locale, string> = {
+  'pt-BR': '🇧🇷',
+  'en-US': '🇺🇸',
+  'es-ES': '🇪🇸',
+};
+
 /** Cookie onde a preferência de cultura do usuário é persistida. */
 export const LOCALE_COOKIE = 'orbit-locale';
 

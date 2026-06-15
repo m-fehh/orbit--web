@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { LogOut, Shield, Settings } from 'lucide-react';
+import { LogOut, Shield, Settings, ChevronDown } from 'lucide-react';
 import { authApi } from '@/shared/api/endpoints';
 import { useAuthStore } from '@/features/auth/auth-store';
 
@@ -37,48 +37,66 @@ export function UserMenu() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-fg"
+        className="flex items-center gap-2 rounded-full border border-border bg-panel py-0.5 pl-0.5 pr-2 transition-colors hover:border-border-strong"
         aria-label={user?.name}
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        {initials || '?'}
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-xs font-bold text-primary-fg ring-2 ring-primary/20">
+          {initials || '?'}
+        </span>
+        <span className="hidden max-w-[120px] truncate text-sm font-medium lg:inline">{user?.name}</span>
+        <ChevronDown className="hidden h-3.5 w-3.5 text-dim lg:inline" aria-hidden />
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
           <div
             role="menu"
-            className="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded border border-border bg-panel shadow-lg"
+            className="absolute right-0 z-40 mt-1.5 w-64 overflow-hidden rounded-lg border border-border bg-panel shadow-lg"
           >
-            <div className="border-b border-border px-md py-sm">
-              <p className="truncate text-sm font-medium text-text">{user?.name}</p>
-              <p className="truncate text-xs text-muted">{user?.email}</p>
+            <div className="flex items-center gap-sm border-b border-border p-md">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-sm font-bold text-primary-fg">
+                {initials || '?'}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-text">{user?.name}</p>
+                <p className="truncate text-xs text-muted">{user?.email}</p>
+                {user?.role && (
+                  <span className="mt-1 inline-block rounded bg-panel-2 px-1.5 text-[10px] font-medium uppercase tracking-wide text-muted">
+                    {user.role}
+                  </span>
+                )}
+              </div>
             </div>
-            <Link
-              href="/settings/security"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-sm px-md py-sm text-sm hover:bg-panel-2"
-              role="menuitem"
-            >
-              <Shield className="h-4 w-4 text-muted" aria-hidden /> {t('security')}
-            </Link>
-            <Link
-              href="/settings"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-sm px-md py-sm text-sm hover:bg-panel-2"
-              role="menuitem"
-            >
-              <Settings className="h-4 w-4 text-muted" aria-hidden /> {t('settings')}
-            </Link>
-            <button
-              type="button"
-              onClick={logout}
-              className="flex w-full items-center gap-sm border-t border-border px-md py-sm text-sm text-danger hover:bg-panel-2"
-              role="menuitem"
-            >
-              <LogOut className="h-4 w-4" aria-hidden /> {t('logout')}
-            </button>
+            <div className="p-1">
+              <Link
+                href="/settings/security"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-sm rounded-md px-md py-2 text-sm hover:bg-panel-2"
+                role="menuitem"
+              >
+                <Shield className="h-4 w-4 text-muted" aria-hidden /> {t('security')}
+              </Link>
+              <Link
+                href="/settings"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-sm rounded-md px-md py-2 text-sm hover:bg-panel-2"
+                role="menuitem"
+              >
+                <Settings className="h-4 w-4 text-muted" aria-hidden /> {t('settings')}
+              </Link>
+            </div>
+            <div className="border-t border-border p-1">
+              <button
+                type="button"
+                onClick={logout}
+                className="flex w-full items-center gap-sm rounded-md px-md py-2 text-sm text-danger hover:bg-danger/10"
+                role="menuitem"
+              >
+                <LogOut className="h-4 w-4" aria-hidden /> {t('logout')}
+              </button>
+            </div>
           </div>
         </>
       )}

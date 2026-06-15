@@ -67,6 +67,15 @@ export const useWindowStore = create<WindowState>((set, get) => ({
     const count = get().windows.length;
     const width = opts.width ?? 720;
     const height = opts.height ?? 520;
+
+    // Nasce centralizada. Janelas não-modais ganham um leve cascateamento para
+    // não empilharem exatamente sobre as anteriores.
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const cascade = opts.modal ? 0 : (count % 6) * 26;
+    const centeredX = Math.max(16, Math.round((vw - width) / 2) + cascade);
+    const centeredY = Math.max(72, Math.round((vh - height) / 2) + cascade);
+
     const win: OrbitWindow = {
       id,
       title: opts.title,
@@ -75,8 +84,8 @@ export const useWindowStore = create<WindowState>((set, get) => ({
       modal: opts.modal,
       width,
       height,
-      x: opts.x ?? Math.max(24, 120 + count * 28),
-      y: opts.y ?? Math.max(24, 96 + count * 24),
+      x: opts.x ?? centeredX,
+      y: opts.y ?? centeredY,
       minimized: false,
       maximized: false,
       z,

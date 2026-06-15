@@ -3,6 +3,9 @@
 import type { TabLocation } from '@/features/workspace/tab-store';
 import { TicketsCentral } from '@/features/tickets/tickets-central';
 import { TicketDetail } from '@/features/tickets/ticket-detail';
+import { UsersView } from '@/features/admin/users-view';
+import { ProfileGroupsView } from '@/features/admin/profile-groups-view';
+import { DashboardView } from '@/features/dashboard/dashboard-view';
 import { EmptyState } from '@/shared/ui/states';
 import { ICONS } from './icons';
 
@@ -13,6 +16,12 @@ export function renderView(loc: TabLocation) {
       return <TicketsCentral />;
     case 'ticket':
       return <TicketDetail id={Number(loc.params.id)} />;
+    case 'dashboard':
+      return <DashboardView />;
+    case 'users':
+      return <UsersView />;
+    case 'admin':
+      return <ProfileGroupsView />;
     default:
       return (
         <div className="grid h-full place-items-center">

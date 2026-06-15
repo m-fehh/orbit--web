@@ -1,13 +1,15 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Pin, PinOff, Star, X, ChevronDown } from 'lucide-react';
-import { useTabStore, currentLocation, type WorkspaceTab } from '@/features/workspace/tab-store';
+import { useTranslations } from 'next-intl';
+import { Pin, PinOff, Star, X } from 'lucide-react';
+import { useTabStore, currentLocation } from '@/features/workspace/tab-store';
 import { Icon } from './icons';
 import { cn } from '@/shared/lib/utils';
 
 /** Barra de abas: drag-reorder, fixar, favoritar, fechar, menu de contexto e favoritos. */
 export function TabBar() {
+  const t = useTranslations('workspace');
   const { tabs, activeId, favorites, setActive, close, closeOthers, togglePin, toggleFavorite, reorder, openTab } =
     useTabStore();
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -17,15 +19,15 @@ export function TabBar() {
   if (tabs.length === 0) return null;
 
   return (
-    <div className="relative flex h-11 items-stretch gap-1 border-b border-border/60 bg-bg-subtle/60 px-sm">
+    <div className="relative flex h-11 items-stretch gap-1.5 border-b border-border bg-bg-subtle/60 py-1.5 pl-5 pr-sm">
       {/* Favoritos */}
       <div className="flex items-center">
         <button
           type="button"
           onClick={() => setFavOpen((v) => !v)}
           className="grid h-8 w-8 place-items-center rounded text-muted hover:bg-panel-2 hover:text-warning"
-          aria-label="Favoritos"
-          title="Favoritos"
+          aria-label={t('favorites')}
+          title={t('favorites')}
         >
           <Star className="h-4 w-4" aria-hidden />
         </button>
@@ -34,7 +36,7 @@ export function TabBar() {
             <div className="fixed inset-0 z-10" onClick={() => setFavOpen(false)} aria-hidden />
             <div className="absolute left-1 top-10 z-20 w-64 overflow-hidden rounded border border-border bg-panel shadow-lg">
               {favorites.length === 0 ? (
-                <p className="px-md py-sm text-xs text-dim">Nenhum favorito ainda.</p>
+                <p className="px-md py-sm text-xs text-dim">{t('noFavorites')}</p>
               ) : (
                 favorites.map((f) => (
                   <button
@@ -90,7 +92,22 @@ export function TabBar() {
             >
               <Icon name={loc.icon} className={cn('h-4 w-4 shrink-0', active && 'text-primary')} />
               {!tab.pinned && <span className="max-w-[160px] truncate">{loc.title}</span>}
-              {tab.favorite && <Star className="h-3 w-3 fill-warning text-warning" aria-hidden />}
+              {/* Estrela clicável: favoritar/desfavoritar (visível ao passar o mouse ou quando favoritado) */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFavorite(tab.id);
+                }}
+                className={cn(
+                  'grid h-4 w-4 place-items-center rounded transition-opacity',
+                  tab.favorite ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+                )}
+                aria-label={tab.favorite ? t('unfavorite') : t('favorite')}
+                title={tab.favorite ? t('unfavorite') : t('favorite')}
+              >
+                <Star className={cn('h-3 w-3', tab.favorite ? 'fill-warning text-warning' : 'text-muted')} aria-hidden />
+              </button>
               {tab.pinned ? (
                 <Pin className="h-3 w-3 text-primary" aria-hidden />
               ) : (
@@ -101,7 +118,7 @@ export function TabBar() {
                     close(tab.id);
                   }}
                   className="grid h-4 w-4 place-items-center rounded opacity-0 hover:bg-panel group-hover:opacity-100"
-                  aria-label={`Fechar ${loc.title}`}
+                  aria-label={`${t('close')} ${loc.title}`}
                 >
                   <X className="h-3 w-3" aria-hidden />
                 </button>
@@ -120,8 +137,8 @@ export function TabBar() {
             style={{ left: menu.x, top: menu.y }}
           >
             <MenuItem
-              icon={tabs.find((t) => t.id === menu.id)?.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-              label={tabs.find((t) => t.id === menu.id)?.pinned ? 'Desafixar' : 'Fixar'}
+              icon={tabs.find((tb) => tb.id === menu.id)?.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+              label={tabs.find((tb) => tb.id === menu.id)?.pinned ? t('unpin') : t('pin')}
               onClick={() => {
                 togglePin(menu.id);
                 setMenu(null);
@@ -129,7 +146,7 @@ export function TabBar() {
             />
             <MenuItem
               icon={<Star className="h-4 w-4" />}
-              label={tabs.find((t) => t.id === menu.id)?.favorite ? 'Remover favorito' : 'Favoritar'}
+              label={tabs.find((tb) => tb.id === menu.id)?.favorite ? t('unfavorite') : t('favorite')}
               onClick={() => {
                 toggleFavorite(menu.id);
                 setMenu(null);
@@ -137,7 +154,7 @@ export function TabBar() {
             />
             <MenuItem
               icon={<X className="h-4 w-4" />}
-              label="Fechar outras"
+              label={t('closeOthers')}
               onClick={() => {
                 closeOthers(menu.id);
                 setMenu(null);
@@ -145,7 +162,7 @@ export function TabBar() {
             />
             <MenuItem
               icon={<X className="h-4 w-4" />}
-              label="Fechar"
+              label={t('close')}
               onClick={() => {
                 close(menu.id);
                 setMenu(null);

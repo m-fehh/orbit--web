@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { authApi } from '@/shared/api/endpoints';
-import { ApiError } from '@/shared/api/types';
+import { apiErrorMessage } from '@/shared/api/types';
 import { useAuthStore } from '@/features/auth/auth-store';
 import { useBrandingStore } from '@/features/tenant/branding-store';
 import { Logo } from '@/features/shell/logo';
@@ -39,16 +39,8 @@ export default function LoginPage() {
       setSessionFromLogin(auth);
       router.replace(auth.user.twoFactorEnabled ? '/mfa-verify' : '/workspace');
     } catch (err) {
-      const status = err instanceof ApiError ? err.status : 0;
-      const msg =
-        status === 401
-          ? t('invalidCredentials')
-          : status === 423
-            ? t('locked')
-            : status === 403
-              ? t('deactivated')
-              : t('genericError');
-      toast.error(msg);
+      // Exibe a mensagem da API (já localizada); fallback genérico pela cultura.
+      toast.error(apiErrorMessage(err, t('genericError')));
     }
   }
 

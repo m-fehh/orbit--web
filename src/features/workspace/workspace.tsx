@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { LayoutGrid, Plus } from 'lucide-react';
 import { useTabStore, currentLocation } from '@/features/workspace/tab-store';
 import { openNewTicketWindow, openTicketsCentral } from '@/features/tickets/ticket-actions';
+import { Can } from '@/features/auth/can';
 import { Button } from '@/shared/ui/button';
 import { TabBar } from './tab-bar';
 import { Breadcrumb } from './breadcrumb';
@@ -11,6 +13,7 @@ import { renderView } from './view-registry';
 
 /** Área de trabalho com abas: TabBar + breadcrumb + view ativa. */
 export function Workspace() {
+  const t = useTranslations('workspace');
   const hydrate = useTabStore((s) => s.hydrate);
   const tabs = useTabStore((s) => s.tabs);
   const activeId = useTabStore((s) => s.activeId);
@@ -19,7 +22,7 @@ export function Workspace() {
     hydrate();
   }, [hydrate]);
 
-  const active = tabs.find((t) => t.id === activeId) ?? null;
+  const active = tabs.find((tb) => tb.id === activeId) ?? null;
 
   return (
     <div className="flex h-full flex-col">
@@ -36,16 +39,20 @@ export function Workspace() {
               <LayoutGrid className="h-7 w-7" aria-hidden />
             </div>
             <div>
-              <h2 className="text-lg font-bold">Seu workspace está limpo</h2>
-              <p className="text-sm text-muted">Abra a central de tickets ou crie um novo para começar.</p>
+              <h2 className="text-lg font-bold">{t('emptyTitle')}</h2>
+              <p className="text-sm text-muted">{t('emptySubtitle')}</p>
             </div>
             <div className="flex gap-sm">
-              <Button variant="secondary" onClick={openTicketsCentral}>
-                <LayoutGrid className="h-4 w-4" /> Central de Tickets
-              </Button>
-              <Button onClick={openNewTicketWindow}>
-                <Plus className="h-4 w-4" /> Novo ticket
-              </Button>
+              <Can permission="ticket.view">
+                <Button variant="secondary" onClick={openTicketsCentral}>
+                  <LayoutGrid className="h-4 w-4" /> {t('openTickets')}
+                </Button>
+              </Can>
+              <Can permission="ticket.create">
+                <Button onClick={openNewTicketWindow}>
+                  <Plus className="h-4 w-4" /> {t('newTicket')}
+                </Button>
+              </Can>
             </div>
           </div>
         </div>

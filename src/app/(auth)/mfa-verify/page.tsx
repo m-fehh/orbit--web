@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { mfaApi } from '@/shared/api/endpoints';
+import { apiErrorMessage } from '@/shared/api/types';
 import { useAuthStore } from '@/features/auth/auth-store';
 import { tokenStore } from '@/shared/api/token-store';
 import { Button } from '@/shared/ui/button';
@@ -35,8 +36,8 @@ export default function MfaVerifyPage() {
       await mfaApi.validate(value);
       markMfaVerified();
       router.replace('/workspace');
-    } catch {
-      toast.error(t('invalidCode'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('invalidCode')));
       setCode('');
     } finally {
       setSubmitting(false);

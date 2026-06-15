@@ -23,14 +23,18 @@ export function applyThemeClass(mode: ThemeMode): void {
 interface UiState {
   theme: ThemeMode;
   sidebarCollapsed: boolean;
+  /** Drawer da sidebar no mobile (overlay). */
+  mobileNavOpen: boolean;
   setTheme: (theme: ThemeMode) => void;
   toggleSidebar: () => void;
+  setMobileNav: (open: boolean) => void;
   hydrate: () => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
   theme: 'system',
   sidebarCollapsed: false,
+  mobileNavOpen: false,
 
   setTheme: (theme) => {
     if (typeof window !== 'undefined') window.localStorage.setItem(THEME_KEY, theme);
@@ -43,6 +47,8 @@ export const useUiStore = create<UiState>((set, get) => ({
     if (typeof window !== 'undefined') window.localStorage.setItem(SIDEBAR_KEY, String(next));
     set({ sidebarCollapsed: next });
   },
+
+  setMobileNav: (open) => set({ mobileNavOpen: open }),
 
   hydrate: () => {
     const theme = readTheme();

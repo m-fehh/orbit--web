@@ -1,31 +1,19 @@
 'use client';
 
+import { ArrowDown, Minus, ArrowUp, Flame, type LucideIcon } from 'lucide-react';
 import type { PriorityName, TicketStatusName } from '@/shared/api/types';
 import { cn } from '@/shared/lib/utils';
 
-const PRIORITY_STYLE: Record<PriorityName, string> = {
-  Low: 'border-info/40 text-info bg-info/10',
-  Medium: 'border-warning/40 text-warning bg-warning/10',
-  High: 'border-orange-500/40 text-orange-400 bg-orange-500/10',
-  Critical: 'border-danger/50 text-danger bg-danger/10',
-};
-
-const PRIORITY_LABEL: Record<PriorityName, string> = {
-  Low: 'Baixa',
-  Medium: 'Média',
-  High: 'Alta',
-  Critical: 'Crítica',
-};
-
+/* ---- Status: lozenge (estilo Jira/Azure), cor própria por estado ---- */
 const STATUS_STYLE: Record<TicketStatusName, string> = {
-  New: 'border-info/40 text-info bg-info/10',
-  Assigned: 'border-primary/40 text-primary bg-primary-soft',
-  InProgress: 'border-info/40 text-info bg-info/10',
-  PendingCustomer: 'border-warning/40 text-warning bg-warning/10',
-  PendingInternal: 'border-warning/40 text-warning bg-warning/10',
-  Resolved: 'border-success/40 text-success bg-success/10',
-  Closed: 'border-border-strong text-muted bg-panel-2',
-  Cancelled: 'border-border-strong text-dim bg-panel-2',
+  New: 'bg-info/15 text-info',
+  Assigned: 'bg-primary-soft text-primary',
+  InProgress: 'bg-info/15 text-info',
+  PendingCustomer: 'bg-warning/15 text-warning',
+  PendingInternal: 'bg-warning/15 text-warning',
+  Resolved: 'bg-success/15 text-success',
+  Closed: 'bg-panel-2 text-muted',
+  Cancelled: 'bg-panel-2 text-dim',
 };
 
 const STATUS_LABEL: Record<TicketStatusName, string> = {
@@ -39,19 +27,37 @@ const STATUS_LABEL: Record<TicketStatusName, string> = {
   Cancelled: 'Cancelado',
 };
 
-const base = 'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold';
-
-export function PriorityBadge({ priority }: { priority: PriorityName }) {
+export function StatusBadge({ status, className }: { status: TicketStatusName; className?: string }) {
   return (
-    <span className={cn(base, PRIORITY_STYLE[priority])}>
-      <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
-      {PRIORITY_LABEL[priority] ?? priority}
+    <span
+      className={cn(
+        'inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide',
+        STATUS_STYLE[status],
+        className,
+      )}
+    >
+      {STATUS_LABEL[status] ?? status}
     </span>
   );
 }
 
-export function StatusBadge({ status }: { status: TicketStatusName }) {
-  return <span className={cn(base, STATUS_STYLE[status])}>{STATUS_LABEL[status] ?? status}</span>;
+/* ---- Prioridade: ícone + texto colorido (visual distinto do status) ---- */
+const PRIORITY: Record<PriorityName, { label: string; icon: LucideIcon; color: string }> = {
+  Low: { label: 'Baixa', icon: ArrowDown, color: 'text-muted' },
+  Medium: { label: 'Média', icon: Minus, color: 'text-info' },
+  High: { label: 'Alta', icon: ArrowUp, color: 'text-orange-400' },
+  Critical: { label: 'Crítica', icon: Flame, color: 'text-danger' },
+};
+
+export function PriorityBadge({ priority, className }: { priority: PriorityName; className?: string }) {
+  const p = PRIORITY[priority] ?? PRIORITY.Medium;
+  const Icon = p.icon;
+  return (
+    <span className={cn('inline-flex items-center gap-1 text-xs font-medium', p.color, className)}>
+      <Icon className="h-3.5 w-3.5" aria-hidden />
+      {p.label}
+    </span>
+  );
 }
 
-export { STATUS_LABEL, PRIORITY_LABEL };
+export { STATUS_LABEL };

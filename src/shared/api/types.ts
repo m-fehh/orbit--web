@@ -21,6 +21,20 @@ export class ApiError extends Error {
     super(message);
     this.name = 'ApiError';
   }
+
+  /** Mensagem veio do envelope da API (status real), não de uma falha de rede local. */
+  get isFromApi(): boolean {
+    return this.status > 0 && !!this.message;
+  }
+}
+
+/**
+ * Resolve a mensagem a exibir num toast: prioriza a mensagem retornada pela API
+ * (já localizada pelo backend via Accept-Language) e cai num fallback genérico
+ * — que o chamador passa já traduzido pela cultura corrente (next-intl).
+ */
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError && err.isFromApi ? err.message : fallback;
 }
 
 /* ---- Ticketing ---- */
@@ -78,9 +92,22 @@ export interface WorklogResponse {
   type: string;
   description: string;
   startedAt: string | null;
-  finishedAt: string | null;
+  endedAt: string | null;
   durationMinutes: number;
+  createdAt: string | null;
 }
+
+/** Transições de status permitidas (espelha TicketStateMachine do backend, RN-003). */
+export const STATUS_TRANSITIONS: Record<TicketStatusName, TicketStatusName[]> = {
+  New: ['Assigned', 'InProgress', 'Cancelled'],
+  Assigned: ['InProgress', 'PendingCustomer', 'PendingInternal', 'Cancelled'],
+  InProgress: ['PendingCustomer', 'PendingInternal', 'Resolved', 'Cancelled'],
+  PendingCustomer: ['InProgress', 'Resolved', 'Cancelled'],
+  PendingInternal: ['InProgress', 'Resolved', 'Cancelled'],
+  Resolved: ['Closed', 'InProgress'],
+  Closed: [],
+  Cancelled: [],
+};
 
 export interface InvestigationResponse {
   id: number;
@@ -112,9 +139,36 @@ export interface TicketDetailResponse {
 
 export interface IntakeRecommendation {
   resolutionId: number;
-  title: string;
-  summary: string | null;
-  confidence: number;
+  summary: string;
+  score: number;
+}
+
+/* ---- Motor de inteligência (análise de ticket) ---- */
+export interface RootCauseCandidate {
+  category: string;
+  description: string;
+  confidenceScore: number;
+  supportingTicketIds: number[];
+  coOccurrencePatterns: string[];
+  aiEnhanced: boolean;
+}
+
+export interface ResolutionSuggestion {
+  resolutionId: number;
+  ticketId: number;
+  summary: string;
+  similarityScore: number;
+  matchedTerms: string[];
+  reusedCount: number;
+  successRate: number;
+}
+
+export interface IntelligenceReport {
+  ticketId: number;
+  generatedAt: string;
+  rootCauseCandidates: RootCauseCandidate[];
+  resolutionSuggestions: ResolutionSuggestion[];
+  relatedPatterns: unknown[];
 }
 
 export interface TicketCreatedResponse {
@@ -180,6 +234,80 @@ export interface UserResponse {
   lastLoginAt: string | null;
   twoFactorEnabled: boolean;
   gdprConsentGiven: boolean;
+  profileId: number | null;
+}
+
+/* ---- Admin: PBAC (perfis, regras de acesso), papéis, equipes ---- */
+export interface AccessRuleResponse {
+  id: number;
+  description: string;
+  keyName: string;
+  parentId: number | null;
+  forAdministratorOnly: boolean;
+  createdAt: string | null;
+}
+
+export interface ProfileGroupResponse {
+  id: number;
+  name: string;
+  administrator: boolean;
+  isSpecial: boolean;
+  accessRules: AccessRuleResponse[];
+  createdAt: string | null;
+}
+
+export interface SaveProfileGroupRequest {
+  name: string;
+  administrator?: boolean;
+  isSpecial?: boolean;
+  accessRuleIds?: number[];
+}
+
+export interface RoleResponse {
+  id: number;
+  name: string;
+  key: string;
+  description: string | null;
+  isAdminRole: boolean;
+  isSystem: boolean;
+  inactive: boolean;
+}
+
+export interface CreateRoleRequest {
+  name: string;
+  key: string;
+  description?: string | null;
+  isAdminRole?: boolean;
+}
+
+export interface UpdateRoleRequest {
+  name: string;
+  description?: string | null;
+  isAdminRole?: boolean;
+}
+
+export interface TeamResponse {
+  id: number;
+  name: string;
+  description: string | null;
+  inactive: boolean;
+}
+
+export interface CreateUserRequest {
+  name: string;
+  email: string;
+  password: string;
+  roleId: number;
+  teamId?: number | null;
+  profileId?: number | null;
+}
+
+export interface UpdateUserRequest {
+  name: string;
+  email: string;
+  roleId?: number | null;
+  teamId?: number | null;
+  profileId?: number | null;
 }
 
 export interface AuthResponse {

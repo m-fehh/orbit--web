@@ -9,6 +9,7 @@ import type { Locale } from '@/shared/i18n/config';
 import { useBrandingStore } from '@/features/tenant/branding-store';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { openNewTicketWindow, openTicketTab } from '@/features/tickets/ticket-actions';
+import { Can } from '@/features/auth/can';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { LoadingState, EmptyState, ErrorState } from '@/shared/ui/states';
@@ -58,9 +59,11 @@ export function TicketsCentral() {
         <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label="Atualizar">
           <RefreshCw className={isFetching ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} aria-hidden />
         </Button>
-        <Button onClick={openNewTicketWindow}>
-          <Plus className="h-4 w-4" aria-hidden /> Novo ticket
-        </Button>
+        <Can permission="ticket.create">
+          <Button onClick={openNewTicketWindow}>
+            <Plus className="h-4 w-4" aria-hidden /> Novo ticket
+          </Button>
+        </Can>
       </div>
 
       {/* Conteúdo */}
@@ -70,7 +73,16 @@ export function TicketsCentral() {
         ) : isError ? (
           <ErrorState title="Erro ao carregar" body="Verifique a API e tente de novo." onRetry={() => refetch()} retryLabel="Tentar de novo" />
         ) : items.length === 0 ? (
-          <EmptyState message="Nenhum ticket encontrado." cta={<Button onClick={openNewTicketWindow}><Plus className="h-4 w-4" /> Criar o primeiro</Button>} />
+          <EmptyState
+            message="Nenhum ticket encontrado."
+            cta={
+              <Can permission="ticket.create">
+                <Button onClick={openNewTicketWindow}>
+                  <Plus className="h-4 w-4" /> Criar o primeiro
+                </Button>
+              </Can>
+            }
+          />
         ) : (
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-bg-subtle/90 backdrop-blur">

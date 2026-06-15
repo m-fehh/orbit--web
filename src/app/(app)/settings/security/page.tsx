@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { mfaApi } from '@/shared/api/endpoints';
+import { apiErrorMessage } from '@/shared/api/types';
 import { useAuthStore } from '@/features/auth/auth-store';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -34,8 +35,8 @@ export default function SecurityPage() {
       setOtpAuthUri(res.otpAuthUri);
       setManualKey(res.manualEntryKey);
       setStage('setup');
-    } catch {
-      toast.error(t('invalidCode'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('invalidCode')));
     } finally {
       setBusy(false);
     }
@@ -50,8 +51,8 @@ export default function SecurityPage() {
       setCode('');
       if (user) setUser({ ...user, twoFactorEnabled: true });
       toast.success(t('enabled'));
-    } catch {
-      toast.error(t('invalidCode'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('invalidCode')));
     } finally {
       setBusy(false);
     }
@@ -66,8 +67,8 @@ export default function SecurityPage() {
       if (user) setUser({ ...user, twoFactorEnabled: false });
       setStage('idle');
       toast.success(t('disabled'));
-    } catch {
-      toast.error(t('invalidCode'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('invalidCode')));
     } finally {
       setBusy(false);
     }

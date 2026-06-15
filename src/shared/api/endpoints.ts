@@ -21,6 +21,16 @@ import type {
   UpdateTicketRequest,
   PriorityValue,
   TicketStatusValue,
+  AccessRuleResponse,
+  ProfileGroupResponse,
+  SaveProfileGroupRequest,
+  RoleResponse,
+  TeamResponse,
+  CreateUserRequest,
+  UpdateUserRequest,
+  CreateRoleRequest,
+  UpdateRoleRequest,
+  IntelligenceReport,
 } from './types';
 
 /** Branding público do tenant, resolvido pelo subdomínio (pré-login, anônimo). */
@@ -67,8 +77,8 @@ export const ticketsApi = {
   get: (id: number) => api.get<TicketDetailResponse>(`/tickets/${id}`),
   create: (body: CreateTicketRequest) => api.post<TicketCreatedResponse>('/tickets', body),
   update: (id: number, body: UpdateTicketRequest) => api.put<TicketResponse>(`/tickets/${id}`, body),
-  assign: (id: number, userId: number, teamId: number) =>
-    api.patch<TicketResponse>(`/tickets/${id}/assign`, { userId, teamId }),
+  assign: (id: number, userId: number, teamId?: number | null) =>
+    api.patch<TicketResponse>(`/tickets/${id}/assign`, { userId, teamId: teamId ?? null }),
   changeStatus: (id: number, status: TicketStatusValue) =>
     api.patch<TicketResponse>(`/tickets/${id}/status`, { status }),
   resolve: (id: number, body: unknown) => api.post<unknown>(`/tickets/${id}/resolve`, body),
@@ -87,12 +97,14 @@ export const ticketsApi = {
     `${process.env.NEXT_PUBLIC_API_URL}/tickets/attachments/${attachmentId}/download`,
 };
 
-/** Worklogs por ticket */
+/** Worklogs por ticket (timetracker). WorklogType é enum numérico (1..7). */
 export const worklogsApi = {
-  create: (ticketId: number, body: unknown) => api.post<WorklogResponse>(`/worklogs/ticket/${ticketId}`, body),
+  create: (ticketId: number, body: { type: number; description: string; startedAt: string }) =>
+    api.post<WorklogResponse>(`/worklogs/ticket/${ticketId}`, body),
   byTicket: (ticketId: number) => api.get<WorklogResponse[]>(`/worklogs/ticket/${ticketId}`),
-  finish: (id: number, body: unknown) => api.patch<WorklogResponse>(`/worklogs/${id}/finish`, body),
-  updateDuration: (id: number, body: unknown) => api.patch<WorklogResponse>(`/worklogs/${id}/duration`, body),
+  finish: (id: number, endedAt: string) => api.patch<WorklogResponse>(`/worklogs/${id}/finish`, { endedAt }),
+  updateDuration: (id: number, durationMinutes: number) =>
+    api.patch<WorklogResponse>(`/worklogs/${id}/duration`, { durationMinutes }),
 };
 
 /** Investigações */
@@ -157,7 +169,8 @@ export const workItemsApi = {
 
 /** Inteligência / IA */
 export const intelligenceApi = {
-  ticketReport: (ticketId: number) => api.get<unknown>(`/intelligence/tickets/${ticketId}/report`),
+  ticketReport: (ticketId: number, maxResults = 5) =>
+    api.get<IntelligenceReport>(`/intelligence/tickets/${ticketId}/report`, { params: { maxResults } }),
   ticketRootCauses: (ticketId: number) => api.get<unknown>(`/intelligence/tickets/${ticketId}/root-causes`),
   ticketResolutions: (ticketId: number) => api.get<unknown>(`/intelligence/tickets/${ticketId}/resolutions`),
   patterns: () => api.get<unknown>('/intelligence/patterns'),
@@ -166,16 +179,17 @@ export const intelligenceApi = {
 
 /** Usuários */
 export const usersApi = {
-  list: (params?: Record<string, string | number | boolean>) => api.get<unknown>('/users', { params }),
-  get: (id: number) => api.get<unknown>(`/users/${id}`),
-  create: (body: unknown) => api.post<unknown>('/users', body),
-  update: (id: number, body: unknown) => api.put<unknown>(`/users/${id}`, body),
-  anonymize: (id: number) => api.post<unknown>(`/users/${id}/anonymize`),
+  list: (page = 1, pageSize = 20) =>
+    api.get<PagedResponse<UserResponse>>('/users', { params: { page, pageSize } }),
+  get: (id: number) => api.get<UserResponse>(`/users/${id}`),
+  create: (body: CreateUserRequest) => api.post<UserResponse>('/users', body),
+  update: (id: number, body: UpdateUserRequest) => api.put<UserResponse>(`/users/${id}`, body),
+  anonymize: (id: number) => api.post<void>(`/users/${id}/anonymize`),
 };
 
 /** Equipes */
 export const teamsApi = {
-  list: () => api.get<unknown>('/teams'),
+  list: () => api.get<TeamResponse[]>('/teams'),
   get: (id: number) => api.get<unknown>(`/teams/${id}`),
   create: (body: unknown) => api.post<unknown>('/teams', body),
   update: (id: number, body: unknown) => api.put<unknown>(`/teams/${id}`, body),
@@ -185,10 +199,10 @@ export const teamsApi = {
 
 /** Roles */
 export const rolesApi = {
-  list: () => api.get<unknown>('/roles'),
-  get: (id: number) => api.get<unknown>(`/roles/${id}`),
-  create: (body: unknown) => api.post<unknown>('/roles', body),
-  update: (id: number, body: unknown) => api.put<unknown>(`/roles/${id}`, body),
+  list: () => api.get<RoleResponse[]>('/roles'),
+  get: (id: number) => api.get<RoleResponse>(`/roles/${id}`),
+  create: (body: CreateRoleRequest) => api.post<RoleResponse>('/roles', body),
+  update: (id: number, body: UpdateRoleRequest) => api.put<RoleResponse>(`/roles/${id}`, body),
   remove: (id: number) => api.delete<void>(`/roles/${id}`),
 };
 
@@ -234,15 +248,16 @@ export const internalApi = {
     deactivate: (id: number) => api.patch<unknown>(`/internal/tenants/${id}/deactivate`),
   },
   profileGroups: {
-    list: () => api.get<unknown>('/internal/profilegroups'),
-    get: (id: number) => api.get<unknown>(`/internal/profilegroups/${id}`),
-    create: (body: unknown) => api.post<unknown>('/internal/profilegroups', body),
-    update: (id: number, body: unknown) => api.put<unknown>(`/internal/profilegroups/${id}`, body),
+    list: () => api.get<ProfileGroupResponse[]>('/internal/profilegroups'),
+    get: (id: number) => api.get<ProfileGroupResponse>(`/internal/profilegroups/${id}`),
+    create: (body: SaveProfileGroupRequest) => api.post<ProfileGroupResponse>('/internal/profilegroups', body),
+    update: (id: number, body: SaveProfileGroupRequest) =>
+      api.put<ProfileGroupResponse>(`/internal/profilegroups/${id}`, body),
     remove: (id: number) => api.delete<void>(`/internal/profilegroups/${id}`),
   },
   accessRules: {
-    list: () => api.get<unknown>('/internal/accessrules'),
-    get: (id: number) => api.get<unknown>(`/internal/accessrules/${id}`),
+    list: () => api.get<AccessRuleResponse[]>('/internal/accessrules'),
+    get: (id: number) => api.get<AccessRuleResponse>(`/internal/accessrules/${id}`),
     create: (body: unknown) => api.post<unknown>('/internal/accessrules', body),
     update: (id: number, body: unknown) => api.put<unknown>(`/internal/accessrules/${id}`, body),
     remove: (id: number) => api.delete<void>(`/internal/accessrules/${id}`),

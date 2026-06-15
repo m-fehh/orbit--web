@@ -18,7 +18,11 @@
     "investigations": "Investigaciones",
     "knowledge": "Conocimiento",
     "analytics": "Analítica",
-    "admin": "Administración",
+    "users": "Usuarios",
+    "admin": "Perfiles",
+    "secOperation": "Operación",
+    "secInsights": "Insights",
+    "secAdmin": "Administración",
     "settings": "Ajustes",
     "security": "Seguridad",
     "logout": "Salir"
@@ -82,6 +86,33 @@
     "unread": "{count} sin leer",
     "live": "Tiempo real conectado",
     "offline": "Reconectando..."
+  },
+  "workspace": {
+    "favorites": "Favoritos",
+    "noFavorites": "Aún no hay favoritos.",
+    "pin": "Fijar",
+    "unpin": "Desfijar",
+    "favorite": "Favorito",
+    "unfavorite": "Quitar favorito",
+    "closeOthers": "Cerrar otras",
+    "close": "Cerrar",
+    "back": "Atrás",
+    "forward": "Adelante",
+    "minimize": "Minimizar",
+    "maximize": "Maximizar",
+    "restore": "Restaurar",
+    "emptyTitle": "Tu espacio está vacío",
+    "emptySubtitle": "Abre la central de tickets o crea uno nuevo para empezar.",
+    "openTickets": "Central de Tickets",
+    "newTicket": "Nuevo ticket"
+  },
+  "sla": {
+    "label": "SLA",
+    "OnTrack": "En plazo",
+    "AtRisk": "En riesgo",
+    "Breached": "Excedido",
+    "None": "Sin SLA",
+    "due": "vence"
   },
   "theme": {
     "toggle": "Cambiar tema",

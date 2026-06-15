@@ -12,6 +12,7 @@ import { useAuthStore } from '@/features/auth/auth-store';
 import { formatRelative } from '@/shared/lib/datetime';
 import type { Locale } from '@/shared/i18n/config';
 import type { NotificationResponse } from '@/shared/api/types';
+import { Portal } from '@/shared/ui/portal';
 import { cn } from '@/shared/lib/utils';
 
 /** Sino + drawer de notificações, com atualização em tempo real (SignalR). */
@@ -84,8 +85,9 @@ export function NotificationCenter() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={t('title')}>
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} aria-hidden />
+        <Portal>
+        <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={t('title')}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} aria-hidden />
           <aside className="absolute right-0 top-0 flex h-full w-full max-w-sm flex-col border-l border-border bg-panel shadow-lg">
             <header className="flex items-center justify-between border-b border-border px-md py-sm">
               <div className="flex items-center gap-sm">
@@ -149,6 +151,7 @@ export function NotificationCenter() {
             </div>
           </aside>
         </div>
+        </Portal>
       )}
     </>
   );

@@ -67,6 +67,17 @@ const config: Config = {
         DEFAULT: 'var(--orbit-shadow)',
         lg: 'var(--orbit-shadow-lg)',
       },
+      // Cor padrão de `border`/`ring`/`divide` SEM cor explícita → token do tema.
+      // (Sem isto o Tailwind cai no gray-200, que parece branco no tema escuro.)
+      borderColor: {
+        DEFAULT: 'var(--orbit-color-border)',
+      },
+      ringColor: {
+        DEFAULT: 'var(--orbit-color-primary)',
+      },
+      divideColor: {
+        DEFAULT: 'var(--orbit-color-border)',
+      },
     },
   },
   plugins: [],

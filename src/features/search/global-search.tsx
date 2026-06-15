@@ -7,6 +7,7 @@ import { Search, FileText, BookOpen, GitBranch, Wrench, Loader2 } from 'lucide-r
 import { useQuery } from '@tanstack/react-query';
 import { searchApi } from '@/shared/api/endpoints';
 import type { SearchResultItem, SearchResultType } from '@/shared/api/types';
+import { Portal } from '@/shared/ui/portal';
 import { cn } from '@/shared/lib/utils';
 
 const ICONS: Record<SearchResultType, typeof FileText> = {
@@ -84,16 +85,17 @@ export function GlobalSearch() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-9 w-full max-w-sm items-center gap-sm rounded border border-border bg-bg-subtle px-md text-sm text-dim hover:border-border-strong"
+        className="flex h-9 w-full max-w-xl items-center gap-sm rounded-md border border-border bg-bg-subtle px-md text-sm text-dim transition-colors hover:border-border-strong hover:bg-panel"
       >
-        <Search className="h-4 w-4" aria-hidden />
-        <span className="flex-1 text-left">{t('placeholder')}</span>
-        <kbd className="rounded border border-border px-1.5 text-xs">Ctrl K</kbd>
+        <Search className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="flex-1 truncate text-left">{t('placeholder')}</span>
+        <kbd className="hidden shrink-0 rounded border border-border px-1.5 text-[11px] sm:inline">Ctrl K</kbd>
       </button>
 
       {open && (
+        <Portal>
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-md pt-[12vh] backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 p-md pt-[12vh] backdrop-blur-sm"
           onClick={() => setOpen(false)}
           role="dialog"
           aria-modal="true"
@@ -153,6 +155,7 @@ export function GlobalSearch() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </>
   );
