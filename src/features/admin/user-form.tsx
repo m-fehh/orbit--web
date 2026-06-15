@@ -59,8 +59,9 @@ export function UserForm({ windowId, user }: { windowId: string; user?: UserResp
         e.preventDefault();
         if (canSave) save.mutate();
       }}
-      className="flex flex-col gap-md p-lg"
+      className="flex h-full flex-col"
     >
+      <div className="flex flex-1 flex-col gap-md overflow-auto p-lg">
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Nome
         <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
@@ -91,7 +92,8 @@ export function UserForm({ windowId, user }: { windowId: string; user?: UserResp
         <AsyncCombobox options={teamOptions} value={teamId} onChange={setTeamId} loading={teams.isLoading} placeholder="Selecionar equipe" />
       </div>
 
-      <div className="mt-sm flex justify-end gap-sm">
+      </div>
+      <div className="flex shrink-0 justify-end gap-sm border-t border-border bg-panel p-md">
         <Button type="button" variant="secondary" onClick={() => closeWindow(windowId)}>
           Cancelar
         </Button>

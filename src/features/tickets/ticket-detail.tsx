@@ -47,7 +47,6 @@ export function TicketDetail({ id }: { id: number }) {
   const teams = useQuery({ queryKey: ['teams'], queryFn: () => teamsApi.list() });
 
   const userOptions: ComboOption[] = (users.data?.items ?? []).map((u) => ({ id: u.id, label: u.name, hint: u.email }));
-  const teamOptions: ComboOption[] = (teams.data ?? []).map((t) => ({ id: t.id, label: t.name }));
   const userName = (uid: number | null) => (uid ? users.data?.items.find((u) => u.id === uid)?.name ?? `#${uid}` : '—');
   const teamName = (tid: number | null) => (tid ? teams.data?.find((t) => t.id === tid)?.name ?? `#${tid}` : '—');
 
@@ -83,9 +82,8 @@ export function TicketDetail({ id }: { id: number }) {
               <AssignControl
                 ticketId={id}
                 currentUserId={ticket.assignedUserId}
-                currentTeamId={ticket.assignedTeamId}
                 userOptions={userOptions}
-                teamOptions={teamOptions}
+                resolveUserTeam={(uid) => users.data?.items.find((u) => u.id === uid)?.teamId ?? null}
               />
             </Can>
             <Can permission="ticket.status">
@@ -227,27 +225,25 @@ function StatusPicker({
   );
 }
 
-/* ---- Atribuir responsável (popover) ---- */
+/* ---- Atribuir responsável (popover): só usuário; a equipe é herdada dele ---- */
 function AssignControl({
   ticketId,
   currentUserId,
-  currentTeamId,
   userOptions,
-  teamOptions,
+  resolveUserTeam,
 }: {
   ticketId: number;
   currentUserId: number | null;
-  currentTeamId: number | null;
   userOptions: ComboOption[];
-  teamOptions: ComboOption[];
+  resolveUserTeam: (userId: number) => number | null;
 }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<number | null>(currentUserId);
-  const [teamId, setTeamId] = useState<number | null>(currentTeamId);
 
   const assign = useMutation({
-    mutationFn: () => ticketsApi.assign(ticketId, userId!, teamId),
+    // Equipe atribuída automaticamente a partir do usuário escolhido.
+    mutationFn: () => ticketsApi.assign(ticketId, userId!, resolveUserTeam(userId!)),
     onSuccess: () => {
       toast.success('Ticket atribuído');
       qc.invalidateQueries({ queryKey: ['tickets'] });
@@ -271,8 +267,7 @@ function AssignControl({
           <div className="absolute right-0 z-40 mt-1 w-72 rounded-md border border-border bg-panel p-md shadow-lg">
             <p className="mb-1.5 text-xs font-medium text-muted">Responsável</p>
             <AsyncCombobox options={userOptions} value={userId} onChange={setUserId} placeholder="Selecionar usuário" allowClear={false} />
-            <p className="mb-1.5 mt-md text-xs font-medium text-muted">Equipe (opcional)</p>
-            <AsyncCombobox options={teamOptions} value={teamId} onChange={setTeamId} placeholder="Selecionar equipe" />
+            <p className="mt-1.5 text-xs text-dim">A equipe é definida automaticamente pela equipe do responsável.</p>
             <Button className="mt-md w-full justify-center" disabled={!userId || assign.isPending} loading={assign.isPending} onClick={() => assign.mutate()}>
               Atribuir
             </Button>
