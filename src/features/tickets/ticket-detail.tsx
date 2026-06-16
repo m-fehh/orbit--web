@@ -93,8 +93,11 @@ export function TicketDetail({ id }: { id: number }) {
               <AssignControl
                 ticketId={id}
                 currentUserId={ticket.assignedUserId}
+<<<<<<< HEAD
                 currentUserName={ticket.assignedUserId ? userName(ticket.assignedUserId) : null}
                 currentUserEmail={userEmail(ticket.assignedUserId)}
+=======
+>>>>>>> 0e6d667921cffb6aaf19feadd8abeb76f5a14297
                 userOptions={userOptions}
                 resolveUserTeam={(uid) => users.data?.items.find((u) => u.id === uid)?.teamId ?? null}
               />
@@ -274,15 +277,21 @@ function StatusPicker({
 function AssignControl({
   ticketId,
   currentUserId,
+<<<<<<< HEAD
   currentUserName,
   currentUserEmail,
+=======
+>>>>>>> 0e6d667921cffb6aaf19feadd8abeb76f5a14297
   userOptions,
   resolveUserTeam,
 }: {
   ticketId: number;
   currentUserId: number | null;
+<<<<<<< HEAD
   currentUserName: string | null;
   currentUserEmail: string | null;
+=======
+>>>>>>> 0e6d667921cffb6aaf19feadd8abeb76f5a14297
   userOptions: ComboOption[];
   resolveUserTeam: (userId: number) => number | null;
 }) {
@@ -332,10 +341,17 @@ function AssignControl({
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
+<<<<<<< HEAD
           <div className="absolute right-0 z-40 mt-1 w-80 rounded-md border border-border bg-panel p-md shadow-lg">
             <p className="mb-1.5 text-xs font-medium text-muted">{t('assignee')}</p>
             <AsyncCombobox options={userOptions} value={userId} onChange={setUserId} placeholder={t('selectUser')} allowClear={false} />
             <p className="mt-1.5 text-xs text-dim">{t('teamAutoHint')}</p>
+=======
+          <div className="absolute right-0 z-40 mt-1 w-72 rounded-md border border-border bg-panel p-md shadow-lg">
+            <p className="mb-1.5 text-xs font-medium text-muted">Responsável</p>
+            <AsyncCombobox options={userOptions} value={userId} onChange={setUserId} placeholder="Selecionar usuário" allowClear={false} />
+            <p className="mt-1.5 text-xs text-dim">A equipe é definida automaticamente pela equipe do responsável.</p>
+>>>>>>> 0e6d667921cffb6aaf19feadd8abeb76f5a14297
             <Button className="mt-md w-full justify-center" disabled={!userId || assign.isPending} loading={assign.isPending} onClick={() => assign.mutate()}>
               {t('assign')}
             </Button>
