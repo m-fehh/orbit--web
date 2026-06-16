@@ -340,7 +340,7 @@ export function TicketTimeline({
         return (
           <section key={g.day} className="mb-12 last:mb-0">
             {/* Cabeçalho do dia */}
-            <div className="sticky top-0 z-10 -mx-2 mb-6 bg-bg/80 px-2 py-3 backdrop-blur-sm">
+            <div className="sticky top-0 z-10 -mx-2 mb-6 bg-bg/80 px-2 py-3 bg-bg">
               <h3 className="text-sm font-semibold uppercase tracking-widest text-muted">
                 {dayLabel(g.day)}
               </h3>

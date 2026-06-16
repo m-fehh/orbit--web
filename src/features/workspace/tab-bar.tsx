@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, Pin, PinOff, Star, X } from 'lucide-react';
+import { MoreHorizontal, Pin, PinOff, Star, X } from 'lucide-react';
 import { useTabStore, currentLocation } from '@/features/workspace/tab-store';
 import { Icon } from './icons';
 import { cn } from '@/shared/lib/utils';
+
+const MAX_VISIBLE_TABS = 6;
 
 /** Barra de abas: drag-reorder, fixar, favoritar, fechar, menu de contexto e favoritos. */
 export function TabBar() {
@@ -15,84 +17,32 @@ export function TabBar() {
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [favOpen, setFavOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
-  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const dragFrom = useRef<number | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Detecta quais abas estão fora da área visível para popular o overflow menu.
-  // Re-roda quando o tamanho da janela ou a lista de abas muda.
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const recompute = () => {
-      const containerRect = el.getBoundingClientRect();
-      const hidden = new Set<string>();
-      tabs.forEach((tb) => {
-        const tabEl = tabRefs.current[tb.id];
-        if (!tabEl) return;
-        const r = tabEl.getBoundingClientRect();
-        if (r.right > containerRect.right - 2 || r.left < containerRect.left - 2) hidden.add(tb.id);
-      });
-      setHiddenIds(hidden);
-    };
-    recompute();
-    const ro = new ResizeObserver(recompute);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [tabs]);
+  // Divide as abas em visíveis e overflow
+  const visibleTabs = tabs.slice(0, MAX_VISIBLE_TABS);
+  const overflowTabs = tabs.length > MAX_VISIBLE_TABS ? tabs.slice(MAX_VISIBLE_TABS) : [];
+  const hasOverflow = overflowTabs.length > 0;
 
-  // Mantém a aba ativa visível: scroll automático ao trocar de aba.
+  // Mantém a aba ativa visível: se estiver no overflow, troca com a última visível
   useEffect(() => {
-    const tabEl = activeId ? tabRefs.current[activeId] : null;
-    tabEl?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-  }, [activeId]);
+    if (!activeId || !hasOverflow) return;
+    
+    const activeIndex = tabs.findIndex(t => t.id === activeId);
+    if (activeIndex >= MAX_VISIBLE_TABS) {
+      // A aba ativa está no overflow, troca com a última visível
+      reorder(activeIndex, MAX_VISIBLE_TABS - 1);
+    }
+  }, [activeId, tabs, hasOverflow, reorder]);
 
   if (tabs.length === 0) return null;
 
   return (
     <div className="relative flex items-end gap-1.5 border-b border-border bg-bg-subtle/60 pl-5 pr-sm">
-      {/* Favoritos */}
-      <div className="flex items-center">
-        <button
-          type="button"
-          onClick={() => setFavOpen((v) => !v)}
-          className="grid h-9 w-8 place-items-center rounded text-muted hover:bg-panel-2 hover:text-warning"
-          aria-label={t('favorites')}
-          title={t('favorites')}
-        >
-          <Star className="h-4 w-4" aria-hidden />
-        </button>
-        {favOpen && (
-          <>
-            <div className="fixed inset-0 z-10" onClick={() => setFavOpen(false)} aria-hidden />
-            <div className="absolute left-1 top-10 z-20 w-64 overflow-hidden rounded border border-border bg-panel shadow-lg">
-              {favorites.length === 0 ? (
-                <p className="px-md py-sm text-xs text-dim">{t('noFavorites')}</p>
-              ) : (
-                favorites.map((f) => (
-                  <button
-                    key={f.key}
-                    type="button"
-                    onClick={() => {
-                      openTab({ kind: f.kind, params: f.params, title: f.title, icon: f.icon });
-                      setFavOpen(false);
-                    }}
-                    className="flex w-full items-center gap-sm px-md py-sm text-left text-sm hover:bg-panel-2"
-                  >
-                    <Icon name={f.icon} className="h-4 w-4 text-warning" />
-                    <span className="truncate">{f.title}</span>
-                  </button>
-                ))
-              )}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Abas */}
-      <div ref={scrollRef} className="flex flex-1 items-end gap-0.5 overflow-x-auto scrollbar-thin">
-        {tabs.map((tab, i) => {
+      {/* Abas visíveis (máximo 6) - empurradas para a esquerda */}
+      <div className="flex flex-1 items-end gap-0.5">
+        {visibleTabs.map((tab, i) => {
           const loc = currentLocation(tab);
           const active = tab.id === activeId;
           return (
@@ -161,43 +111,87 @@ export function TabBar() {
         })}
       </div>
 
-      {/* Overflow menu: abas que não cabem na barra */}
-      {hiddenIds.size > 0 && (
-        <div className="relative flex items-center">
+      {/* Container direito: estrela + overflow */}
+      <div className="flex items-center gap-0.5">
+        {/* Favoritos */}
+        <div className="flex items-center">
           <button
             type="button"
-            onClick={() => setOverflowOpen((v) => !v)}
-            className="inline-flex h-8 items-center gap-1 rounded border border-border bg-panel px-2 text-xs text-muted hover:bg-panel-2 hover:text-text"
-            title={`${hiddenIds.size} aba(s) ocultas`}
+            onClick={() => setFavOpen((v) => !v)}
+            className="grid h-9 w-9 place-items-center rounded-md text-muted hover:text-warning transition-colors"
+            aria-label={t('favorites')}
+            title={t('favorites')}
           >
-            <ChevronDown className="h-3.5 w-3.5" />
-            {hiddenIds.size}
+            <Star className="h-4 w-4" aria-hidden />
           </button>
-          {overflowOpen && (
+          {favOpen && (
             <>
-              <div className="fixed inset-0 z-30" onClick={() => setOverflowOpen(false)} aria-hidden />
-              <div className="absolute right-0 top-9 z-40 max-h-80 w-64 overflow-y-auto rounded border border-border bg-panel py-1 shadow-lg">
-                {tabs
-                  .filter((tb) => hiddenIds.has(tb.id))
-                  .map((tb) => {
-                    const loc = currentLocation(tb);
-                    return (
-                      <button
-                        key={tb.id}
-                        type="button"
-                        onClick={() => { setActive(tb.id); setOverflowOpen(false); }}
-                        className="flex w-full items-center gap-sm px-md py-1.5 text-left text-sm hover:bg-panel-2"
-                      >
-                        <Icon name={loc.icon} className="h-4 w-4 text-primary" />
-                        <span className="truncate">{loc.title}</span>
-                      </button>
-                    );
-                  })}
+              <div className="fixed inset-0 z-10" onClick={() => setFavOpen(false)} aria-hidden />
+              <div className="absolute right-0 top-10 z-20 w-64 overflow-hidden rounded border border-border bg-panel shadow-lg">
+                {favorites.length === 0 ? (
+                  <p className="px-md py-sm text-xs text-dim">{t('noFavorites')}</p>
+                ) : (
+                  favorites.map((f) => (
+                    <button
+                      key={f.key}
+                      type="button"
+                      onClick={() => {
+                        openTab({ kind: f.kind, params: f.params, title: f.title, icon: f.icon });
+                        setFavOpen(false);
+                      }}
+                      className="flex w-full items-center gap-sm px-md py-sm text-left text-sm hover:bg-panel-2"
+                    >
+                      <Icon name={f.icon} className="h-4 w-4 text-warning" />
+                      <span className="truncate">{f.title}</span>
+                    </button>
+                  ))
+                )}
               </div>
             </>
           )}
         </div>
-      )}
+
+        {/* Overflow menu: abas que não cabem na barra */}
+        {hasOverflow && (
+          <div className="flex items-center">
+            <button
+              type="button"
+              onClick={() => setOverflowOpen((v) => !v)}
+              className="flex h-9 items-center gap-1 rounded-md px-2 text-sm text-muted hover:text-text transition-colors"
+              title={`${overflowTabs.length} aba(s) ocultas`}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="text-xs font-medium">{overflowTabs.length}</span>
+            </button>
+            {overflowOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setOverflowOpen(false)} aria-hidden />
+                <div className="absolute right-0 top-10 z-40 max-h-80 w-64 overflow-y-auto rounded border border-border bg-panel py-1 shadow-lg">
+                  {overflowTabs.map((tab) => {
+                    const loc = currentLocation(tab);
+                    const active = tab.id === activeId;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => { setActive(tab.id); setOverflowOpen(false); }}
+                        className={cn(
+                          'flex w-full items-center gap-sm px-md py-1.5 text-left text-sm hover:bg-panel-2',
+                          active && 'bg-primary/10 text-primary font-medium'
+                        )}
+                      >
+                        <Icon name={loc.icon} className={cn('h-4 w-4', active ? 'text-primary' : 'text-muted')} />
+                        <span className="truncate">{loc.title}</span>
+                        {active && <span className="ml-auto text-xs text-primary">Ativo</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Menu de contexto */}
       {menu && (
