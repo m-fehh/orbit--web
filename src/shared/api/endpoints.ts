@@ -21,6 +21,18 @@ import type {
   CreateTicketRequest,
   UpdateTicketRequest,
   UpdateTicketTrackingRequest,
+  RecommendationFeedbackRequest,
+  InvestigationResponse,
+  EvidenceResponse,
+  HypothesisResponse,
+  FindingResponse,
+  RootCauseResponse,
+  CreateInvestigationRequest,
+  AddEvidenceRequest,
+  AddHypothesisRequest,
+  AddFindingRequest,
+  CreateRootCauseRequest,
+  HypothesisStatusValue,
   PriorityValue,
   TicketStatusValue,
   AccessRuleResponse,
@@ -86,7 +98,7 @@ export const ticketsApi = {
   changeStatus: (id: number, status: TicketStatusValue) =>
     api.patch<TicketResponse>(`/tickets/${id}/status`, { status }),
   resolve: (id: number, body: unknown) => api.post<unknown>(`/tickets/${id}/resolve`, body),
-  recommendationFeedback: (id: number, body: unknown) =>
+  recommendationFeedback: (id: number, body: RecommendationFeedbackRequest) =>
     api.post<void>(`/tickets/${id}/recommendation-feedback`, body),
   addComment: (id: number, message: string, isInternal = false) =>
     api.post<TicketCommentResponse>(`/tickets/${id}/comments`, { message, isInternal }),
@@ -111,17 +123,22 @@ export const worklogsApi = {
     api.patch<WorklogResponse>(`/worklogs/${id}/duration`, { durationMinutes }),
 };
 
-/** Investigações */
+/** Investigações (F5.7) */
 export const investigationsApi = {
-  create: (ticketId: number, body: unknown) => api.post<unknown>(`/investigations/ticket/${ticketId}`, body),
-  get: (id: number) => api.get<unknown>(`/investigations/${id}`),
-  updateFindings: (id: number, body: unknown) => api.put<unknown>(`/investigations/${id}/findings`, body),
-  addEvidence: (id: number, body: unknown) => api.post<unknown>(`/investigations/${id}/evidences`, body),
-  finish: (id: number) => api.patch<unknown>(`/investigations/${id}/finish`),
-  addHypothesis: (id: number, body: unknown) => api.post<unknown>(`/investigations/${id}/hypotheses`, body),
-  updateHypothesisStatus: (hypothesisId: number, body: unknown) =>
-    api.patch<unknown>(`/investigations/hypotheses/${hypothesisId}/status`, body),
-  addFinding: (id: number, body: unknown) => api.post<unknown>(`/investigations/${id}/findings`, body),
+  create: (ticketId: number, body: CreateInvestigationRequest) =>
+    api.post<InvestigationResponse>(`/investigations/ticket/${ticketId}`, body),
+  get: (id: number) => api.get<InvestigationResponse>(`/investigations/${id}`),
+  updateFindings: (id: number, findings: string) =>
+    api.put<InvestigationResponse>(`/investigations/${id}/findings`, { findings }),
+  addEvidence: (id: number, body: AddEvidenceRequest) =>
+    api.post<EvidenceResponse>(`/investigations/${id}/evidences`, body),
+  finish: (id: number) => api.patch<InvestigationResponse>(`/investigations/${id}/finish`),
+  addHypothesis: (id: number, body: AddHypothesisRequest) =>
+    api.post<HypothesisResponse>(`/investigations/${id}/hypotheses`, body),
+  updateHypothesisStatus: (hypothesisId: number, status: HypothesisStatusValue) =>
+    api.patch<HypothesisResponse>(`/investigations/hypotheses/${hypothesisId}/status`, { status }),
+  addFinding: (id: number, body: AddFindingRequest) =>
+    api.post<FindingResponse>(`/investigations/${id}/findings`, body),
 };
 
 /** Resoluções*/
@@ -132,12 +149,14 @@ export const resolutionsApi = {
   addLearning: (id: number, body: unknown) => api.post<unknown>(`/resolutions/${id}/learnings`, body),
 };
 
-/** Causas raiz */
+/** Causas raiz (F5.8) */
 export const rootCausesApi = {
-  create: (ticketId: number, body: unknown) => api.post<unknown>(`/rootcauses/ticket/${ticketId}`, body),
-  get: (id: number) => api.get<unknown>(`/rootcauses/${id}`),
-  byTicket: (ticketId: number) => api.get<unknown>(`/rootcauses/ticket/${ticketId}`),
-  updateConfidence: (id: number, body: unknown) => api.patch<unknown>(`/rootcauses/${id}/confidence`, body),
+  create: (ticketId: number, body: CreateRootCauseRequest) =>
+    api.post<RootCauseResponse>(`/rootcauses/ticket/${ticketId}`, body),
+  get: (id: number) => api.get<RootCauseResponse>(`/rootcauses/${id}`),
+  byTicket: (ticketId: number) => api.get<RootCauseResponse[]>(`/rootcauses/ticket/${ticketId}`),
+  updateConfidence: (id: number, score: number) =>
+    api.patch<RootCauseResponse>(`/rootcauses/${id}/confidence`, { score }),
 };
 
 /** Knowledge assets */

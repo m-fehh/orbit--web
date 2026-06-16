@@ -20,6 +20,7 @@
     "analytics": "Analytics",
     "users": "Users",
     "admin": "Profiles",
+    "audit": "Audit logs",
     "secOperation": "Operations",
     "secInsights": "Insights",
     "secAdmin": "Administration",
@@ -125,7 +126,12 @@
     "closed": "Ticket closed",
     "investigationStarted": "Investigation started",
     "investigationFinished": "Investigation finished",
-    "attachmentAdded": "Attachment added"
+    "attachmentAdded": "Attachment added",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "updated": "Update",
+    "estimateMinutes": "Estimate",
+    "slaBreach": "SLA"
   },
   "ticket": {
     "loading": "Loading ticket…",
@@ -151,7 +157,8 @@
     "tabConversation": "Conversation",
     "tabWorklogs": "Time",
     "tabAttachments": "Attachments",
-    "tabIntelligence": "Intelligence"
+    "tabIntelligence": "Intelligence",
+    "tabInvestigation": "Investigation"
   },
   "ticketStatus": {
     "New": "New",
@@ -210,7 +217,11 @@
     "empty": "No comments yet.",
     "internal": "internal",
     "public": "public",
-    "filter": { "all": "All", "public": "Public", "internal": "Internal" },
+    "filter": {
+      "all": "All",
+      "public": "Public",
+      "internal": "Internal"
+    },
     "placeholderPublic": "Write a comment…",
     "placeholderInternal": "Internal comment (team only)…",
     "internalToggle": "Internal comment",
@@ -227,7 +238,9 @@
     "uploadError": "Failed to upload.",
     "downloadError": "Failed to download.",
     "download": "Download",
-    "tooLarge": "File(s) above size limit: {files}"
+    "tooLarge": "File(s) above size limit: {files}",
+    "preview": "Preview",
+    "close": "Close"
   },
   "theme": {
     "toggle": "Toggle theme",
@@ -237,5 +250,56 @@
   },
   "language": {
     "label": "Language"
+  },
+  "investigation": {
+    "title": "Investigations",
+    "newPh": "Investigation summary…",
+    "create": "Start investigation",
+    "inProgress": "In progress",
+    "finished": "Finished",
+    "finish": "Finish",
+    "empty": "No investigations yet.",
+    "hypotheses": "Hypotheses",
+    "addHypothesis": "Add hypothesis…",
+    "findings": "Findings",
+    "addFinding": "Add finding…",
+    "evidences": "Evidence",
+    "addEvidence": "Add evidence",
+    "notes": "Notes",
+    "url": "URL",
+    "add": "Add",
+    "rootCauses": "Root causes",
+    "newRootCause": "New root cause",
+    "rcTitle": "Title",
+    "rcDescription": "Description",
+    "category": "Category",
+    "confidence": "Confidence",
+    "save": "Save",
+    "emptyRc": "No root causes yet.",
+    "resolutions": "resolutions",
+    "hStatus": {
+      "Open": "Open",
+      "Discarded": "Discarded",
+      "Confirmed": "Confirmed"
+    },
+    "eType": {
+      "Screenshot": "Screenshot",
+      "Log": "Log",
+      "Video": "Video",
+      "File": "File",
+      "Observation": "Observation",
+      "Url": "URL"
+    },
+    "cat": {
+      "Bug": "Bug",
+      "Configuration": "Configuration",
+      "Infrastructure": "Infrastructure",
+      "Process": "Process",
+      "UserError": "User error",
+      "ThirdParty": "Third party",
+      "Documentation": "Documentation",
+      "Security": "Security",
+      "Performance": "Performance"
+    }
   }
 }

@@ -51,13 +51,13 @@ export function TabBar() {
   if (tabs.length === 0) return null;
 
   return (
-    <div className="relative flex h-11 items-stretch gap-1.5 border-b border-border bg-bg-subtle/60 py-1.5 pl-5 pr-sm">
+    <div className="relative flex items-end gap-1.5 border-b border-border bg-bg-subtle/60 pl-5 pr-sm">
       {/* Favoritos */}
       <div className="flex items-center">
         <button
           type="button"
           onClick={() => setFavOpen((v) => !v)}
-          className="grid h-8 w-8 place-items-center rounded text-muted hover:bg-panel-2 hover:text-warning"
+          className="grid h-9 w-8 place-items-center rounded text-muted hover:bg-panel-2 hover:text-warning"
           aria-label={t('favorites')}
           title={t('favorites')}
         >
@@ -91,7 +91,7 @@ export function TabBar() {
       </div>
 
       {/* Abas */}
-      <div ref={scrollRef} className="flex flex-1 items-stretch gap-1 overflow-x-auto py-1.5 scrollbar-thin">
+      <div ref={scrollRef} className="flex flex-1 items-end gap-0.5 overflow-x-auto scrollbar-thin">
         {tabs.map((tab, i) => {
           const loc = currentLocation(tab);
           const active = tab.id === activeId;
@@ -115,11 +115,11 @@ export function TabBar() {
                 setMenu({ id: tab.id, x: e.clientX, y: e.clientY });
               }}
               className={cn(
-                'group flex cursor-pointer select-none items-center gap-2 rounded-md border px-3 text-sm transition-colors',
+                'group flex h-9 cursor-pointer select-none items-center gap-2 border-b-2 px-3 text-sm transition-colors',
                 active
-                  ? 'border-primary/40 bg-primary-soft text-text glow-ring'
-                  : 'border-transparent text-muted hover:bg-panel-2 hover:text-text',
-                tab.pinned && 'px-2',
+                  ? 'border-primary bg-panel font-medium text-text'
+                  : 'border-transparent text-muted hover:bg-panel-2/60 hover:text-text',
+                tab.pinned && 'px-2.5',
               )}
               title={loc.title}
             >

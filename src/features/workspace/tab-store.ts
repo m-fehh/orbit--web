@@ -9,7 +9,8 @@ export type ViewKind =
   | 'knowledge'
   | 'investigations'
   | 'analytics'
-  | 'admin';
+  | 'admin'
+  | 'audit';
 
 /** Chave de ícone (resolvida para um componente lucide no TabBar). */
 export type IconKey =
@@ -20,7 +21,8 @@ export type IconKey =
   | 'knowledge'
   | 'search'
   | 'analytics'
-  | 'admin';
+  | 'admin'
+  | 'audit';
 
 /** Uma localização navegável dentro de uma aba (entra no histórico). */
 export interface TabLocation {

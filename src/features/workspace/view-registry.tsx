@@ -5,7 +5,9 @@ import { TicketsCentral } from '@/features/tickets/tickets-central';
 import { TicketDetail } from '@/features/tickets/ticket-detail';
 import { UsersView } from '@/features/admin/users-view';
 import { ProfileGroupsView } from '@/features/admin/profile-groups-view';
+import { AuditLogsView } from '@/features/admin/audit-logs-view';
 import { DashboardView } from '@/features/dashboard/dashboard-view';
+import { InvestigationsView } from '@/features/investigations/investigations-view';
 import { EmptyState } from '@/shared/ui/states';
 import { ICONS } from './icons';
 
@@ -22,6 +24,10 @@ export function renderView(loc: TabLocation) {
       return <UsersView />;
     case 'admin':
       return <ProfileGroupsView />;
+    case 'audit':
+      return <AuditLogsView />;
+    case 'investigations':
+      return <InvestigationsView />;
     default:
       return (
         <div className="grid h-full place-items-center">

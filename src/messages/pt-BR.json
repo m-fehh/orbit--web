@@ -20,6 +20,7 @@
     "analytics": "Analytics",
     "users": "Usuários",
     "admin": "Perfis",
+    "audit": "Logs de auditoria",
     "secOperation": "Operação",
     "secInsights": "Insights",
     "secAdmin": "Administração",
@@ -125,7 +126,12 @@
     "closed": "Ticket encerrado",
     "investigationStarted": "Investigação iniciada",
     "investigationFinished": "Investigação concluída",
-    "attachmentAdded": "Anexo adicionado"
+    "attachmentAdded": "Anexo adicionado",
+    "today": "Hoje",
+    "yesterday": "Ontem",
+    "updated": "Atualização",
+    "estimateMinutes": "Estimativa",
+    "slaBreach": "SLA"
   },
   "ticket": {
     "loading": "Carregando ticket…",
@@ -151,7 +157,8 @@
     "tabConversation": "Conversa",
     "tabWorklogs": "Tempo",
     "tabAttachments": "Anexos",
-    "tabIntelligence": "Inteligência"
+    "tabIntelligence": "Inteligência",
+    "tabInvestigation": "Investigação"
   },
   "ticketStatus": {
     "New": "Novo",
@@ -210,7 +217,11 @@
     "empty": "Sem comentários ainda.",
     "internal": "interno",
     "public": "público",
-    "filter": { "all": "Todos", "public": "Públicos", "internal": "Internos" },
+    "filter": {
+      "all": "Todos",
+      "public": "Públicos",
+      "internal": "Internos"
+    },
     "placeholderPublic": "Escreva um comentário…",
     "placeholderInternal": "Comentário interno (só a equipe vê)…",
     "internalToggle": "Comentário interno",
@@ -227,7 +238,9 @@
     "uploadError": "Falha ao enviar anexo.",
     "downloadError": "Falha ao baixar anexo.",
     "download": "Baixar",
-    "tooLarge": "Arquivo(s) acima do limite: {files}"
+    "tooLarge": "Arquivo(s) acima do limite: {files}",
+    "preview": "Pré-visualizar",
+    "close": "Fechar"
   },
   "theme": {
     "toggle": "Alternar tema",
@@ -237,5 +250,56 @@
   },
   "language": {
     "label": "Idioma"
+  },
+  "investigation": {
+    "title": "Investigações",
+    "newPh": "Resumo da investigação…",
+    "create": "Iniciar investigação",
+    "inProgress": "Em andamento",
+    "finished": "Concluída",
+    "finish": "Concluir",
+    "empty": "Nenhuma investigação ainda.",
+    "hypotheses": "Hipóteses",
+    "addHypothesis": "Adicionar hipótese…",
+    "findings": "Achados",
+    "addFinding": "Adicionar achado…",
+    "evidences": "Evidências",
+    "addEvidence": "Adicionar evidência",
+    "notes": "Notas",
+    "url": "URL",
+    "add": "Adicionar",
+    "rootCauses": "Causas raiz",
+    "newRootCause": "Nova causa raiz",
+    "rcTitle": "Título",
+    "rcDescription": "Descrição",
+    "category": "Categoria",
+    "confidence": "Confiança",
+    "save": "Salvar",
+    "emptyRc": "Nenhuma causa raiz registrada.",
+    "resolutions": "resoluções",
+    "hStatus": {
+      "Open": "Aberta",
+      "Discarded": "Descartada",
+      "Confirmed": "Confirmada"
+    },
+    "eType": {
+      "Screenshot": "Captura",
+      "Log": "Log",
+      "Video": "Vídeo",
+      "File": "Arquivo",
+      "Observation": "Observação",
+      "Url": "URL"
+    },
+    "cat": {
+      "Bug": "Bug",
+      "Configuration": "Configuração",
+      "Infrastructure": "Infraestrutura",
+      "Process": "Processo",
+      "UserError": "Erro do usuário",
+      "ThirdParty": "Terceiros",
+      "Documentation": "Documentação",
+      "Security": "Segurança",
+      "Performance": "Performance"
+    }
   }
 }

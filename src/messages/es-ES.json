@@ -20,6 +20,7 @@
     "analytics": "Analítica",
     "users": "Usuarios",
     "admin": "Perfiles",
+    "audit": "Registros de auditoría",
     "secOperation": "Operación",
     "secInsights": "Insights",
     "secAdmin": "Administración",
@@ -125,7 +126,12 @@
     "closed": "Ticket cerrado",
     "investigationStarted": "Investigación iniciada",
     "investigationFinished": "Investigación finalizada",
-    "attachmentAdded": "Adjunto añadido"
+    "attachmentAdded": "Adjunto añadido",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "updated": "Actualización",
+    "estimateMinutes": "Estimación",
+    "slaBreach": "SLA"
   },
   "ticket": {
     "loading": "Cargando ticket…",
@@ -151,7 +157,8 @@
     "tabConversation": "Conversación",
     "tabWorklogs": "Tiempo",
     "tabAttachments": "Adjuntos",
-    "tabIntelligence": "Inteligencia"
+    "tabIntelligence": "Inteligencia",
+    "tabInvestigation": "Investigación"
   },
   "ticketStatus": {
     "New": "Nuevo",
@@ -210,7 +217,11 @@
     "empty": "Aún no hay comentarios.",
     "internal": "interno",
     "public": "público",
-    "filter": { "all": "Todos", "public": "Públicos", "internal": "Internos" },
+    "filter": {
+      "all": "Todos",
+      "public": "Públicos",
+      "internal": "Internos"
+    },
     "placeholderPublic": "Escribe un comentario…",
     "placeholderInternal": "Comentario interno (sólo el equipo)…",
     "internalToggle": "Comentario interno",
@@ -227,7 +238,9 @@
     "uploadError": "Error al enviar.",
     "downloadError": "Error al descargar.",
     "download": "Descargar",
-    "tooLarge": "Archivo(s) superan el límite: {files}"
+    "tooLarge": "Archivo(s) superan el límite: {files}",
+    "preview": "Vista previa",
+    "close": "Cerrar"
   },
   "theme": {
     "toggle": "Cambiar tema",
@@ -237,5 +250,56 @@
   },
   "language": {
     "label": "Idioma"
+  },
+  "investigation": {
+    "title": "Investigaciones",
+    "newPh": "Resumen de la investigación…",
+    "create": "Iniciar investigación",
+    "inProgress": "En curso",
+    "finished": "Finalizada",
+    "finish": "Finalizar",
+    "empty": "Aún no hay investigaciones.",
+    "hypotheses": "Hipótesis",
+    "addHypothesis": "Añadir hipótesis…",
+    "findings": "Hallazgos",
+    "addFinding": "Añadir hallazgo…",
+    "evidences": "Evidencias",
+    "addEvidence": "Añadir evidencia",
+    "notes": "Notas",
+    "url": "URL",
+    "add": "Añadir",
+    "rootCauses": "Causas raíz",
+    "newRootCause": "Nueva causa raíz",
+    "rcTitle": "Título",
+    "rcDescription": "Descripción",
+    "category": "Categoría",
+    "confidence": "Confianza",
+    "save": "Guardar",
+    "emptyRc": "Aún no hay causas raíz.",
+    "resolutions": "resoluciones",
+    "hStatus": {
+      "Open": "Abierta",
+      "Discarded": "Descartada",
+      "Confirmed": "Confirmada"
+    },
+    "eType": {
+      "Screenshot": "Captura",
+      "Log": "Log",
+      "Video": "Vídeo",
+      "File": "Archivo",
+      "Observation": "Observación",
+      "Url": "URL"
+    },
+    "cat": {
+      "Bug": "Bug",
+      "Configuration": "Configuración",
+      "Infrastructure": "Infraestructura",
+      "Process": "Proceso",
+      "UserError": "Error de usuario",
+      "ThirdParty": "Terceros",
+      "Documentation": "Documentación",
+      "Security": "Seguridad",
+      "Performance": "Rendimiento"
+    }
   }
 }

@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   MessageSquare, Clock, Info, Send, Lock, Timer, Sparkles, User, Users,
-  Lightbulb, GitBranch, ChevronDown, UserPlus, Plus, Check, History, Paperclip,
+  Lightbulb, GitBranch, ChevronDown, UserPlus, Plus, Check, History, Paperclip, X, FlaskConical,
 } from 'lucide-react';
 import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi } from '@/shared/api/endpoints';
 import { TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, type TicketStatusValue, type TicketStatusName } from '@/shared/api/types';
@@ -23,9 +23,10 @@ import { Input } from '@/shared/ui/input';
 import { cn } from '@/shared/lib/utils';
 import { SlaPanel } from './sla-panel';
 import { TicketTimeline } from './timeline';
+import { InvestigationTab } from './investigation-tab';
 import { AttachmentsTab } from './attachments';
 
-type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'attachments' | 'intelligence';
+type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'investigation' | 'attachments' | 'intelligence';
 
 export function TicketDetail({ id }: { id: number }) {
   const locale = useLocale() as Locale;
@@ -67,6 +68,7 @@ export function TicketDetail({ id }: { id: number }) {
     { key: 'timeline', label: tTicket('tabTimeline'), icon: History },
     { key: 'conversation', label: tTicket('tabConversation'), icon: MessageSquare, count: ticket.comments.length },
     { key: 'worklogs', label: tTicket('tabWorklogs'), icon: Clock, count: ticket.worklogs.length },
+    { key: 'investigation', label: tTicket('tabInvestigation'), icon: FlaskConical, count: ticket.investigations.length },
     { key: 'attachments', label: tTicket('tabAttachments'), icon: Paperclip },
     { key: 'intelligence', label: tTicket('tabIntelligence'), icon: Sparkles },
   ];
@@ -148,11 +150,15 @@ export function TicketDetail({ id }: { id: number }) {
       <div className="min-h-0 flex-1 overflow-auto p-lg">
         {sub === 'overview' && (
           <div className="grid items-start gap-lg lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <p className="mb-sm h-5 text-xs font-semibold uppercase tracking-wide text-dim">{tTicket('description')}</p>
-              <div className="card-surface min-h-[160px] whitespace-pre-wrap p-lg text-sm leading-relaxed text-text">
-                {ticket.description || '—'}
+            <div className="flex flex-col gap-lg lg:col-span-2">
+              <div>
+                <p className="mb-sm h-5 text-xs font-semibold uppercase tracking-wide text-dim">{tTicket('description')}</p>
+                <div className="card-surface min-h-[140px] whitespace-pre-wrap p-lg text-sm leading-relaxed text-text">
+                  {ticket.description || '—'}
+                </div>
               </div>
+              {/* Recomendações inteligentes (aceitar / ignorar) */}
+              <RecommendationsPanel ticketId={id} onOpenIntelligence={() => setSub('intelligence')} />
             </div>
             <aside>
               <p className="mb-sm h-5 text-xs font-semibold uppercase tracking-wide text-dim">{tTicket('details')}</p>
@@ -166,6 +172,24 @@ export function TicketDetail({ id }: { id: number }) {
                     <Timer className="h-3.5 w-3.5" /> {tSla('label')}
                   </p>
                   <SlaPanel sla={sla} />
+                </div>
+                {/* Tracking de tempo (estilo Azure) */}
+                <div className="border-t border-border pt-3">
+                  <p className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wide text-dim">
+                    <Clock className="h-3.5 w-3.5" /> {tTicket('tabWorklogs')}
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <TrackMini label="Est." value={fmtMin(ticket.estimateMinutes ?? 0)} />
+                    <TrackMini label="Feito" value={fmtMin(ticket.completedMinutes)} accent="primary" />
+                    <TrackMini
+                      label="Resta"
+                      value={fmtMin(
+                        ticket.remainingMinutes != null
+                          ? Math.max(0, ticket.remainingMinutes)
+                          : Math.max(0, (ticket.estimateMinutes ?? 0) - ticket.completedMinutes),
+                      )}
+                    />
+                  </div>
                 </div>
               </div>
             </aside>
@@ -186,6 +210,8 @@ export function TicketDetail({ id }: { id: number }) {
             completedMinutesServer={ticket.completedMinutes}
           />
         )}
+
+        {sub === 'investigation' && <InvestigationTab ticketId={id} investigations={ticket.investigations} />}
 
         {sub === 'attachments' && <AttachmentsTab ticketId={id} userName={userName} />}
 
@@ -214,10 +240,10 @@ function StatusPicker({
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
-        className="inline-flex items-center gap-2 rounded-md border border-border bg-panel px-2 py-1.5 text-sm hover:border-border-strong disabled:opacity-50"
+        className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-panel px-2.5 text-sm hover:border-border-strong disabled:opacity-50"
       >
         <StatusBadge status={value} />
-        <ChevronDown className="h-3.5 w-3.5 text-dim" aria-hidden />
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-dim" aria-hidden />
       </button>
       {open && (
         <>
@@ -284,21 +310,18 @@ function AssignControl({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'inline-flex items-center gap-2 rounded-md border bg-panel py-1.5 transition-colors hover:border-border-strong',
-          currentUserId ? 'border-border pl-1 pr-3' : 'border-dashed border-border px-md text-muted',
+          'inline-flex h-9 items-center gap-2 rounded-md border bg-panel text-sm transition-colors hover:border-border-strong',
+          currentUserId ? 'border-border pl-1 pr-2.5' : 'border-dashed border-border px-3 text-muted',
         )}
-        title={currentUserId ? t('changeAssignee') : t('assign')}
+        title={currentUserId ? `${currentUserName}${currentUserEmail ? ` · ${currentUserEmail}` : ''}` : t('assign')}
       >
         {currentUserId ? (
           <>
-            <span className="grid h-7 w-7 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-fg">
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-fg">
               {initials || '?'}
             </span>
-            <span className="flex flex-col items-start text-left leading-tight">
-              <span className="text-sm font-medium text-text">{currentUserName}</span>
-              {currentUserEmail && <span className="text-[10px] text-dim">{currentUserEmail}</span>}
-            </span>
-            <ChevronDown className="h-3.5 w-3.5 text-dim" aria-hidden />
+            <span className="max-w-[140px] truncate font-medium text-text">{currentUserName}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-dim" aria-hidden />
           </>
         ) : (
           <>
@@ -330,6 +353,115 @@ function Detail({ icon: Icon, label, value }: { icon: typeof User; label: string
       <div className="min-w-0">
         <p className="text-xs uppercase tracking-wide text-dim">{label}</p>
         <p className="truncate text-text">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function TrackMini({ label, value, accent }: { label: string; value: string; accent?: 'primary' }) {
+  return (
+    <div className="rounded-md bg-panel-2/50 px-1 py-1.5">
+      <p className="text-[10px] uppercase tracking-wide text-dim">{label}</p>
+      <p className={cn('text-sm font-bold', accent === 'primary' ? 'text-primary' : 'text-text')}>{value}</p>
+    </div>
+  );
+}
+
+/**
+ * Painel de recomendações inteligentes na visão geral: busca resoluções similares
+ * (motor de IA) e permite Aceitar (helpful) ou Ignorar — fecha o loop de aprendizado
+ * via POST /tickets/{id}/recommendation-feedback.
+ */
+function RecommendationsPanel({ ticketId, onOpenIntelligence }: { ticketId: number; onOpenIntelligence: () => void }) {
+  const qc = useQueryClient();
+  const [handled, setHandled] = useState<Record<number, 'accepted' | 'ignored'>>({});
+
+  const report = useQuery({
+    queryKey: ['tickets', 'intelligence', ticketId],
+    queryFn: () => intelligenceApi.ticketReport(ticketId),
+    retry: false,
+  });
+
+  const feedback = useMutation({
+    mutationFn: (v: { resolutionId: number; accepted: boolean }) =>
+      ticketsApi.recommendationFeedback(ticketId, { resolutionId: v.resolutionId, accepted: v.accepted, helpful: v.accepted }),
+    onSuccess: (_d, v) => {
+      setHandled((h) => ({ ...h, [v.resolutionId]: v.accepted ? 'accepted' : 'ignored' }));
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+      toast.success(v.accepted ? 'Recomendação aceita' : 'Recomendação ignorada');
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Não foi possível registrar o feedback')),
+  });
+
+  const suggestions = (report.data?.resolutionSuggestions ?? []).slice(0, 3);
+  if (report.isLoading || suggestions.length === 0) return null; // só aparece quando há sinal
+
+  return (
+    <div>
+      <div className="mb-sm flex items-center justify-between">
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-dim">
+          <Sparkles className="h-3.5 w-3.5 text-primary" /> Recomendações inteligentes
+        </p>
+        <button type="button" onClick={onOpenIntelligence} className="text-xs text-primary hover:underline">
+          Ver análise completa
+        </button>
+      </div>
+      <div className="flex flex-col gap-sm">
+        {suggestions.map((r) => {
+          const state = handled[r.resolutionId];
+          return (
+            <div
+              key={r.resolutionId}
+              className={cn(
+                'card-surface flex items-center gap-sm p-md transition-opacity',
+                state === 'ignored' && 'opacity-50',
+              )}
+            >
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-success/15 text-success">
+                <Lightbulb className="h-4 w-4" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{r.summary}</p>
+                <p className="text-xs text-dim">
+                  {Math.round(r.similarityScore * 100)}% similar · {Math.round(r.successRate * 100)}% sucesso · {r.reusedCount}× reuso
+                </p>
+              </div>
+              {state ? (
+                <span
+                  className={cn(
+                    'shrink-0 rounded px-2 py-0.5 text-xs font-semibold',
+                    state === 'accepted' ? 'bg-success/15 text-success' : 'bg-panel-2 text-dim',
+                  )}
+                >
+                  {state === 'accepted' ? 'Aceita' : 'Ignorada'}
+                </span>
+              ) : (
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => feedback.mutate({ resolutionId: r.resolutionId, accepted: true })}
+                    disabled={feedback.isPending}
+                    className="grid h-7 w-7 place-items-center rounded-md text-success hover:bg-success/10"
+                    aria-label="Aceitar"
+                    title="Aceitar"
+                  >
+                    <Check className="h-4 w-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => feedback.mutate({ resolutionId: r.resolutionId, accepted: false })}
+                    disabled={feedback.isPending}
+                    className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-panel-2"
+                    aria-label="Ignorar"
+                    title="Ignorar"
+                  >
+                    <X className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

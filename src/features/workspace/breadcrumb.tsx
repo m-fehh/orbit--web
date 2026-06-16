@@ -16,6 +16,7 @@ const SECTION_NAV_KEY: Record<ViewKind, string> = {
   investigations: 'investigations',
   analytics: 'analytics',
   admin: 'admin',
+  audit: 'audit',
 };
 
 /** Localização "índice" da seção a que a view pertence (para o breadcrumb navegável). */
@@ -28,6 +29,7 @@ const SECTION_INDEX: Record<ViewKind, TabLocation> = {
   investigations: { kind: 'investigations', params: {}, title: 'Investigações', icon: 'search' },
   analytics: { kind: 'analytics', params: {}, title: 'Analytics', icon: 'analytics' },
   admin: { kind: 'admin', params: {}, title: 'Perfis', icon: 'admin' },
+  audit: { kind: 'audit', params: {}, title: 'Logs de auditoria', icon: 'audit' },
 };
 
 /** Breadcrumb + navegação (back/forward) da aba ativa, baseada no histórico. */

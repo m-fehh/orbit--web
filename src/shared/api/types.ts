@@ -106,6 +106,14 @@ export interface UpdateTicketTrackingRequest {
   remainingMinutes?: number | null;
 }
 
+/** Feedback sobre uma recomendação do motor de inteligência (fecha o loop de aprendizado). */
+export interface RecommendationFeedbackRequest {
+  resolutionId?: number | null;
+  accepted: boolean;
+  helpful: boolean;
+  note?: string | null;
+}
+
 /** Transições de status permitidas (espelha TicketStateMachine do backend, RN-003). */
 export const STATUS_TRANSITIONS: Record<TicketStatusName, TicketStatusName[]> = {
   New: ['Assigned', 'InProgress', 'Cancelled'],
@@ -118,13 +126,76 @@ export const STATUS_TRANSITIONS: Record<TicketStatusName, TicketStatusName[]> = 
   Cancelled: [],
 };
 
+export interface EvidenceResponse {
+  id: number;
+  type: string;
+  filePath: string | null;
+  notes: string | null;
+  url: string | null;
+  fileSize: number;
+  createdAt: string | null;
+}
+
+export interface HypothesisResponse {
+  id: number;
+  investigationId: number;
+  description: string;
+  status: string; // Open | Discarded | Confirmed
+  createdAt: string | null;
+}
+
+export interface FindingResponse {
+  id: number;
+  investigationId: number;
+  description: string;
+  createdAt: string | null;
+}
+
 export interface InvestigationResponse {
   id: number;
   ticketId: number;
-  status: string;
-  summary: string | null;
-  startedAt: string | null;
+  summary: string;
+  findings: string | null;
+  startedAt: string;
   finishedAt: string | null;
+  evidences: EvidenceResponse[];
+  hypotheses: HypothesisResponse[];
+  findingItems: FindingResponse[];
+  createdAt: string | null;
+}
+
+/* Enums numéricos (backend espera número). */
+export const EvidenceType = { Screenshot: 1, Log: 2, Video: 3, File: 4, Observation: 5, Url: 6 } as const;
+export type EvidenceTypeValue = (typeof EvidenceType)[keyof typeof EvidenceType];
+export const HypothesisStatus = { Open: 1, Discarded: 2, Confirmed: 3 } as const;
+export type HypothesisStatusValue = (typeof HypothesisStatus)[keyof typeof HypothesisStatus];
+export const RootCauseCategory = {
+  Bug: 1, Configuration: 2, Infrastructure: 3, Process: 4, UserError: 5,
+  ThirdParty: 6, Documentation: 7, Security: 8, Performance: 9,
+} as const;
+export type RootCauseCategoryValue = (typeof RootCauseCategory)[keyof typeof RootCauseCategory];
+
+export interface RootCauseResponse {
+  id: number;
+  ticketId: number | null;
+  title: string;
+  description: string;
+  category: string;
+  confidenceScore: number;
+  identifiedAt: string;
+  resolutionsCount: number;
+  createdAt: string | null;
+}
+
+export interface CreateInvestigationRequest { summary: string }
+export interface AddEvidenceRequest { type: EvidenceTypeValue; notes?: string | null; url?: string | null }
+export interface AddHypothesisRequest { description: string }
+export interface AddFindingRequest { description: string }
+export interface CreateRootCauseRequest {
+  title: string;
+  description: string;
+  category: RootCauseCategoryValue;
+  confidenceScore?: number;
 }
 
 export interface TicketDetailResponse {

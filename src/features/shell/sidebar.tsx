@@ -10,6 +10,7 @@ import {
   BarChart3,
   Users as UsersIcon,
   ShieldCheck,
+  ScrollText,
   ChevronLeft,
   ChevronRight,
   X,
@@ -20,7 +21,7 @@ import { useTabStore, currentLocation, type TabLocation } from '@/features/works
 import { usePermissions } from '@/features/auth/use-permissions';
 import { cn } from '@/shared/lib/utils';
 
-type NavLabel = 'dashboard' | 'tickets' | 'investigations' | 'knowledge' | 'analytics' | 'users' | 'admin';
+type NavLabel = 'dashboard' | 'tickets' | 'investigations' | 'knowledge' | 'analytics' | 'users' | 'admin' | 'audit';
 
 interface NavItem {
   loc: TabLocation;
@@ -55,6 +56,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { loc: { kind: 'users', params: {}, title: 'Usuários', icon: 'users' }, labelKey: 'users', icon: UsersIcon, perm: ['admin.users.view'] },
       { loc: { kind: 'admin', params: {}, title: 'Perfis', icon: 'admin' }, labelKey: 'admin', icon: ShieldCheck, perm: ['role.view', 'admin.users.view'] },
+      { loc: { kind: 'audit', params: {}, title: 'Logs de auditoria', icon: 'audit' }, labelKey: 'audit', icon: ScrollText, perm: ['auditlog.view'] },
     ],
   },
 ];

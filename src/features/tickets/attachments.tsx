@@ -13,6 +13,7 @@ import { useBrandingStore } from '@/features/tenant/branding-store';
 import { Can } from '@/features/auth/can';
 import { Button } from '@/shared/ui/button';
 import { LoadingState } from '@/shared/ui/states';
+import { Portal } from '@/shared/ui/portal';
 import { tokenStore } from '@/shared/api/token-store';
 import { cn } from '@/shared/lib/utils';
 
@@ -28,6 +29,23 @@ function isImage(contentType: string): boolean {
   return contentType.startsWith('image/');
 }
 
+function isPdf(contentType: string): boolean {
+  return contentType === 'application/pdf';
+}
+
+function canPreview(contentType: string): boolean {
+  return isImage(contentType) || isPdf(contentType);
+}
+
+/** Busca o anexo autenticado e devolve um object URL (revogar depois). */
+async function fetchBlobUrl(id: number): Promise<string> {
+  const res = await fetch(ticketsApi.downloadAttachmentUrl(id), {
+    headers: tokenStore.getAccessToken() ? { Authorization: `Bearer ${tokenStore.getAccessToken()}` } : undefined,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return URL.createObjectURL(await res.blob());
+}
+
 /** Aba completa de Anexos: drag&drop, upload múltiplo, listagem, preview, download. */
 export function AttachmentsTab({ ticketId, userName }: { ticketId: number; userName: (uid: number | null) => string }) {
   const t = useTranslations('attachments');
@@ -37,6 +55,25 @@ export function AttachmentsTab({ ticketId, userName }: { ticketId: number; userN
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState<{ name: string; pct: number }[]>([]);
+  const [preview, setPreview] = useState<{ att: TicketAttachmentResponse; url: string } | null>(null);
+
+  async function openPreview(a: TicketAttachmentResponse) {
+    if (!canPreview(a.contentType)) {
+      void downloadOne(a);
+      return;
+    }
+    try {
+      const url = await fetchBlobUrl(a.id);
+      setPreview({ att: a, url });
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('downloadError')));
+    }
+  }
+
+  function closePreview() {
+    if (preview) URL.revokeObjectURL(preview.url);
+    setPreview(null);
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['tickets', 'attachments', ticketId],
@@ -152,18 +189,23 @@ export function AttachmentsTab({ ticketId, userName }: { ticketId: number; userN
         <ul className="grid gap-sm sm:grid-cols-2 lg:grid-cols-3">
           {data.map((a) => (
             <li key={a.id} className="card-surface flex items-start gap-sm p-md">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded bg-panel-2 text-muted">
-                {isImage(a.contentType) ? <ImageIcon className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium" title={a.fileName}>{a.fileName}</p>
-                <p className="text-xs text-dim">
-                  {fmtSize(a.fileSize)} · {userName(a.uploadedById)}
-                </p>
-                {a.createdAt && (
-                  <p className="text-xs text-dim">{formatDateTime(a.createdAt, { locale, timeZone })}</p>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={() => openPreview(a)}
+                className="flex min-w-0 flex-1 items-start gap-sm text-left"
+                title={canPreview(a.contentType) ? t('preview') : a.fileName}
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded bg-panel-2 text-muted">
+                  {isImage(a.contentType) ? <ImageIcon className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium hover:text-primary" title={a.fileName}>{a.fileName}</span>
+                  <span className="block text-xs text-dim">{fmtSize(a.fileSize)} · {userName(a.uploadedById)}</span>
+                  {a.createdAt && (
+                    <span className="block text-xs text-dim">{formatDateTime(a.createdAt, { locale, timeZone })}</span>
+                  )}
+                </span>
+              </button>
               <button
                 type="button"
                 onClick={() => downloadOne(a)}
@@ -177,8 +219,31 @@ export function AttachmentsTab({ ticketId, userName }: { ticketId: number; userN
           ))}
         </ul>
       )}
-      {/* Esconde o ícone unused */}
-      <X className="hidden" aria-hidden />
+
+      {/* Modal de preview (imagem / PDF) */}
+      {preview && (
+        <Portal>
+          <div className="fixed inset-0 z-[120] flex flex-col bg-black/70 backdrop-blur-sm" onClick={closePreview}>
+            <div className="flex items-center gap-sm border-b border-white/10 px-md py-2 text-sm text-white">
+              <span className="flex-1 truncate">{preview.att.fileName}</span>
+              <button type="button" onClick={(e) => { e.stopPropagation(); downloadOne(preview.att); }} className="rounded p-1.5 hover:bg-white/10" title={t('download')}>
+                <Download className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={closePreview} className="rounded p-1.5 hover:bg-white/10" aria-label={t('close')}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex min-h-0 flex-1 items-center justify-center p-md" onClick={(e) => e.stopPropagation()}>
+              {isImage(preview.att.contentType) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={preview.url} alt={preview.att.fileName} className="max-h-full max-w-full rounded object-contain" />
+              ) : (
+                <iframe src={preview.url} title={preview.att.fileName} className="h-full w-full rounded bg-white" />
+              )}
+            </div>
+          </div>
+        </Portal>
+      )}
     </div>
   );
 }
