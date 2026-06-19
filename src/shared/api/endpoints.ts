@@ -133,6 +133,8 @@ export const investigationsApi = {
   addEvidence: (id: number, body: AddEvidenceRequest) =>
     api.post<EvidenceResponse>(`/investigations/${id}/evidences`, body),
   finish: (id: number) => api.patch<InvestigationResponse>(`/investigations/${id}/finish`),
+  setRootCause: (id: number, rootCauseId: number, rationale?: string) =>
+    api.patch<InvestigationResponse>(`/investigations/${id}/root-cause`, { rootCauseId, rationale }),
   addHypothesis: (id: number, body: AddHypothesisRequest) =>
     api.post<HypothesisResponse>(`/investigations/${id}/hypotheses`, body),
   updateHypothesisStatus: (hypothesisId: number, status: HypothesisStatusValue) =>
