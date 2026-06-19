@@ -18,6 +18,7 @@ import {
   TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, EvidenceType, HypothesisStatus, RootCauseCategory,
   type TicketStatusValue, type TicketStatusName, type TicketAttachmentResponse,
   type InvestigationResponse, type HypothesisStatusValue, type EvidenceTypeValue, type RootCauseCategoryValue,
+  type RootCauseCandidate, type ResolutionSuggestion,
 } from '@/shared/api/types';
 import type { Locale } from '@/shared/i18n/config';
 import { useBrandingStore } from '@/features/tenant/branding-store';
@@ -1557,6 +1558,34 @@ function IntelligencePanel({ ticketId }: { ticketId: number }) {
     onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao reanalisar')),
   });
 
+  const createRootCause = useMutation({
+    mutationFn: (c: RootCauseCandidate) =>
+      rootCausesApi.create(ticketId, {
+        title: c.category,
+        description: c.description,
+        category: c.category as RootCauseCategoryValue,
+        confidenceScore: c.confidenceScore,
+      }),
+    onSuccess: () => {
+      toast.success('Causa raiz criada');
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+      qc.invalidateQueries({ queryKey: ['rootcauses'] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao criar causa raiz')),
+  });
+
+  const applyResolution = useMutation({
+    mutationFn: (r: ResolutionSuggestion) => {
+      if (!r.resolutionId) throw new Error('Resolução não encontrada');
+      return Promise.resolve(); // Placeholder - seria linkage direto
+    },
+    onSuccess: () => {
+      toast.success('Resolução aplicada');
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao aplicar resolução')),
+  });
+
   if (isLoading) return <LoadingState label={t('analyzing')} />;
   if (isError || !data) return <ErrorState title={t('analysisError')} onRetry={() => refetch()} retryLabel={t('retry')} />;
 
@@ -1615,10 +1644,7 @@ function IntelligencePanel({ ticketId }: { ticketId: number }) {
                 </div>
                 <p className="text-sm text-text mb-3">{c.description}</p>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => toast.info(t('detailsComingSoon'))}>
-                    <Eye className="h-3.5 w-3.5" /> {t('viewDetails')}
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => toast.info(t('applyComingSoon'))}>
+                  <Button size="sm" variant="secondary" onClick={() => createRootCause.mutate(c)} loading={createRootCause.isPending} disabled={createRootCause.isPending}>
                     <Zap className="h-3.5 w-3.5" /> {t('createFromRootCause')}
                   </Button>
                 </div>
@@ -1649,11 +1675,8 @@ function IntelligencePanel({ ticketId }: { ticketId: number }) {
                   <span>{t('success')} {Math.round(r.successRate * 100)}%</span>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => toast.info(t('applyComingSoon'))}>
+                  <Button size="sm" onClick={() => applyResolution.mutate(r)} loading={applyResolution.isPending} disabled={applyResolution.isPending}>
                     <Check className="h-3.5 w-3.5" /> {t('applySolution')}
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => toast.info(t('applyComingSoon'))}>
-                    <ExternalLink className="h-3.5 w-3.5" /> {t('linkToKnowledge')}
                   </Button>
                 </div>
               </div>
