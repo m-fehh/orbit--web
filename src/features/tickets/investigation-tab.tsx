@@ -13,6 +13,7 @@ import {
 import { Can } from '@/features/auth/can';
 import { Button } from '@/shared/ui/button';
 import { Select } from '@/shared/ui/select';
+import { AsyncCombobox, type ComboOption } from '@/shared/ui/async-combobox';
 import { LoadingState, EmptyState } from '@/shared/ui/states';
 import { cn } from '@/shared/lib/utils';
 
@@ -124,6 +125,23 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
     onSuccess: () => { setEvNotes(''); setEvUrl(''); onChanged(); toast.success(t('evidenceAdded')); },
     onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
   });
+
+  const setRootCauseMutation = useMutation({
+    mutationFn: (rcId: number) => investigationsApi.setRootCause(inv.id, rcId),
+    onSuccess: () => { onChanged(); toast.success(t('rootCauseLinked')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
+  });
+
+  const rootCauses = useQuery({
+    queryKey: ['rootcauses', inv.ticketId],
+    queryFn: () => rootCausesApi.byTicket(inv.ticketId),
+  });
+
+  const rcOptions: ComboOption[] = (rootCauses.data ?? []).map(rc => ({
+    id: rc.id,
+    label: rc.title,
+    hint: `${Math.round(rc.confidenceScore * 100)}%`,
+  }));
 
   const evHint = EVIDENCE_HINTS[evType];
   const datalistId = `inv-${inv.id}-ev-suggestions`;
@@ -311,6 +329,26 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
           )}
         </div>
       </div>
+
+      {/* Root Cause selection */}
+      {finished && (
+        <div className="mt-md border-t border-border pt-md">
+          <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-dim">
+            <GitBranch className="h-3.5 w-3.5" /> {t('selectRootCause')}
+          </p>
+          <div className="max-w-xs">
+            <AsyncCombobox
+              options={rcOptions}
+              value={inv.rootCauseId ?? null}
+              onChange={(id) => { if (id) setRootCauseMutation.mutate(id); }}
+              loading={rootCauses.isLoading || setRootCauseMutation.isPending}
+              placeholder={t('selectRootCause')}
+              emptyText={t('rootCauseNotFound')}
+              allowClear={false}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
