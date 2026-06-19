@@ -63,7 +63,7 @@ export function TicketsCentral() {
         case 'status':
           return a.status.localeCompare(b.status);
         case 'updated':
-          return new Date(b.lastUpdateUTC).getTime() - new Date(a.lastUpdateUTC).getTime();
+          return new Date(b.lastUpdateUTC ?? b.openedAt).getTime() - new Date(a.lastUpdateUTC ?? a.openedAt).getTime();
         case 'opened':
         default:
           return new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime();
@@ -108,9 +108,9 @@ export function TicketsCentral() {
 
           {/* Status filter */}
           <div className="flex gap-1">
-            {Object.entries(TicketStatus).map(([k, v]) => (
+            {(Object.keys(TicketStatus) as (keyof typeof TicketStatus)[]).map((k) => (
               <button
-                key={v}
+                key={k}
                 onClick={() => setStatusFilter((prev) => prev.includes(k) ? prev.filter((s) => s !== k) : [...prev, k])}
                 className={`rounded-full border px-2 py-0.5 transition-colors ${
                   statusFilter.includes(k)
@@ -118,16 +118,16 @@ export function TicketsCentral() {
                     : 'border-border text-muted hover:text-text'
                 }`}
               >
-                {tStatus(k as any)}
+                {tStatus(k)}
               </button>
             ))}
           </div>
 
           {/* Priority filter */}
           <div className="flex gap-1 ml-2 pl-2 border-l border-border/40">
-            {Object.entries(Priority).map(([k, v]) => (
+            {(Object.keys(Priority) as (keyof typeof Priority)[]).map((k) => (
               <button
-                key={v}
+                key={k}
                 onClick={() => setPriorityFilter((prev) => prev.includes(k) ? prev.filter((p) => p !== k) : [...prev, k])}
                 className={`rounded-full border px-2 py-0.5 transition-colors ${
                   priorityFilter.includes(k)
@@ -135,7 +135,7 @@ export function TicketsCentral() {
                     : 'border-border text-muted hover:text-text'
                 }`}
               >
-                {tPriority(k as any)}
+                {tPriority(k)}
               </button>
             ))}
           </div>

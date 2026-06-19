@@ -75,6 +75,7 @@ export interface TicketResponse {
   investigationsCount: number;
   createdAt: string | null;
   updatedAt: string | null;
+  lastUpdateUTC: string | null;
   estimateMinutes: number | null;
   remainingMinutes: number | null;
   completedMinutes: number;
@@ -83,6 +84,8 @@ export interface TicketResponse {
 export interface TicketCommentResponse {
   id: number;
   userId: number;
+  userName: string;
+  userEmail: string;
   message: string;
   isInternal: boolean;
   createdAt: string | null;
@@ -92,6 +95,7 @@ export interface WorklogResponse {
   id: number;
   ticketId: number;
   userId: number;
+  userName: string;
   type: string;
   description: string;
   startedAt: string | null;
@@ -162,6 +166,7 @@ export interface InvestigationResponse {
   hypotheses: HypothesisResponse[];
   findingItems: FindingResponse[];
   createdAt: string | null;
+  rootCauseId?: number | null;
 }
 
 /* Enums numéricos (backend espera número). */
