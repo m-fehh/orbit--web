@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Plus, FlaskConical, GitBranch, CheckCircle2, Lightbulb, FileText, Link2 } from 'lucide-react';
+import { Plus, FlaskConical, GitBranch, CheckCircle2, Lightbulb, FileText, Link2, Upload, Loader } from 'lucide-react';
 import { investigationsApi, rootCausesApi } from '@/shared/api/endpoints';
 import {
   apiErrorMessage, EvidenceType, HypothesisStatus, RootCauseCategory,
@@ -99,11 +99,14 @@ const EVIDENCE_HINTS: Record<EvidenceTypeValue, { ph: string; suggestions: strin
 function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onChanged: () => void }) {
   const t = useTranslations('investigation');
   const finished = !!inv.finishedAt;
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [hyp, setHyp] = useState('');
   const [finding, setFinding] = useState('');
   const [evType, setEvType] = useState<EvidenceTypeValue>(EvidenceType.Observation);
   const [evNotes, setEvNotes] = useState('');
   const [evUrl, setEvUrl] = useState('');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadNotes, setUploadNotes] = useState('');
 
   const run = (p: Promise<unknown>, ok?: () => void) =>
     p.then(() => { toast.success(t('saved')); onChanged(); ok?.(); }).catch((e) => toast.error(apiErrorMessage(e, t('saveError'))));
@@ -129,6 +132,12 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
   const setRootCauseMutation = useMutation({
     mutationFn: (rcId: number) => investigationsApi.setRootCause(inv.id, rcId),
     onSuccess: () => { onChanged(); toast.success(t('rootCauseLinked')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
+  });
+
+  const uploadEvidenceMutation = useMutation({
+    mutationFn: (file: File) => investigationsApi.uploadEvidence(inv.id, file, evType, uploadNotes.trim() || undefined),
+    onSuccess: () => { setUploadFile(null); setUploadNotes(''); onChanged(); toast.success(t('evidenceAdded')); if (fileInputRef.current) fileInputRef.current.value = ''; },
     onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
   });
 
@@ -281,50 +290,91 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
 
           {!finished && (
             <Can permission="investigation.evidence.add">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  addEvidenceMutation.mutate({
-                    type: evType,
-                    notes: evNotes.trim() || null,
-                    url: evHint.needsUrl ? (evUrl.trim() || null) : null,
-                  });
-                }}
-                className="mt-2 flex flex-col gap-1.5"
-              >
-                <Select<EvidenceTypeValue>
-                  value={evType}
-                  onChange={(v) => { setEvType(v); setEvNotes(''); setEvUrl(''); }}
-                  options={Object.entries(EvidenceType).map(([k, v]) => ({
-                    value: v as EvidenceTypeValue,
-                    label: t(`eType.${k}` as 'eType.Log'),
-                  }))}
-                />
-                <input
-                  list={datalistId}
-                  className={FIELD_SM}
-                  value={evNotes}
-                  onChange={(e) => setEvNotes(e.target.value)}
-                  placeholder={evHint.ph}
-                  disabled={addEvidenceMutation.isPending}
-                />
-                <datalist id={datalistId}>
-                  {evHint.suggestions.map((s) => <option key={s} value={s} />)}
-                </datalist>
-                {evHint.needsUrl && (
+              <div className="mt-2 flex flex-col gap-2 border-t border-border/50 pt-2">
+                {/* URL-based evidence */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    addEvidenceMutation.mutate({
+                      type: evType,
+                      notes: evNotes.trim() || null,
+                      url: evHint.needsUrl ? (evUrl.trim() || null) : null,
+                    });
+                  }}
+                  className="flex flex-col gap-1.5"
+                >
+                  <Select<EvidenceTypeValue>
+                    value={evType}
+                    onChange={(v) => { setEvType(v); setEvNotes(''); setEvUrl(''); }}
+                    options={Object.entries(EvidenceType).map(([k, v]) => ({
+                      value: v as EvidenceTypeValue,
+                      label: t(`eType.${k}` as 'eType.Log'),
+                    }))}
+                  />
                   <input
-                    type="url"
+                    list={datalistId}
                     className={FIELD_SM}
-                    value={evUrl}
-                    onChange={(e) => setEvUrl(e.target.value)}
-                    placeholder={t('url')}
+                    value={evNotes}
+                    onChange={(e) => setEvNotes(e.target.value)}
+                    placeholder={evHint.ph}
                     disabled={addEvidenceMutation.isPending}
                   />
-                )}
-                <Button type="submit" size="sm" variant="secondary" loading={addEvidenceMutation.isPending}>
-                  <Plus className="h-3.5 w-3.5" /> {t('add')}
-                </Button>
-              </form>
+                  <datalist id={datalistId}>
+                    {evHint.suggestions.map((s) => <option key={s} value={s} />)}
+                  </datalist>
+                  {evHint.needsUrl && (
+                    <input
+                      type="url"
+                      className={FIELD_SM}
+                      value={evUrl}
+                      onChange={(e) => setEvUrl(e.target.value)}
+                      placeholder={t('url')}
+                      disabled={addEvidenceMutation.isPending}
+                    />
+                  )}
+                  <Button type="submit" size="sm" variant="secondary" loading={addEvidenceMutation.isPending}>
+                    <Link2 className="h-3.5 w-3.5" /> {t('addUrl')}
+                  </Button>
+                </form>
+
+                {/* File upload */}
+                <div className="flex flex-col gap-1.5 border-t border-border/50 pt-2">
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-dim">
+                    <Upload className="h-3 w-3" /> {t('upload')}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className={FIELD_SM}
+                    onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                    disabled={uploadEvidenceMutation.isPending}
+                  />
+                  {uploadFile && (
+                    <input
+                      className={FIELD_SM}
+                      value={uploadNotes}
+                      onChange={(e) => setUploadNotes(e.target.value)}
+                      placeholder={t('notes')}
+                      disabled={uploadEvidenceMutation.isPending}
+                    />
+                  )}
+                  {uploadFile && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      loading={uploadEvidenceMutation.isPending}
+                      onClick={() => uploadEvidenceMutation.mutate(uploadFile)}
+                    >
+                      {uploadEvidenceMutation.isPending ? (
+                        <><Loader className="h-3.5 w-3.5 animate-spin" /> {t('uploading')}</>
+                      ) : (
+                        <><Upload className="h-3.5 w-3.5" /> {t('upload')}</>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
             </Can>
           )}
         </div>

@@ -141,6 +141,13 @@ export const investigationsApi = {
     api.patch<HypothesisResponse>(`/investigations/hypotheses/${hypothesisId}/status`, { status }),
   addFinding: (id: number, body: AddFindingRequest) =>
     api.post<FindingResponse>(`/investigations/${id}/findings`, body),
+  uploadEvidence: (id: number, file: File, type: string, notes?: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('type', type);
+    if (notes) form.append('notes', notes);
+    return api.post<EvidenceResponse>(`/investigations/${id}/evidences/upload`, form);
+  },
 };
 
 /** Resoluções*/
