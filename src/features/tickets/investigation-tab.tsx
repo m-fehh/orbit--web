@@ -105,7 +105,25 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
   const [evUrl, setEvUrl] = useState('');
 
   const run = (p: Promise<unknown>, ok?: () => void) =>
-    p.then(() => { onChanged(); ok?.(); }).catch((e) => toast.error(apiErrorMessage(e, 'Erro')));
+    p.then(() => { toast.success(t('saved')); onChanged(); ok?.(); }).catch((e) => toast.error(apiErrorMessage(e, t('saveError'))));
+
+  const addHypoMutation = useMutation({
+    mutationFn: (desc: string) => investigationsApi.addHypothesis(inv.id, { description: desc }),
+    onSuccess: () => { setHyp(''); onChanged(); toast.success(t('hypothesisAdded')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
+  });
+
+  const addFindingMutation = useMutation({
+    mutationFn: (desc: string) => investigationsApi.addFinding(inv.id, { description: desc }),
+    onSuccess: () => { setFinding(''); onChanged(); toast.success(t('findingAdded')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
+  });
+
+  const addEvidenceMutation = useMutation({
+    mutationFn: (data: any) => investigationsApi.addEvidence(inv.id, data),
+    onSuccess: () => { setEvNotes(''); setEvUrl(''); onChanged(); toast.success(t('evidenceAdded')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
+  });
 
   const evHint = EVIDENCE_HINTS[evType];
   const datalistId = `inv-${inv.id}-ev-suggestions`;
@@ -173,7 +191,7 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (hyp.trim()) run(investigationsApi.addHypothesis(inv.id, { description: hyp.trim() }), () => setHyp(''));
+                  if (hyp.trim()) addHypoMutation.mutate(hyp.trim());
                 }}
                 className="mt-2"
               >
@@ -182,6 +200,7 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
                   value={hyp}
                   onChange={(e) => setHyp(e.target.value)}
                   placeholder={t('addHypothesis')}
+                  disabled={addHypoMutation.isPending}
                 />
               </form>
             </Can>
@@ -204,7 +223,7 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (finding.trim()) run(investigationsApi.addFinding(inv.id, { description: finding.trim() }), () => setFinding(''));
+                  if (finding.trim()) addFindingMutation.mutate(finding.trim());
                 }}
                 className="mt-2"
               >
@@ -213,6 +232,7 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
                   value={finding}
                   onChange={(e) => setFinding(e.target.value)}
                   placeholder={t('addFinding')}
+                  disabled={addFindingMutation.isPending}
                 />
               </form>
             </Can>
@@ -246,14 +266,11 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  run(
-                    investigationsApi.addEvidence(inv.id, {
-                      type: evType,
-                      notes: evNotes.trim() || null,
-                      url: evHint.needsUrl ? (evUrl.trim() || null) : null,
-                    }),
-                    () => { setEvNotes(''); setEvUrl(''); },
-                  );
+                  addEvidenceMutation.mutate({
+                    type: evType,
+                    notes: evNotes.trim() || null,
+                    url: evHint.needsUrl ? (evUrl.trim() || null) : null,
+                  });
                 }}
                 className="mt-2 flex flex-col gap-1.5"
               >
@@ -271,6 +288,7 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
                   value={evNotes}
                   onChange={(e) => setEvNotes(e.target.value)}
                   placeholder={evHint.ph}
+                  disabled={addEvidenceMutation.isPending}
                 />
                 <datalist id={datalistId}>
                   {evHint.suggestions.map((s) => <option key={s} value={s} />)}
@@ -282,9 +300,10 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
                     value={evUrl}
                     onChange={(e) => setEvUrl(e.target.value)}
                     placeholder={t('url')}
+                    disabled={addEvidenceMutation.isPending}
                   />
                 )}
-                <Button type="submit" size="sm" variant="secondary">
+                <Button type="submit" size="sm" variant="secondary" loading={addEvidenceMutation.isPending}>
                   <Plus className="h-3.5 w-3.5" /> {t('add')}
                 </Button>
               </form>

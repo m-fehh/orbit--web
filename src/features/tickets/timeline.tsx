@@ -117,14 +117,13 @@ function fromAudit(
 
 function fromComment(
   c: TicketCommentResponse,
-  userName: (uid: number | null) => string,
   t: ReturnType<typeof useTranslations>,
 ): TimelineEvent {
   return {
     id: `comment-${c.id}`,
     kind: 'comment',
     at: c.createdAt ?? new Date(0).toISOString(),
-    actor: userName(c.userId),
+    actor: c.userName || 'Unknown',
     title: c.isInternal ? t('comments.internal') : t('comments.public'),
     detail: c.message,
     internal: c.isInternal,
@@ -133,7 +132,6 @@ function fromComment(
 
 function fromWorklog(
   w: WorklogResponse,
-  userName: (uid: number | null) => string,
   t: ReturnType<typeof useTranslations>,
 ): TimelineEvent {
   const h = Math.floor(w.durationMinutes / 60);
@@ -143,8 +141,8 @@ function fromWorklog(
     id: `worklog-${w.id}`,
     kind: 'worklog',
     at: w.startedAt ?? w.createdAt ?? new Date(0).toISOString(),
-    actor: userName(w.userId),
-    title: `${dur} — ${t(`worklogType.${w.type}`)}`,
+    actor: w.userName || 'Unknown',
+    title: `${dur} — ${t(`timeline.worklogType.${w.type}`)}`,
     detail: w.description,
   };
 }
@@ -224,8 +222,8 @@ export function TicketTimeline({
       detail: ticket.title,
     });
 
-    ticket.comments.forEach((c) => list.push(fromComment(c, userName, t)));
-    ticket.worklogs.forEach((w) => list.push(fromWorklog(w, userName, t)));
+    ticket.comments.forEach((c) => list.push(fromComment(c, t)));
+    ticket.worklogs.forEach((w) => list.push(fromWorklog(w, t)));
 
     ticket.investigations.forEach((inv) => {
       if (inv.startedAt) {

@@ -1,4 +1,22 @@
 {
+  "timeline": {
+    "statusChanged": "Estado cambió de {from} a {to}",
+    "assigned": "Asignado a {user}",
+    "unassigned": "No asignado",
+    "worklogAdded": "{user} registró {duration} minutos de {type}",
+    "commentAdded": "{user} añadió comentario",
+    "investigationStarted": "Investigación iniciada por {user}",
+    "investigationFinished": "Investigación completada por {user}",
+    "resolutionAdded": "Resolución añadida por {user}",
+    "worklogType": {
+      "Investigation": "Investigación",
+      "Meeting": "Reunión",
+      "Development": "Desarrollo",
+      "Validation": "Validación",
+      "CustomerContact": "Contacto con Cliente",
+      "InternalDiscussion": "Discusión Interna"
+    }
+  },
   "common": {
     "appName": "Orbit",
     "loading": "Cargando...",
@@ -301,6 +319,11 @@
     "title": "Investigaciones",
     "newPh": "Resumen de la investigación…",
     "create": "Iniciar investigación",
+    "saved": "Guardado con éxito",
+    "saveError": "Error al guardar",
+    "hypothesisAdded": "Hipótesis añadida",
+    "findingAdded": "Hallazgo añadido",
+    "evidenceAdded": "Evidencia añadida",
     "newInvestigation": "Nueva Investigación",
     "newInvestigationHint": "Define el alcance de lo que se analizará",
     "start": "Iniciar",

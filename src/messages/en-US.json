@@ -1,4 +1,22 @@
 {
+  "timeline": {
+    "statusChanged": "Status changed from {from} to {to}",
+    "assigned": "Assigned to {user}",
+    "unassigned": "Unassigned",
+    "worklogAdded": "{user} logged {duration} minutes of {type}",
+    "commentAdded": "{user} added comment",
+    "investigationStarted": "Investigation started by {user}",
+    "investigationFinished": "Investigation completed by {user}",
+    "resolutionAdded": "Resolution added by {user}",
+    "worklogType": {
+      "Investigation": "Investigation",
+      "Meeting": "Meeting",
+      "Development": "Development",
+      "Validation": "Validation",
+      "CustomerContact": "Customer Contact",
+      "InternalDiscussion": "Internal Discussion"
+    }
+  },
   "common": {
     "appName": "Orbit",
     "loading": "Loading...",
@@ -301,6 +319,11 @@
     "title": "Investigations",
     "newPh": "Investigation summary…",
     "create": "Start investigation",
+    "saved": "Saved successfully",
+    "saveError": "Failed to save",
+    "hypothesisAdded": "Hypothesis added",
+    "findingAdded": "Finding added",
+    "evidenceAdded": "Evidence added",
     "newInvestigation": "New Investigation",
     "newInvestigationHint": "Define the scope of what will be analyzed",
     "start": "Start",
