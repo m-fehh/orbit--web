@@ -62,15 +62,18 @@ function fromAudit(
   a: AuditLogResponse,
   t: ReturnType<typeof useTranslations>,
   formatFieldValue: (fieldName: string, value: string | null) => string,
+  getActorName: (auditUserName: string | null, auditUserId: number | null) => string,
 ): TimelineEvent | null {
   if (a.action === 'Insert') return null;
+
+  const actorName = getActorName(a.userName, a.userId ?? null);
 
   if (a.action !== 'Update') {
     return {
       id: `audit-${a.id}`,
       kind: 'audit',
       at: a.occurredAt,
-      actor: a.userName,
+      actor: actorName,
       title: t('timeline.updated'),
       detail: a.entityName,
     };
@@ -85,7 +88,7 @@ function fromAudit(
       id: `audit-${a.id}`,
       kind: 'audit',
       at: a.occurredAt,
-      actor: a.userName,
+      actor: actorName,
       title: t('timeline.updated'),
       detail: a.fields
         .map((f) => `${f.fieldName}: ${formatFieldValue(f.fieldName, f.oldValue)} → ${formatFieldValue(f.fieldName, f.newValue)}`)
@@ -110,7 +113,7 @@ function fromAudit(
     id: `audit-${a.id}`,
     kind,
     at: a.occurredAt,
-    actor: a.userName,
+    actor: actorName,
     title: `${fieldLabel}: ${oldVal} → ${newVal}`,
   };
 }
@@ -164,6 +167,16 @@ export function TicketTimeline({
     queryFn: () => auditApi.forEntity('Ticket', ticket.id, 200),
     retry: false,
   });
+
+  // Parse audit userNames - they might come as IDs, try to get real names from context
+  const getActorName = (auditUserName: string | null, auditUserId: number | null): string => {
+    if (!auditUserName) return auditUserId ? userName(auditUserId) : 'System';
+    // If it looks like a number, resolve by ID instead
+    if (auditUserName && /^\d+$/.test(auditUserName) && auditUserId) {
+      return userName(auditUserId);
+    }
+    return auditUserName;
+  };
 
   const attachments = useQuery({
     queryKey: ['tickets', 'attachments', ticket.id],
@@ -272,7 +285,7 @@ export function TicketTimeline({
 
     const seenIds = new Set<string>();
     (audit.data?.items ?? []).forEach((a) => {
-      const ev = fromAudit(a, t, formatFieldValue);
+      const ev = fromAudit(a, t, formatFieldValue, getActorName);
       if (ev && !seenIds.has(ev.id)) {
         seenIds.add(ev.id);
         list.push(ev);
