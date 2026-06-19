@@ -13,7 +13,7 @@ import {
   FlaskConical, ListChecks, GanttChart, ArrowUpRight, ThumbsUp, ThumbsDown,
   Filter, Layers, Brain, Workflow, PieChart, Sigma
 } from 'lucide-react';
-import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi } from '@/shared/api/endpoints';
+import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi, resolutionsApi } from '@/shared/api/endpoints';
 import {
   TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, EvidenceType, HypothesisStatus, RootCauseCategory,
   type TicketStatusValue, type TicketStatusName, type TicketAttachmentResponse,
@@ -33,7 +33,6 @@ import { Input } from '@/shared/ui/input';
 import { cn } from '@/shared/lib/utils';
 import { SlaPanel } from './sla-panel';
 import { TicketTimeline } from './timeline';
-import { IntelligencePanel } from './intelligence-panel';
 import { tokenStore } from '@/shared/api/token-store';
 import { Portal } from '@/shared/ui/portal';
 
@@ -279,7 +278,7 @@ export function TicketDetail({ id }: { id: number }) {
 
         {sub === 'attachments' && <AttachmentsTab ticketId={id} userName={userName} />}
 
-        {sub === 'intelligence' && <IntelligencePanel ticketId={id} ticketStatus={ticket.status} />}
+        {sub === 'intelligence' && <IntelligencePanel ticketId={id} />}
       </div>
     </div>
   );
@@ -1631,14 +1630,21 @@ function IntelligencePanel({ ticketId }: { ticketId: number }) {
 
   const applyResolution = useMutation({
     mutationFn: (r: ResolutionSuggestion) => {
-      if (!r.resolutionId) throw new Error('Resolução não encontrada');
-      return Promise.resolve(); // Placeholder - seria linkage direto
+      const topCause = data?.rootCauseCandidates[0];
+      if (!topCause) throw new Error('Root cause not found');
+      return resolutionsApi.resolveWithAi(ticketId, {
+        rootCauseId: 0,
+        summary: r.summary,
+        resolutionSteps: topCause.description,
+        notifyCustomer: true,
+      });
     },
     onSuccess: () => {
-      toast.success('Resolução aplicada');
+      toast.success('Ticket resolvido com IA');
       qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+      qc.invalidateQueries({ queryKey: ['tickets'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao aplicar resolução')),
+    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao resolver ticket')),
   });
 
   if (isLoading) return <LoadingState label={t('analyzing')} />;
@@ -1730,8 +1736,13 @@ function IntelligencePanel({ ticketId }: { ticketId: number }) {
                   <span>{t('success')} {Math.round(r.successRate * 100)}%</span>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => applyResolution.mutate(r)} loading={applyResolution.isPending} disabled={applyResolution.isPending}>
-                    <Check className="h-3.5 w-3.5" /> {t('applySolution')}
+                  <Button
+                    size="sm"
+                    onClick={() => applyResolution.mutate(r)}
+                    loading={applyResolution.isPending}
+                    disabled={applyResolution.isPending || !data.rootCauseCandidates.length}
+                  >
+                    <Check className="h-3.5 w-3.5" /> Resolver com IA
                   </Button>
                 </div>
               </div>

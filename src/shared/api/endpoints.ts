@@ -158,6 +158,8 @@ export const resolutionsApi = {
   get: (id: number) => api.get<unknown>(`/resolutions/${id}`),
   validate: (id: number, body: unknown) => api.patch<unknown>(`/resolutions/${id}/validate`, body),
   addLearning: (id: number, body: unknown) => api.post<unknown>(`/resolutions/${id}/learnings`, body),
+  resolveWithAi: (ticketId: number, body: { rootCauseId: number; summary: string; resolutionSteps: string; notifyCustomer?: boolean }) =>
+    api.post<TicketResponse>(`/tickets/${ticketId}/resolve-with-ai`, body),
 };
 
 /** Causas raiz (F5.8) */
@@ -209,13 +211,6 @@ export const intelligenceApi = {
   ticketResolutions: (ticketId: number) => api.get<unknown>(`/intelligence/tickets/${ticketId}/resolutions`),
   patterns: () => api.get<unknown>('/intelligence/patterns'),
   automationOpportunities: () => api.get<unknown>('/intelligence/automation-opportunities'),
-};
-
-/** Alias para investigationsApi para consistency */
-export const investigationsApi = {
-  // ... existing methods ...
-  getTicketIntelligence: (ticketId: number, maxResults = 5) =>
-    api.get<IntelligenceReport>(`/intelligence/tickets/${ticketId}/report`, { params: { maxResults } }),
 };
 
 /** Usuários */
