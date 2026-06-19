@@ -180,7 +180,11 @@
     "tabInvestigation": "Investigation",
     "tabRootCauses": "Root Causes",
     "timeTracking": "Time tracking",
-    "noDescription": "No description"
+    "noDescription": "No description",
+    "addSymptom": "Add symptom",
+    "symptomAdded": "Symptom added",
+    "symptomRemoved": "Symptom removed",
+    "symptomError": "Could not manage symptom"
   },
   "ticketStatus": {
     "New": "New",

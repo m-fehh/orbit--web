@@ -13,11 +13,12 @@ import {
   FlaskConical, ListChecks, GanttChart, ArrowUpRight, ThumbsUp, ThumbsDown,
   Filter, Layers, Brain, Workflow, PieChart, Sigma
 } from 'lucide-react';
-import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi } from '@/shared/api/endpoints';
+import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi, symptomsApi, ticketSymptomsApi } from '@/shared/api/endpoints';
 import {
   TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, EvidenceType, HypothesisStatus, RootCauseCategory,
   type TicketStatusValue, type TicketStatusName, type TicketAttachmentResponse,
   type InvestigationResponse, type HypothesisStatusValue, type EvidenceTypeValue, type RootCauseCategoryValue,
+  type SymptomTagResponse, type AddTicketSymptomRequest,
 } from '@/shared/api/types';
 import type { Locale } from '@/shared/i18n/config';
 import { useBrandingStore } from '@/features/tenant/branding-store';
@@ -205,6 +206,9 @@ export function TicketDetail({ id }: { id: number }) {
                   {ticket.description || '—'}
                 </div>
               </div>
+
+              <SymptomsPanel ticketId={id} symptoms={ticket.symptoms} />
+
               <RecommendationsPanel ticketId={id} onOpenIntelligence={() => setSub('intelligence')} />
             </div>
             <aside className="flex flex-col gap-lg">
@@ -404,6 +408,108 @@ function TrackMini({ label, value, accent }: { label: string; value: string; acc
     <div className="rounded-md bg-panel-2/50 px-1 py-1.5">
       <p className="text-[10px] uppercase tracking-wide text-dim">{label}</p>
       <p className={cn('text-sm font-bold', accent === 'primary' && 'text-primary', accent === 'danger' && 'text-danger', !accent && 'text-text')}>{value}</p>
+    </div>
+  );
+}
+
+/* ---- Symptoms Panel ---- */
+function SymptomsPanel({ ticketId, symptoms }: { ticketId: number; symptoms?: SymptomTagResponse[] }) {
+  const t = useTranslations('ticket');
+  const qc = useQueryClient();
+  const [showAdd, setShowAdd] = useState(false);
+  const [selectedSymptomId, setSelectedSymptomId] = useState<number | null>(null);
+
+  const { data: availableSymptoms } = useQuery({
+    queryKey: ['symptoms'],
+    queryFn: () => symptomsApi.list(),
+  });
+
+  const add = useMutation({
+    mutationFn: () => ticketSymptomsApi.add(ticketId, { symptomTagId: selectedSymptomId! }),
+    onSuccess: () => {
+      setShowAdd(false);
+      setSelectedSymptomId(null);
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+      toast.success(t('symptomAdded'));
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, t('symptomError'))),
+  });
+
+  const remove = useMutation({
+    mutationFn: (symptomTagId: number) => ticketSymptomsApi.remove(ticketId, symptomTagId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+      toast.success(t('symptomRemoved'));
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, t('symptomError'))),
+  });
+
+  const currentSymptomIds = new Set(symptoms?.map(s => s.id) ?? []);
+  const availableToAdd = availableSymptoms?.filter(s => !currentSymptomIds.has(s.id)) ?? [];
+
+  return (
+    <div>
+      <p className="mb-sm h-5 text-xs font-semibold uppercase tracking-wide text-dim">Symptoms</p>
+      <div className="card-surface flex flex-col gap-2 p-lg">
+        {symptoms && symptoms.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {symptoms.map((sym) => (
+              <button
+                key={sym.id}
+                onClick={() => remove.mutate(sym.id)}
+                className="inline-flex items-center gap-1.5 rounded bg-primary/10 px-2 py-1 text-xs text-primary hover:bg-primary/20 transition-colors group"
+                title={`${sym.name} (${sym.group})`}
+              >
+                <Tag className="h-3 w-3" />
+                <span className="truncate">{sym.name}</span>
+                <X className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-dim">—</p>
+        )}
+
+        {!showAdd && availableToAdd.length > 0 && (
+          <Button size="sm" variant="secondary" onClick={() => setShowAdd(true)} className="w-full justify-center">
+            <Plus className="h-3 w-3" /> {t('addSymptom')}
+          </Button>
+        )}
+
+        {showAdd && availableToAdd.length > 0 && (
+          <div className="flex gap-1.5">
+            <select
+              value={selectedSymptomId ?? ''}
+              onChange={(e) => setSelectedSymptomId(e.target.value ? Number(e.target.value) : null)}
+              className={FIELD_SM}
+            >
+              <option value="">Select symptom…</option>
+              {availableToAdd.map((sym) => (
+                <option key={sym.id} value={sym.id}>
+                  {sym.name} ({sym.group})
+                </option>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => add.mutate()}
+              disabled={!selectedSymptomId || add.isPending}
+              loading={add.isPending}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setShowAdd(false)}
+              disabled={add.isPending}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
