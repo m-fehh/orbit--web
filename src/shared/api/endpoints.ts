@@ -111,6 +111,8 @@ export const ticketsApi = {
     form.append('file', file);
     return api.post<TicketAttachmentResponse>(`/tickets/${id}/attachments`, form);
   },
+  removeAttachment: (ticketId: number, attachmentId: number) =>
+    api.delete<void>(`/tickets/${ticketId}/attachments/${attachmentId}`),
   downloadAttachmentUrl: (attachmentId: number) =>
     `${process.env.NEXT_PUBLIC_API_URL}/tickets/attachments/${attachmentId}/download`,
 };
@@ -123,6 +125,7 @@ export const worklogsApi = {
   finish: (id: number, endedAt: string) => api.patch<WorklogResponse>(`/worklogs/${id}/finish`, { endedAt }),
   updateDuration: (id: number, durationMinutes: number) =>
     api.patch<WorklogResponse>(`/worklogs/${id}/duration`, { durationMinutes }),
+  remove: (id: number) => api.delete<void>(`/worklogs/${id}`),
 };
 
 /** Investigações (F5.7) */
