@@ -403,14 +403,18 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
   );
 }
 
+/** EPIC Root Cause UI - Wizard + Kendo-like Grid */
 function RootCausesSection({ ticketId }: { ticketId: number }) {
   const t = useTranslations('investigation');
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(1); // 1: info, 2: category, 3: confirm
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<RootCauseCategoryValue>(RootCauseCategory.Bug);
-  const [confidence, setConfidence] = useState('70');
+  const [confidence, setConfidence] = useState(70);
+  const [sortBy, setSortBy] = useState<'confidence' | 'title'>('confidence');
+  const [filterCategory, setFilterCategory] = useState<RootCauseCategoryValue | null>(null);
 
   const list = useQuery({ queryKey: ['rootcauses', ticketId], queryFn: () => rootCausesApi.byTicket(ticketId) });
 
@@ -419,77 +423,225 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
       title: title.trim(),
       description: description.trim(),
       category,
-      confidenceScore: (Number(confidence) || 0) / 100,
+      confidenceScore: confidence / 100,
     }),
     onSuccess: () => {
-      setTitle(''); setDescription(''); setOpen(false);
+      setTitle(''); setDescription(''); setOpen(false); setStep(1); setConfidence(70);
       qc.invalidateQueries({ queryKey: ['rootcauses', ticketId] });
-      toast.success(t('newRootCause'));
+      toast.success('✅ Causa raiz criada');
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Erro')),
   });
 
+  const filteredList = (list.data ?? [])
+    .filter(rc => !filterCategory || rc.category === filterCategory)
+    .sort((a, b) => sortBy === 'confidence' ? (b.confidenceScore - a.confidenceScore) : a.title.localeCompare(b.title));
+
+  const CAT_ICONS: Record<RootCauseCategoryValue, string> = {
+    [RootCauseCategory.Bug]: '🐛',
+    [RootCauseCategory.Configuration]: '⚙️',
+    [RootCauseCategory.Infrastructure]: '🏗️',
+    [RootCauseCategory.DataIssue]: '📊',
+    [RootCauseCategory.ThirdParty]: '🔗',
+    [RootCauseCategory.UserError]: '👤',
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setTitle(''); setDescription(''); setCategory(RootCauseCategory.Bug); setConfidence(70);
+    setStep(1); setOpen(false);
+  };
+
   return (
     <section>
-      <div className="mb-sm flex items-center justify-between">
-        <p className="flex items-center gap-1.5 text-sm font-semibold">
-          <GitBranch className="h-4 w-4 text-primary" /> {t('rootCauses')}
+      <div className="mb-md flex items-center justify-between">
+        <p className="flex items-center gap-2 text-base font-bold">
+          <GitBranch className="h-5 w-5 text-primary" /> Causas Raiz
         </p>
         <Can permission="rootcause.create">
-          <Button size="sm" variant="secondary" onClick={() => setOpen((v) => !v)}>
-            <Plus className="h-4 w-4" /> {t('newRootCause')}
+          <Button onClick={() => { resetForm(); setOpen(true); }} className="bg-primary">
+            <Plus className="h-4 w-4 mr-2" /> Nova Causa
           </Button>
         </Can>
       </div>
 
+      {/* === WIZARD MODAL === */}
       {open && (
-        <form
-          onSubmit={(e) => { e.preventDefault(); if (title.trim()) create.mutate(); }}
-          className="card-surface mb-sm flex flex-col gap-sm p-md"
-        >
-          <input className={FIELD_MD} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('rcTitle')} />
-          <input className={FIELD_MD} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('rcDescription')} />
-          <div className="flex flex-wrap items-end gap-sm">
-            <div className="w-56">
-              <Select<RootCauseCategoryValue>
-                value={category}
-                onChange={setCategory}
-                options={Object.entries(RootCauseCategory).map(([k, v]) => ({
-                  value: v as RootCauseCategoryValue,
-                  label: t(`cat.${k}` as 'cat.Bug'),
-                }))}
-              />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-bg rounded-lg shadow-2xl w-full max-w-xl">
+            {/* Header */}
+            <div className="border-b border-border px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold">Nova Causa Raiz</h2>
+                <button onClick={resetForm} className="text-muted hover:text-text">✕</button>
+              </div>
+              <div className="mt-3 flex gap-2">
+                {[1, 2, 3].map(s => (
+                  <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${s <= step ? 'bg-primary' : 'bg-border'}`} />
+                ))}
+              </div>
             </div>
-            <label className="flex w-32 flex-col gap-1 text-xs text-muted">
-              {t('confidence')} (%)
-              <input type="number" min={0} max={100} className={FIELD_MD} value={confidence} onChange={(e) => setConfidence(e.target.value)} />
-            </label>
-            <Button type="submit" disabled={!title.trim()} loading={create.isPending}>{t('save')}</Button>
+
+            {/* Body */}
+            <div className="px-6 py-6 min-h-64">
+              {step === 1 && (
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">O que é a causa?</label>
+                    <input
+                      className="w-full p-3 rounded border border-border bg-bg-subtle focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Ex: Timeout na conexão do banco de dados"
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Descrição (contexto)</label>
+                    <textarea
+                      className="w-full p-3 rounded border border-border bg-bg-subtle focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none h-28 resize-none"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Descreva os sintomas, quando ocorre, impacto..."
+                    />
+                  </div>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="flex flex-col gap-4">
+                  <label className="block text-sm font-medium">Categoria</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {Object.entries(RootCauseCategory).map(([k, v]) => (
+                      <button
+                        key={v}
+                        onClick={() => setCategory(v as RootCauseCategoryValue)}
+                        className={`p-4 rounded-lg border-2 transition-colors ${
+                          category === v
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="text-2xl mb-1">{CAT_ICONS[v as RootCauseCategoryValue]}</div>
+                        <div className="text-xs font-medium">{k}</div>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-6">
+                    <label className="block text-sm font-medium mb-3">Confiança: <strong>{confidence}%</strong></label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={confidence}
+                      onChange={(e) => setConfidence(Number(e.target.value))}
+                      className="w-full h-2 bg-border rounded-lg appearance-none cursor-pointer"
+                      style={{
+                        background: `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${confidence}%, var(--color-border) ${confidence}%, var(--color-border) 100%)`
+                      }}
+                    />
+                    <div className="flex justify-between text-xs text-muted mt-2">
+                      <span>Baixa</span>
+                      <span>Alta</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="flex flex-col gap-4">
+                  <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
+                    <p className="text-sm mb-3"><strong>Resumo da Causa Raiz:</strong></p>
+                    <div className="space-y-2 text-sm">
+                      <div><span className="text-muted">Titulo:</span> <strong>{title}</strong></div>
+                      <div><span className="text-muted">Categoria:</span> <strong>{CAT_ICONS[category]} {category}</strong></div>
+                      <div><span className="text-muted">Confiança:</span> <strong className="text-primary">{confidence}%</strong></div>
+                      {description && <div className="pt-2 border-t border-primary/20"><span className="text-muted">Detalhes:</span><p className="mt-1 text-text">{description}</p></div>}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-border px-6 py-4 flex gap-2 justify-end">
+              <Button variant="secondary" onClick={resetForm}>Cancelar</Button>
+              {step < 3 && <Button onClick={() => setStep(s => s + 1)} disabled={step === 1 && !title.trim()}>Próximo</Button>}
+              {step === 3 && <Button onClick={() => create.mutate()} loading={create.isPending} className="bg-success hover:bg-success/90">Criar Causa</Button>}
+            </div>
           </div>
-        </form>
+        </div>
       )}
 
+      {/* === KENDO-LIKE GRID === */}
       {list.isLoading ? (
         <LoadingState />
       ) : (list.data?.length ?? 0) === 0 ? (
-        <EmptyState icon={GitBranch} message={t('emptyRc')} />
+        <EmptyState icon={GitBranch} message="Nenhuma causa raiz ainda" />
       ) : (
-        <div className="flex flex-col gap-sm">
-          {list.data!.map((rc) => (
-            <div key={rc.id} className="card-surface p-md">
-              <div className="flex items-center gap-sm">
-                <span className="rounded bg-panel-2 px-1.5 py-0.5 text-xs font-medium text-muted">{t(`cat.${rc.category}` as 'cat.Bug')}</span>
-                <span className="flex-1 truncate text-sm font-medium">{rc.title}</span>
-                <span className="rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary">
-                  {Math.round(rc.confidenceScore * 100)}%
-                </span>
-              </div>
-              {rc.description && <p className="mt-1 text-sm text-muted">{rc.description}</p>}
-              {rc.resolutionsCount > 0 && (
-                <p className="mt-1 text-xs text-dim">{rc.resolutionsCount} {t('resolutions')}</p>
-              )}
+        <div className="card-surface overflow-hidden">
+          {/* Toolbar */}
+          <div className="border-b border-border px-4 py-3 flex gap-3 items-center flex-wrap bg-panel/50">
+            <div>
+              <select
+                value={filterCategory ?? ''}
+                onChange={(e) => setFilterCategory((e.target.value || null) as RootCauseCategoryValue | null)}
+                className="text-xs px-2 py-1 rounded border border-border bg-bg-subtle focus:border-primary"
+              >
+                <option value="">Todas as categorias</option>
+                {Object.entries(RootCauseCategory).map(([k, v]) => (
+                  <option key={v} value={v}>{k}</option>
+                ))}
+              </select>
             </div>
-          ))}
+            <div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'confidence' | 'title')}
+                className="text-xs px-2 py-1 rounded border border-border bg-bg-subtle focus:border-primary"
+              >
+                <option value="confidence">Ordenar: Confiança</option>
+                <option value="title">Ordenar: Título</option>
+              </select>
+            </div>
+            <div className="ml-auto text-xs text-muted">{filteredList.length} causa(s)</div>
+          </div>
+
+          {/* List */}
+          {filteredList.length === 0 ? (
+            <div className="p-8 text-center text-muted">
+              <p className="text-sm">Nenhuma causa encontrada com esses filtros</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {filteredList.map((rc) => (
+                <div key={rc.id} className="px-4 py-3 hover:bg-panel/50 transition-colors group">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">{CAT_ICONS[rc.category as RootCauseCategoryValue]}</span>
+                        <span className="text-sm font-medium truncate">{rc.title}</span>
+                      </div>
+                      {rc.description && <p className="text-xs text-muted line-clamp-2">{rc.description}</p>}
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-primary">{Math.round(rc.confidenceScore * 100)}%</div>
+                        <div className="text-[10px] text-muted">Confiança</div>
+                      </div>
+                      {rc.resolutionsCount > 0 && (
+                        <div className="text-right">
+                          <div className="text-sm font-semibold text-success">{rc.resolutionsCount}</div>
+                          <div className="text-[10px] text-muted">Soluções</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>
