@@ -136,7 +136,7 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
   });
 
   const uploadEvidenceMutation = useMutation({
-    mutationFn: (file: File) => investigationsApi.uploadEvidence(inv.id, file, evType, uploadNotes.trim() || undefined),
+    mutationFn: (file: File) => investigationsApi.uploadEvidence(inv.id, file, evType.toString(), uploadNotes.trim() || undefined),
     onSuccess: () => { setUploadFile(null); setUploadNotes(''); onChanged(); toast.success(t('evidenceAdded')); if (fileInputRef.current) fileInputRef.current.value = ''; },
     onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
   });

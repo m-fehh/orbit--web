@@ -257,7 +257,7 @@ export function TicketDetail({ id }: { id: number }) {
           </div>
         )}
 
-        {sub === 'timeline' && <TicketTimeline ticket={ticket} userName={userName} teamName={teamName} />}
+        {sub === 'timeline' && <TicketTimeline ticket={ticket} userName={userName} />}
 
         {sub === 'conversation' && <Conversation ticketId={id} comments={ticket.comments} userName={userName} locale={locale} timeZone={timeZone} />}
 
@@ -573,11 +573,12 @@ function WorklogsTab({ ticketId, worklogs, userName, estimateMinutesServer, rema
     onError: (err) => toast.error(apiErrorMessage(err, t('logError'))),
   });
 
-  const deleteWorklog = useMutation({
-    mutationFn: (worklogId: number) => worklogsApi.remove(worklogId),
-    onSuccess: () => { toast.success('Registro removido'); qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] }); },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao remover')),
-  });
+  // TODO: worklogsApi.remove não implementado no backend
+  // const deleteWorklog = useMutation({
+  //   mutationFn: (worklogId: number) => worklogsApi.remove(worklogId),
+  //   onSuccess: () => { toast.success('Registro removido'); qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] }); },
+  //   onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao remover')),
+  // });
 
   const canLog = description.trim().length > 0 && duration > 0;
 
@@ -681,9 +682,9 @@ function WorklogsTab({ ticketId, worklogs, userName, estimateMinutesServer, rema
                           </div>
                           <span className="shrink-0 text-[10px] text-dim">{w.startedAt ? new Date(w.startedAt).toLocaleDateString() : ''}</span>
                           <span className="shrink-0 text-[11px] font-semibold text-primary tabular-nums w-12 text-right">{fmtMin(w.durationMinutes)}</span>
-                          <button type="button" onClick={() => deleteWorklog.mutate(w.id)} className="shrink-0 rounded p-0.5 text-muted opacity-0 group-hover:opacity-100 hover:text-danger transition-all">
+                          {/* <button type="button" onClick={() => deleteWorklog.mutate(w.id)} className="shrink-0 rounded p-0.5 text-muted opacity-0 group-hover:opacity-100 hover:text-danger transition-all">
                             <X className="h-3 w-3" />
-                          </button>
+                          </button> */}
                         </div>
                       ))}
                     </div>
@@ -789,8 +790,9 @@ function AttachmentsTab({ ticketId, userName }: { ticketId: number; userName: (u
     },
   });
 
-  const deleteAttachment = useMutation({
-    mutationFn: (attachmentId: number) => ticketsApi.removeAttachment(ticketId, attachmentId),
+  // TODO: ticketsApi.removeAttachment não implementado
+  // const deleteAttachment = useMutation({
+  //   mutationFn: (attachmentId: number) => ticketsApi.removeAttachment(ticketId, attachmentId),
     onSuccess: (_data, attachmentId) => {
       toast.success('Anexo removido');
       if (thumbnailUrls[attachmentId]) {
@@ -804,8 +806,8 @@ function AttachmentsTab({ ticketId, userName }: { ticketId: number; userName: (u
       qc.invalidateQueries({ queryKey: ['tickets', 'attachments', ticketId] });
       qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao remover anexo')),
-  });
+  //   onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao remover anexo')),
+  // });
 
   const onFiles = useCallback(
     (files: FileList | File[] | null) => {
@@ -929,9 +931,9 @@ function AttachmentsTab({ ticketId, userName }: { ticketId: number; userName: (u
                     <button type="button" onClick={() => downloadOne(a)} className="rounded p-0.5 text-muted hover:bg-panel-2 hover:text-text" title={t('download')}>
                       <Download className="h-3 w-3" />
                     </button>
-                    <button type="button" onClick={() => deleteAttachment.mutate(a.id)} className="rounded p-0.5 text-muted hover:bg-danger/10 hover:text-danger" title={t('delete')}>
+                    {/* <button type="button" onClick={() => deleteAttachment.mutate(a.id)} className="rounded p-0.5 text-muted hover:bg-danger/10 hover:text-danger" title={t('delete')}>
                       <Trash2 className="h-3 w-3" />
-                    </button>
+                    </button> */}
                   </div>
                 </div>
               </div>
