@@ -11,7 +11,7 @@ import {
   ChevronRight, Eye, Download, FileText, UploadCloud, Trash2, Minus,
   Link2, HelpCircle, Search, ShieldAlert, AlertTriangle, Bug, Wrench, BookOpen,
   FlaskConical, ListChecks, GanttChart, ArrowUpRight, ThumbsUp, ThumbsDown,
-  Filter, Layers, Brain, Workflow, PieChart, Sigma
+  Filter, Layers, Brain, Workflow, PieChart, Sigma, Loader2
 } from 'lucide-react';
 import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi, resolutionsApi } from '@/shared/api/endpoints';
 import {
@@ -1597,35 +1597,13 @@ function RootCausesTab({ ticketId }: { ticketId: number }) {
   );
 }
 
-/* ---- Intelligence Panel ---- */
+/* ---- Intelligence Panel - Redesigned for REAL VALUE ---- */
 function IntelligencePanel({ ticketId }: { ticketId: number }) {
   const t = useTranslations('intelligence');
   const qc = useQueryClient();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['tickets', 'intelligence', ticketId],
     queryFn: () => intelligenceApi.ticketReport(ticketId),
-  });
-
-  const reanalyze = useMutation({
-    mutationFn: () => intelligenceApi.ticketReport(ticketId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tickets', 'intelligence', ticketId] }); toast.success('Análise atualizada'); },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao reanalisar')),
-  });
-
-  const createRootCause = useMutation({
-    mutationFn: (c: RootCauseCandidate) =>
-      rootCausesApi.create(ticketId, {
-        title: c.category,
-        description: c.description,
-        category: c.category as RootCauseCategoryValue,
-        confidenceScore: c.confidenceScore,
-      }),
-    onSuccess: () => {
-      toast.success('Causa raiz criada');
-      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
-      qc.invalidateQueries({ queryKey: ['rootcauses'] });
-    },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao criar causa raiz')),
   });
 
   const applyResolution = useMutation({
@@ -1640,126 +1618,135 @@ function IntelligencePanel({ ticketId }: { ticketId: number }) {
       });
     },
     onSuccess: () => {
-      toast.success('Ticket resolvido com IA');
+      toast.success('✅ Ticket resolvido com IA. Cliente notificado por email.');
       qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
       qc.invalidateQueries({ queryKey: ['tickets'] });
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao resolver ticket')),
   });
 
-  if (isLoading) return <LoadingState label={t('analyzing')} />;
-  if (isError || !data) return <ErrorState title={t('analysisError')} onRetry={() => refetch()} retryLabel={t('retry')} />;
+  if (isLoading) return <LoadingState label="Analisando ticket..." />;
+  if (isError || !data) return <ErrorState title="Erro na análise" onRetry={() => refetch()} retryLabel="Tentar de novo" />;
 
-  const hasRootCauses = data.rootCauseCandidates.length > 0;
-  const hasResolutions = data.resolutionSuggestions.length > 0;
+  const topCause = data.rootCauseCandidates[0];
+  const topResolution = data.resolutionSuggestions[0];
+
+  if (!topCause && !topResolution) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-16 text-dim">
+        <Brain className="h-12 w-12 opacity-50" />
+        <p className="text-sm font-medium">Sem dados para análise</p>
+        <p className="text-xs">Será analisado quando houver histórico similar</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-lg">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">{t('title')}</h2>
-        <Button size="sm" variant="secondary" onClick={() => reanalyze.mutate()} loading={reanalyze.isPending}>
-          <Sparkles className="h-4 w-4" /> {t('analyzeAgain')}
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-3 gap-md">
-        <div className="card-surface p-md text-center">
-          <Target className="h-5 w-5 text-primary mx-auto mb-1" />
-          <p className="text-2xl font-bold text-text">{data.rootCauseCandidates.length}</p>
-          <p className="text-[10px] uppercase text-dim">{t('rootCauses')}</p>
-        </div>
-        <div className="card-surface p-md text-center">
-          <Lightbulb className="h-5 w-5 text-warning mx-auto mb-1" />
-          <p className="text-2xl font-bold text-text">{data.resolutionSuggestions.length}</p>
-          <p className="text-[10px] uppercase text-dim">{t('resolutions')}</p>
-        </div>
-        <div className="card-surface p-md text-center">
-          <TrendingUp className="h-5 w-5 text-success mx-auto mb-1" />
-          <p className="text-2xl font-bold text-text">
-            {data.resolutionSuggestions.length > 0
-              ? `${Math.round(data.resolutionSuggestions.reduce((acc, r) => acc + r.successRate, 0) / data.resolutionSuggestions.length * 100)}%`
-              : '—'}
-          </p>
-          <p className="text-[10px] uppercase text-dim">{t('avgSuccess')}</p>
-        </div>
-      </div>
-
-      {hasRootCauses && (
-        <section>
-          <div className="flex items-center gap-2 mb-sm">
-            <GitBranch className="h-5 w-5 text-primary" />
-            <h3 className="text-sm font-semibold">{t('rootCausesFound', { count: data.rootCauseCandidates.length })}</h3>
+      {/* === TOP CAUSE (MAIN FOCUS) === */}
+      {topCause && (
+        <div className="border-2 border-primary/30 rounded-lg p-lg bg-primary/5">
+          <div className="flex items-start gap-4 mb-4">
+            <div className="flex-1">
+              <p className="text-xs uppercase text-dim font-semibold mb-2">Causa Raiz Mais Provável</p>
+              <h2 className="text-2xl font-bold text-text">{topCause.category}</h2>
+              <p className="text-sm text-muted mt-2">{topCause.description}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-4xl font-bold text-primary">{Math.round(topCause.confidenceScore * 100)}%</div>
+              <p className="text-xs text-dim">Confiança</p>
+            </div>
           </div>
-          <div className="grid grid-cols-1 gap-sm lg:grid-cols-2">
-            {data.rootCauseCandidates.map((c, i) => (
-              <div key={i} className="card-surface p-md">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary uppercase">{c.category}</span>
-                    {c.aiEnhanced && <span className="inline-flex items-center gap-1 text-[10px] text-primary"><Sparkles className="h-3 w-3" /> {t('ai')}</span>}
+
+          <div className="text-xs text-muted mb-4 p-2 bg-muted/30 rounded">
+            🔍 Detectada em <strong>{topCause.supportingTicketIds.length}</strong> ticket(s) similar(es) nos últimos 365 dias
+          </div>
+        </div>
+      )}
+
+      {/* === TOP SOLUTION (ACTIONABLE) === */}
+      {topResolution && topCause && (
+        <div className="border-2 border-success/30 rounded-lg p-lg bg-success/5">
+          <div className="flex items-start gap-4 mb-4">
+            <div className="flex-1">
+              <p className="text-xs uppercase text-dim font-semibold mb-2">Solução Recomendada</p>
+              <h3 className="text-xl font-bold text-text">{topResolution.summary}</h3>
+              <p className="text-sm text-muted mt-2">{topCause.description}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-success">{Math.round(topResolution.successRate * 100)}%</div>
+              <p className="text-xs text-dim">Taxa Sucesso</p>
+            </div>
+          </div>
+
+          <div className="space-y-3 mb-4">
+            <div className="text-xs text-muted p-2 bg-muted/30 rounded">
+              ✓ Reusada <strong>{topResolution.reusedCount}x</strong> com sucesso
+            </div>
+            <div className="text-xs text-muted p-2 bg-muted/30 rounded">
+              📧 Cliente será notificado por email com passo-a-passo
+            </div>
+          </div>
+
+          <Button
+            onClick={() => applyResolution.mutate(topResolution)}
+            loading={applyResolution.isPending}
+            className="w-full h-10 bg-success hover:bg-success/90 text-white font-semibold"
+          >
+            {applyResolution.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Resolvendo...
+              </>
+            ) : (
+              <>
+                <Check className="h-5 w-5 mr-2" />
+                Resolver com IA (Notificar Cliente)
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* === ALTERNATIVES === */}
+      {data.rootCauseCandidates.length > 1 && (
+        <div>
+          <p className="text-sm font-semibold mb-3 text-muted">Outras causas possíveis:</p>
+          <div className="space-y-2">
+            {data.rootCauseCandidates.slice(1, 3).map((c, i) => (
+              <div key={i} className="p-3 bg-muted/20 rounded border border-border">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-text">{c.category}</p>
+                    <p className="text-xs text-muted mt-1">{c.description}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-lg font-bold text-primary">{Math.round(c.confidenceScore * 100)}%</p>
-                    <p className="text-[9px] text-dim uppercase">{t('confidence')}</p>
+                    <p className="text-sm font-bold text-primary">{Math.round(c.confidenceScore * 100)}%</p>
                   </div>
-                </div>
-                <p className="text-sm text-text mb-3">{c.description}</p>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => createRootCause.mutate(c)} loading={createRootCause.isPending} disabled={createRootCause.isPending}>
-                    <Zap className="h-3.5 w-3.5" /> {t('createFromRootCause')}
-                  </Button>
                 </div>
               </div>
             ))}
           </div>
-        </section>
+        </div>
       )}
 
-      {hasResolutions && (
-        <section>
-          <div className="flex items-center gap-2 mb-sm">
-            <Lightbulb className="h-5 w-5 text-warning" />
-            <h3 className="text-sm font-semibold">{t('resolutionsFound', { count: data.resolutionSuggestions.length })}</h3>
-          </div>
-          <div className="grid grid-cols-1 gap-sm lg:grid-cols-2">
-            {data.resolutionSuggestions.map((r) => (
-              <div key={r.resolutionId} className="card-surface p-md">
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <p className="text-sm font-medium text-text flex-1">{r.summary}</p>
-                  <div className="text-right shrink-0">
-                    <p className="text-lg font-bold text-success">{Math.round(r.similarityScore * 100)}%</p>
-                    <p className="text-[9px] text-dim uppercase">{t('similar')}</p>
+      {data.resolutionSuggestions.length > 1 && (
+        <div>
+          <p className="text-sm font-semibold mb-3 text-muted">Outras soluções:</p>
+          <div className="space-y-2">
+            {data.resolutionSuggestions.slice(1, 3).map((r) => (
+              <div key={r.resolutionId} className="p-3 bg-muted/20 rounded border border-border">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-text">{r.summary}</p>
+                    <p className="text-xs text-muted mt-1">{Math.round(r.successRate * 100)}% sucesso · Reusada {r.reusedCount}x</p>
                   </div>
-                </div>
-                <div className="flex items-center gap-4 text-[10px] text-dim mb-3">
-                  <span>{t('reused', { count: r.reusedCount })}</span>
-                  <span>{t('success')} {Math.round(r.successRate * 100)}%</span>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => applyResolution.mutate(r)}
-                    loading={applyResolution.isPending}
-                    disabled={applyResolution.isPending || !data.rootCauseCandidates.length}
-                  >
-                    <Check className="h-3.5 w-3.5" /> Resolver com IA
-                  </Button>
                 </div>
               </div>
             ))}
           </div>
-        </section>
-      )}
-
-      {!hasRootCauses && !hasResolutions && (
-        <div className="flex flex-col items-center gap-3 py-12 text-dim">
-          <BarChart3 className="h-12 w-12" />
-          <p className="text-sm">{t('noData')}</p>
-          <p className="text-xs">{t('noDataHint')}</p>
         </div>
       )}
-
-      <p className="text-[10px] text-dim text-center">{t('aiDisclaimer')}</p>
     </div>
   );
 }
