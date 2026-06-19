@@ -30,6 +30,13 @@
     "errorTitle": "Something went wrong",
     "errorBody": "We couldn't load this. Please try again."
   },
+  "error": {
+    "loadingIntelligence": "Failed to load intelligence analysis",
+    "resolvingTicket": "Error resolving ticket"
+  },
+  "tickets": {
+    "resolvedWithAi": "Ticket resolved with AI successfully"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "tickets": "Tickets",
@@ -267,7 +274,19 @@
     "noDataHint": "AI will analyze automatically when enough data is available",
     "analyzeAgain": "Reanalyze",
     "lastAnalyzed": "Last analyzed",
-    "aiDisclaimer": "AI-generated analysis • May contain inaccuracies"
+    "aiDisclaimer": "AI-generated analysis • May contain inaccuracies",
+    "probableCause": "Probable cause",
+    "frequency": "Frequency",
+    "occurrences": "occurrence(s)",
+    "suggestedSolution": "Suggested solution",
+    "successRate": "Success rate",
+    "appliedCount": "Applications",
+    "selectAsCause": "Select as cause",
+    "resolveWithAi": "Resolve with AI",
+    "resolving": "Resolving...",
+    "confirmResolution": "Are you sure you want to resolve this ticket with this solution?",
+    "ticketAlreadyResolved": "This ticket has already been resolved.",
+    "otherPossibleCauses": "Other possible causes"
   },
   "comments": {
     "addError": "Could not post comment",

@@ -211,6 +211,13 @@ export const intelligenceApi = {
   automationOpportunities: () => api.get<unknown>('/intelligence/automation-opportunities'),
 };
 
+/** Alias para investigationsApi para consistency */
+export const investigationsApi = {
+  // ... existing methods ...
+  getTicketIntelligence: (ticketId: number, maxResults = 5) =>
+    api.get<IntelligenceReport>(`/intelligence/tickets/${ticketId}/report`, { params: { maxResults } }),
+};
+
 /** Usuários */
 export const usersApi = {
   list: (page = 1, pageSize = 20) =>
@@ -257,6 +264,12 @@ export const ticketSymptomsApi = {
     api.post<SymptomTagResponse>(`/tickets/${ticketId}/symptoms`, body),
   remove: (ticketId: number, symptomTagId: number) =>
     api.delete<void>(`/tickets/${ticketId}/symptoms/${symptomTagId}`),
+};
+
+/** Intelligent ticket resolution via AI suggestions. */
+export const ticketResolutionApi = {
+  resolveWithAi: (ticketId: number, body: { rootCauseId: number; summary: string; resolutionSteps: string; notifyCustomer?: boolean }) =>
+    api.post<TicketResponse>(`/tickets/${ticketId}/resolve-with-ai`, body),
 };
 
 /** Auditoria. Captura quem / o quê / quando / contexto técnico de toda mudança. */

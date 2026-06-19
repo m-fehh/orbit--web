@@ -30,6 +30,13 @@
     "errorTitle": "Algo deu errado",
     "errorBody": "Não foi possível carregar. Tente novamente."
   },
+  "error": {
+    "loadingIntelligence": "Não foi possível carregar a análise de inteligência",
+    "resolvingTicket": "Erro ao resolver ticket"
+  },
+  "tickets": {
+    "resolvedWithAi": "Ticket resolvido com IA com sucesso"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "tickets": "Tickets",
@@ -267,7 +274,19 @@
     "noDataHint": "A IA analisará automaticamente quando houver dados suficientes",
     "analyzeAgain": "Reanalisar",
     "lastAnalyzed": "Última análise",
-    "aiDisclaimer": "Análise gerada por IA • Pode conter imprecisões"
+    "aiDisclaimer": "Análise gerada por IA • Pode conter imprecisões",
+    "probableCause": "Causa provável",
+    "frequency": "Frequência",
+    "occurrences": "ocorrência(s)",
+    "suggestedSolution": "Solução sugerida",
+    "successRate": "Taxa de sucesso",
+    "appliedCount": "Aplicações",
+    "selectAsCause": "Selecionar como causa",
+    "resolveWithAi": "Resolver com IA",
+    "resolving": "Resolvendo...",
+    "confirmResolution": "Deseja realmente resolver este ticket com esta solução?",
+    "ticketAlreadyResolved": "Este ticket já foi resolvido.",
+    "otherPossibleCauses": "Outras causas possíveis"
   },
   "comments": {
     "addError": "Não foi possível comentar",
