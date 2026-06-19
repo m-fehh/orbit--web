@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocale } from 'next-intl';
-import { ScrollText, ChevronLeft, ChevronRight, RefreshCw, Search, ArrowRight } from 'lucide-react';
+import { ScrollText, ChevronLeft, ChevronRight, RefreshCw, Search, ArrowRight, Globe, Hash, Calendar } from 'lucide-react';
 import { auditApi } from '@/shared/api/endpoints';
 import type { AuditLogResponse } from '@/shared/api/types';
 import type { Locale } from '@/shared/i18n/config';
@@ -27,43 +27,81 @@ export function AuditLogsView() {
   const locale = useLocale() as Locale;
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const [page, setPage] = useState(1);
-  const [term, setTerm] = useState('');
+  const [entityName, setEntityName] = useState('');
+  const [action, setAction] = useState('');
+  const [userName, setUserName] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [expanded, setExpanded] = useState<number | null>(null);
   const pageSize = 30;
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey: ['audit', 'list', page],
-    queryFn: () => auditApi.list({ page, pageSize }),
+    queryKey: ['audit', 'list', page, entityName, action, userName, dateFrom, dateTo],
+    queryFn: () => auditApi.list({
+      page,
+      pageSize,
+      ...(entityName.trim() ? { entityName: entityName.trim() } : {}),
+      ...(action ? { action } : {}),
+      ...(userName.trim() ? { userId: undefined } : {}),
+      ...(dateFrom ? { from: dateFrom } : {}),
+      ...(dateTo ? { to: dateTo } : {}),
+    }),
   });
 
-  const items = useMemo(() => {
-    const list = data?.items ?? [];
-    if (!term.trim()) return list;
-    const q = term.toLowerCase();
-    return list.filter(
-      (l) =>
-        l.entityName.toLowerCase().includes(q) ||
-        (l.userName ?? '').toLowerCase().includes(q) ||
-        l.action.toLowerCase().includes(q),
-    );
-  }, [data, term]);
+  const items = data?.items ?? [];
 
   const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1;
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-sm border-b border-border p-md">
-        <div>
-          <h1 className="text-lg font-bold">Logs de auditoria</h1>
-          <p className="text-xs text-muted">{data ? `${data.totalCount} registros` : '—'} · somente leitura</p>
+      <div className="flex flex-col gap-2 border-b border-border p-md">
+        <div className="flex flex-wrap items-center gap-sm">
+          <div>
+            <h1 className="text-lg font-bold">Logs de auditoria</h1>
+            <p className="text-xs text-muted">{data ? `${data.totalCount} registros` : '—'} · somente leitura</p>
+          </div>
+          <div className="ml-auto flex items-center gap-sm">
+            <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label="Atualizar">
+              <RefreshCw className={isFetching ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} aria-hidden />
+            </Button>
+          </div>
         </div>
-        <div className="relative ml-auto w-64 max-w-full">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" aria-hidden />
-          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Filtrar por entidade, usuário, ação…" className="pl-9" />
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Input
+            value={entityName}
+            onChange={(e) => { setEntityName(e.target.value); setPage(1); }}
+            placeholder="Entidade"
+            className="h-8 w-36"
+          />
+          <select
+            value={action}
+            onChange={(e) => { setAction(e.target.value); setPage(1); }}
+            className="h-8 rounded-md border border-border bg-bg-subtle px-2 text-xs text-text outline-none focus:border-primary"
+          >
+            <option value="">Todas ações</option>
+            <option value="Insert">Insert</option>
+            <option value="Update">Update</option>
+            <option value="Delete">Delete</option>
+            <option value="SoftDelete">SoftDelete</option>
+            <option value="Restore">Restore</option>
+          </select>
+          <div className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-dim" />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+              className="h-8 rounded-md border border-border bg-bg-subtle px-2 text-xs text-text outline-none focus:border-primary"
+            />
+            <span className="text-dim">—</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+              className="h-8 rounded-md border border-border bg-bg-subtle px-2 text-xs text-text outline-none focus:border-primary"
+            />
+          </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label="Atualizar">
-          <RefreshCw className={isFetching ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} aria-hidden />
-        </Button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
@@ -81,6 +119,7 @@ export function AuditLogsView() {
                 <th className="px-md py-2 font-semibold">Ação</th>
                 <th className="px-md py-2 font-semibold">Entidade</th>
                 <th className="px-md py-2 font-semibold">Usuário</th>
+                <th className="px-md py-2 font-semibold">IP</th>
                 <th className="px-md py-2 font-semibold">Origem</th>
               </tr>
             </thead>
@@ -139,21 +178,28 @@ function AuditRow({
           <span className="ml-1 font-mono text-xs text-dim">#{log.entityId}</span>
         </td>
         <td className="px-md py-2.5 text-muted">{log.userName ?? '—'}</td>
+        <td className="px-md py-2.5 font-mono text-xs text-dim">{log.ipAddress ?? '—'}</td>
         <td className="px-md py-2.5 text-dim">{log.origin ?? '—'}</td>
       </tr>
       {expanded && hasFields && (
         <tr className="border-t border-border/40 bg-panel-2/30">
-          <td colSpan={5} className="px-md py-2">
-            <ul className="flex flex-col gap-1 text-xs">
+          <td colSpan={6} className="px-md py-3">
+            {log.correlationId && (
+              <div className="mb-2 flex items-center gap-1 text-[10px] text-dim">
+                <Hash className="h-3 w-3" />
+                <span className="font-mono">{log.correlationId}</span>
+              </div>
+            )}
+            <div className="grid gap-1.5">
               {log.fields.map((f) => (
-                <li key={f.fieldName} className="flex flex-wrap items-center gap-1">
-                  <strong className="text-text">{f.fieldName}</strong>:
-                  <span className="text-dim line-through">{f.oldValue ?? '—'}</span>
-                  <ArrowRight className="h-3 w-3 text-dim" aria-hidden />
-                  <span className="text-text">{f.newValue ?? '—'}</span>
-                </li>
+                <div key={f.fieldName} className="flex items-start gap-2 rounded border border-border/40 bg-bg-subtle/50 px-3 py-1.5 text-xs">
+                  <strong className="min-w-[120px] shrink-0 text-text">{f.fieldName}</strong>
+                  <span className="rounded bg-danger/10 px-1.5 py-0.5 text-danger line-through">{f.oldValue ?? '—'}</span>
+                  <ArrowRight className="mt-0.5 h-3 w-3 shrink-0 text-dim" aria-hidden />
+                  <span className="rounded bg-success/10 px-1.5 py-0.5 text-success">{f.newValue ?? '—'}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           </td>
         </tr>
       )}

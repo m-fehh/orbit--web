@@ -1,22 +1,4 @@
 {
-  "timeline": {
-    "statusChanged": "Estado cambió de {from} a {to}",
-    "assigned": "Asignado a {user}",
-    "unassigned": "No asignado",
-    "worklogAdded": "{user} registró {duration} minutos de {type}",
-    "commentAdded": "{user} añadió comentario",
-    "investigationStarted": "Investigación iniciada por {user}",
-    "investigationFinished": "Investigación completada por {user}",
-    "resolutionAdded": "Resolución añadida por {user}",
-    "worklogType": {
-      "Investigation": "Investigación",
-      "Meeting": "Reunión",
-      "Development": "Desarrollo",
-      "Validation": "Validación",
-      "CustomerContact": "Contacto con Cliente",
-      "InternalDiscussion": "Discusión Interna"
-    }
-  },
   "common": {
     "appName": "Orbit",
     "loading": "Cargando...",
@@ -156,7 +138,21 @@
     "yesterday": "Ayer",
     "updated": "Actualización",
     "estimateMinutes": "Estimación",
-    "slaBreach": "SLA"
+    "slaBreach": "SLA",
+    "statusChanged": "Estado cambió de {from} a {to}",
+    "assigned": "Asignado a {user}",
+    "unassigned": "No asignado",
+    "worklogAdded": "{user} registró {duration} minutos de {type}",
+    "commentAdded": "{user} añadió comentario",
+    "resolutionAdded": "Resolución añadida por {user}",
+    "worklogType": {
+      "Investigation": "Investigación",
+      "Meeting": "Reunión",
+      "Development": "Desarrollo",
+      "Validation": "Validación",
+      "CustomerContact": "Contacto con Cliente",
+      "InternalDiscussion": "Discusión Interna"
+    }
   },
   "ticket": {
     "loading": "Cargando ticket…",
@@ -184,6 +180,7 @@
     "tabWorklogs": "Tiempo",
     "tabAttachments": "Adjuntos",
     "tabIntelligence": "Inteligencia",
+    "assistantButton": "Asistente",
     "tabInvestigation": "Investigación",
     "tabRootCauses": "Causa Raíz",
     "timeTracking": "Control de tiempo",
@@ -237,13 +234,12 @@
     "yesterday": "Ayer"
   },
   "worklogType": {
-    "investigation": "Investigación",
-    "meeting": "Reunión",
-    "development": "Desarrollo",
-    "validation": "Validación",
-    "customerSupport": "Atención",
-    "documentation": "Documentación",
-    "other": "Otro"
+    "Investigation": "Investigación",
+    "Meeting": "Reunión",
+    "Development": "Desarrollo",
+    "Validation": "Validación",
+    "CustomerContact": "Contacto con Cliente",
+    "InternalDiscussion": "Discusión Interna"
   },
   "intelligence": {
     "viewMore": "Ver análisis",
@@ -286,7 +282,12 @@
     "resolving": "Resolviendo...",
     "confirmResolution": "¿Está seguro de que desea resolver este ticket con esta solución?",
     "ticketAlreadyResolved": "Este ticket ya ha sido resuelto.",
-    "otherPossibleCauses": "Otras causas posibles"
+    "otherPossibleCauses": "Otras causas posibles",
+    "relatedKnowledge": "Conocimiento relacionado",
+    "appliedSuccess": "Solucion aplicada con exito",
+    "applyError": "Error al aplicar solucion",
+    "feedbackSent": "Feedback registrado",
+    "feedbackError": "Error al registrar feedback"
   },
   "comments": {
     "addError": "No se pudo comentar",
@@ -456,5 +457,36 @@
     "finishConfirmation": "¿Estás seguro de que deseas finalizar esta investigación?",
     "linkToTicket": "Vinculado al ticket",
     "saveRootCause": "Guardar causa raíz"
+  },
+  "analytics": {
+    "title": "Analítica",
+    "totalTickets": "Total de Tickets",
+    "resolved": "Resueltos",
+    "mttr": "MTTR",
+    "mttrSubtitle": "Tiempo Medio de Resolución",
+    "slaCompliance": "Cumplimiento SLA",
+    "resolutionRate": "Tasa de Resolución",
+    "recurrenceRate": "Tasa de Recurrencia",
+    "trendTitle": "Tendencia de Tickets",
+    "opened": "Abiertos",
+    "closed": "Cerrados",
+    "byPriority": "Por Prioridad",
+    "byStatus": "Por Estado",
+    "byRootCause": "Por Causa Raíz",
+    "teamsTitle": "Rendimiento por Equipo",
+    "teamName": "Equipo",
+    "avgMttr": "MTTR Promedio",
+    "slaViolationsTitle": "Violaciones de SLA",
+    "ticketNumber": "Ticket",
+    "priority": "Prioridad",
+    "minutesOverdue": "Retraso",
+    "dueAt": "Fecha Límite",
+    "noViolations": "Sin violaciones de SLA en este período.",
+    "noData": "Sin datos disponibles.",
+    "error": "Error al cargar datos de analítica.",
+    "retry": "Reintentar",
+    "daily": "Diario",
+    "weekly": "Semanal",
+    "monthly": "Mensual"
   }
 }

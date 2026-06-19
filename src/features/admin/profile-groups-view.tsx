@@ -93,76 +93,87 @@ export function ProfileGroupsView() {
 
       {/* Editor */}
       <section className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center gap-md border-b border-border p-md">
-          <Input
-            value={draft.name}
-            onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-            placeholder="Nome do grupo de perfil"
-            className="max-w-sm"
-          />
-          {draft.administrator && (
-            <span className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-medium text-warning">
-              <ShieldCheck className="h-3.5 w-3.5" /> Administrador
-            </span>
-          )}
-          <div className="ml-auto flex items-center gap-sm">
-            <span className="text-xs text-dim">
-              {draft.selected.size} de {totalRules} acessos
-            </span>
-            <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!draft.name.trim()}>
-              <Save className="h-4 w-4" /> Salvar
-            </Button>
+        {draft.id === null && !draft.name.trim() ? (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="text-center">
+              <ShieldCheck className="mx-auto h-12 w-12 text-dim/40" />
+              <p className="mt-md text-sm text-muted">Selecione um perfil para editar ou crie um novo.</p>
+            </div>
           </div>
-        </div>
-
-        {/* Filtros das regras de acesso */}
-        {!draft.administrator && (
-          <div className="flex flex-wrap items-center gap-sm border-b border-border px-md py-2">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Filtrar acessos…"
-              className="h-8 max-w-xs"
-            />
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted">
-              <input
-                type="checkbox"
-                checked={onlySelected}
-                onChange={(e) => setOnlySelected(e.target.checked)}
-                className="h-3.5 w-3.5 accent-[var(--orbit-color-primary)]"
+        ) : (
+          <>
+            <div className="flex items-center gap-md border-b border-border p-md">
+              <Input
+                value={draft.name}
+                onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                placeholder="Nome do grupo de perfil"
+                className="max-w-sm"
               />
-              Apenas concedidos
-            </label>
-            <span className="ml-auto inline-flex items-center gap-3 text-xs text-dim">
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-success" /> Pode
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-border-strong" /> Não pode
-              </span>
-            </span>
-          </div>
-        )}
+              {draft.administrator && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-medium text-warning">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Administrador
+                </span>
+              )}
+              <div className="ml-auto flex items-center gap-sm">
+                <span className="text-xs text-dim">
+                  {draft.selected.size} de {totalRules} acessos
+                </span>
+                <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!draft.name.trim()}>
+                  <Save className="h-4 w-4" /> Salvar
+                </Button>
+              </div>
+            </div>
 
-        <div className="min-h-0 flex-1 overflow-auto p-lg">
-          {draft.administrator ? (
-            <p className="rounded-md border border-warning/40 bg-warning/5 p-md text-sm text-warning">
-              Perfil de administrador: acesso total. Só um administrador pode conceder/remover este nível.
-            </p>
-          ) : rules.isLoading ? (
-            <LoadingState />
-          ) : rules.isError ? (
-            <ErrorState title="Erro ao carregar regras" onRetry={() => rules.refetch()} retryLabel="Tentar de novo" />
-          ) : (
-            <AccessRuleTree
-              rules={rules.data ?? []}
-              selected={draft.selected}
-              onChange={(next) => setDraft((d) => ({ ...d, selected: next }))}
-              query={query}
-              onlySelected={onlySelected}
-            />
-          )}
-        </div>
+            {/* Filtros das regras de acesso */}
+            {!draft.administrator && (
+              <div className="flex flex-wrap items-center gap-sm border-b border-border px-md py-2">
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Filtrar acessos…"
+                  className="h-8 max-w-xs"
+                />
+                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted">
+                  <input
+                    type="checkbox"
+                    checked={onlySelected}
+                    onChange={(e) => setOnlySelected(e.target.checked)}
+                    className="h-3.5 w-3.5 accent-[var(--orbit-color-primary)]"
+                  />
+                  Apenas concedidos
+                </label>
+                <span className="ml-auto inline-flex items-center gap-3 text-xs text-dim">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-success" /> Pode
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-border-strong" /> Não pode
+                  </span>
+                </span>
+              </div>
+            )}
+
+            <div className="min-h-0 flex-1 overflow-auto p-lg">
+              {draft.administrator ? (
+                <p className="rounded-md border border-warning/40 bg-warning/5 p-md text-sm text-warning">
+                  Perfil de administrador: acesso total. Só um administrador pode conceder/remover este nível.
+                </p>
+              ) : rules.isLoading ? (
+                <LoadingState />
+              ) : rules.isError ? (
+                <ErrorState title="Erro ao carregar regras" onRetry={() => rules.refetch()} retryLabel="Tentar de novo" />
+              ) : (
+                <AccessRuleTree
+                  rules={rules.data ?? []}
+                  selected={draft.selected}
+                  onChange={(next) => setDraft((d) => ({ ...d, selected: next }))}
+                  query={query}
+                  onlySelected={onlySelected}
+                />
+              )}
+            </div>
+          </>
+        )}
       </section>
     </div>
   );

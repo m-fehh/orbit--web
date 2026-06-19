@@ -13,12 +13,11 @@ import {
   FlaskConical, ListChecks, GanttChart, ArrowUpRight, ThumbsUp, ThumbsDown,
   Filter, Layers, Brain, Workflow, PieChart, Sigma, Loader2
 } from 'lucide-react';
-import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi, resolutionsApi } from '@/shared/api/endpoints';
+import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi } from '@/shared/api/endpoints';
 import {
   TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, EvidenceType, HypothesisStatus, RootCauseCategory,
   type TicketStatusValue, type TicketStatusName, type TicketAttachmentResponse,
   type InvestigationResponse, type HypothesisStatusValue, type EvidenceTypeValue, type RootCauseCategoryValue,
-  type RootCauseCandidate, type ResolutionSuggestion,
 } from '@/shared/api/types';
 import type { Locale } from '@/shared/i18n/config';
 import { useBrandingStore } from '@/features/tenant/branding-store';
@@ -35,8 +34,9 @@ import { SlaPanel } from './sla-panel';
 import { TicketTimeline } from './timeline';
 import { tokenStore } from '@/shared/api/token-store';
 import { Portal } from '@/shared/ui/portal';
+import { openIntelligenceModal } from './intelligence-modal';
 
-type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'investigation' | 'rootCauses' | 'attachments' | 'intelligence';
+type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'investigation' | 'rootCauses' | 'attachments';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
@@ -116,7 +116,6 @@ export function TicketDetail({ id }: { id: number }) {
     { key: 'investigation', label: tTicket('tabInvestigation'), icon: FlaskConical, count: ticket.investigations.length },
     { key: 'rootCauses', label: tTicket('tabRootCauses'), icon: Sigma },
     { key: 'attachments', label: tTicket('tabAttachments'), icon: Paperclip },
-    { key: 'intelligence', label: tTicket('tabIntelligence'), icon: Brain },
   ];
 
   return (
@@ -145,6 +144,15 @@ export function TicketDetail({ id }: { id: number }) {
             <Can permission="ticket.status">
               <StatusPicker value={ticket.status} disabled={changeStatus.isPending} onChange={(v) => changeStatus.mutate(v)} />
             </Can>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1.5 text-primary hover:bg-primary/10"
+              onClick={() => openIntelligenceModal(id, ticket.title)}
+            >
+              <Brain className="h-4 w-4" />
+              {tTicket('assistantButton')}
+            </Button>
           </div>
         </div>
 
@@ -207,9 +215,9 @@ export function TicketDetail({ id }: { id: number }) {
                 </div>
               </div>
 
-              <IntelligenceQuickView ticketId={id} onExpand={() => setSub('intelligence')} />
+              <IntelligenceQuickView ticketId={id} onExpand={() => openIntelligenceModal(id, ticket.title)} />
 
-              <RecommendationsPanel ticketId={id} onOpenIntelligence={() => setSub('intelligence')} />
+              <RecommendationsPanel ticketId={id} onOpenIntelligence={() => openIntelligenceModal(id, ticket.title)} />
             </div>
             <aside className="flex flex-col gap-lg">
               <div>
@@ -277,8 +285,6 @@ export function TicketDetail({ id }: { id: number }) {
         {sub === 'rootCauses' && <RootCausesTab ticketId={id} />}
 
         {sub === 'attachments' && <AttachmentsTab ticketId={id} userName={userName} />}
-
-        {sub === 'intelligence' && <IntelligencePanel ticketId={id} />}
       </div>
     </div>
   );
@@ -1591,160 +1597,6 @@ function RootCausesTab({ ticketId }: { ticketId: number }) {
               </div>
             );
           })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ---- Intelligence Panel - Redesigned for REAL VALUE ---- */
-function IntelligencePanel({ ticketId }: { ticketId: number }) {
-  const t = useTranslations('intelligence');
-  const qc = useQueryClient();
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['tickets', 'intelligence', ticketId],
-    queryFn: () => intelligenceApi.ticketReport(ticketId),
-  });
-
-  const applyResolution = useMutation({
-    mutationFn: (r: ResolutionSuggestion) => {
-      const topCause = data?.rootCauseCandidates[0];
-      if (!topCause) throw new Error('Root cause not found');
-      return resolutionsApi.resolveWithAi(ticketId, {
-        rootCauseId: 0,
-        summary: r.summary,
-        resolutionSteps: topCause.description,
-        notifyCustomer: true,
-      });
-    },
-    onSuccess: () => {
-      toast.success('✅ Ticket resolvido com IA. Cliente notificado por email.');
-      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
-      qc.invalidateQueries({ queryKey: ['tickets'] });
-    },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao resolver ticket')),
-  });
-
-  if (isLoading) return <LoadingState label="Analisando ticket..." />;
-  if (isError || !data) return <ErrorState title="Erro na análise" onRetry={() => refetch()} retryLabel="Tentar de novo" />;
-
-  const topCause = data.rootCauseCandidates[0];
-  const topResolution = data.resolutionSuggestions[0];
-
-  if (!topCause && !topResolution) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-16 text-dim">
-        <Brain className="h-12 w-12 opacity-50" />
-        <p className="text-sm font-medium">Sem dados para análise</p>
-        <p className="text-xs">Será analisado quando houver histórico similar</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-lg">
-      {/* === TOP CAUSE (MAIN FOCUS) === */}
-      {topCause && (
-        <div className="border-2 border-primary/30 rounded-lg p-lg bg-primary/5">
-          <div className="flex items-start gap-4 mb-4">
-            <div className="flex-1">
-              <p className="text-xs uppercase text-dim font-semibold mb-2">Causa Raiz Mais Provável</p>
-              <h2 className="text-2xl font-bold text-text">{topCause.category}</h2>
-              <p className="text-sm text-muted mt-2">{topCause.description}</p>
-            </div>
-            <div className="text-right">
-              <div className="text-4xl font-bold text-primary">{Math.round(topCause.confidenceScore * 100)}%</div>
-              <p className="text-xs text-dim">Confiança</p>
-            </div>
-          </div>
-
-          <div className="text-xs text-muted mb-4 p-2 bg-muted/30 rounded">
-            🔍 Detectada em <strong>{topCause.supportingTicketIds.length}</strong> ticket(s) similar(es) nos últimos 365 dias
-          </div>
-        </div>
-      )}
-
-      {/* === TOP SOLUTION (ACTIONABLE) === */}
-      {topResolution && topCause && (
-        <div className="border-2 border-success/30 rounded-lg p-lg bg-success/5">
-          <div className="flex items-start gap-4 mb-4">
-            <div className="flex-1">
-              <p className="text-xs uppercase text-dim font-semibold mb-2">Solução Recomendada</p>
-              <h3 className="text-xl font-bold text-text">{topResolution.summary}</h3>
-              <p className="text-sm text-muted mt-2">{topCause.description}</p>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-success">{Math.round(topResolution.successRate * 100)}%</div>
-              <p className="text-xs text-dim">Taxa Sucesso</p>
-            </div>
-          </div>
-
-          <div className="space-y-3 mb-4">
-            <div className="text-xs text-muted p-2 bg-muted/30 rounded">
-              ✓ Reusada <strong>{topResolution.reusedCount}x</strong> com sucesso
-            </div>
-            <div className="text-xs text-muted p-2 bg-muted/30 rounded">
-              📧 Cliente será notificado por email com passo-a-passo
-            </div>
-          </div>
-
-          <Button
-            onClick={() => applyResolution.mutate(topResolution)}
-            loading={applyResolution.isPending}
-            className="w-full h-10 bg-success hover:bg-success/90 text-white font-semibold"
-          >
-            {applyResolution.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Resolvendo...
-              </>
-            ) : (
-              <>
-                <Check className="h-5 w-5 mr-2" />
-                Resolver com IA (Notificar Cliente)
-              </>
-            )}
-          </Button>
-        </div>
-      )}
-
-      {/* === ALTERNATIVES === */}
-      {data.rootCauseCandidates.length > 1 && (
-        <div>
-          <p className="text-sm font-semibold mb-3 text-muted">Outras causas possíveis:</p>
-          <div className="space-y-2">
-            {data.rootCauseCandidates.slice(1, 3).map((c, i) => (
-              <div key={i} className="p-3 bg-muted/20 rounded border border-border">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium text-text">{c.category}</p>
-                    <p className="text-xs text-muted mt-1">{c.description}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-primary">{Math.round(c.confidenceScore * 100)}%</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {data.resolutionSuggestions.length > 1 && (
-        <div>
-          <p className="text-sm font-semibold mb-3 text-muted">Outras soluções:</p>
-          <div className="space-y-2">
-            {data.resolutionSuggestions.slice(1, 3).map((r) => (
-              <div key={r.resolutionId} className="p-3 bg-muted/20 rounded border border-border">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium text-text">{r.summary}</p>
-                    <p className="text-xs text-muted mt-1">{Math.round(r.successRate * 100)}% sucesso · Reusada {r.reusedCount}x</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>

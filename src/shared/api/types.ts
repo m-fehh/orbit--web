@@ -493,6 +493,253 @@ export interface UnreadCountResponse {
   unread: number;
 }
 
+/* ---- Resolutions ---- */
+export interface ResolutionResponse {
+  id: number;
+  ticketId: number;
+  rootCauseId: number;
+  summary: string;
+  resolutionSteps: string;
+  outcome: string;
+  resolvedById: number;
+  resolvedAt: string;
+  learnings: LearningResponse[];
+  createdAt: string | null;
+}
+
+export interface LearningResponse {
+  id: number;
+  description: string;
+  impact: string;
+  createdAt: string | null;
+}
+
+export interface ResolveTicketRequest {
+  rootCauseTitle: string;
+  rootCauseSummary: string;
+  rootCauseCategory: RootCauseCategoryValue;
+  resolutionSummary: string;
+  outcome: string;
+  actions: ResolutionActionInput[];
+  symptomTagIds: number[];
+  isRecurring: boolean;
+  impactScope?: number | null;
+}
+
+export interface ResolutionActionInput {
+  order: number;
+  actionType: number;
+  detail?: string | null;
+}
+
+export interface ResolveTicketResponse {
+  ticketId: number;
+  status: string;
+  rootCauseId: number;
+  resolutionId: number;
+  actionsCount: number;
+  symptomsCount: number;
+}
+
+export interface ResolutionPatternResponse {
+  id: number;
+  rootCauseId: number;
+  name: string;
+  usageCount: number;
+  successRate: number;
+  createdAt: string | null;
+}
+
+/* ---- Knowledge Assets ---- */
+export interface KnowledgeAssetResponse {
+  id: number;
+  title: string;
+  summary: string;
+  content: string;
+  rootCauseId: number | null;
+  reuseCount: number;
+  isPublished: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface KnowledgeAssetVersionResponse {
+  id: number;
+  assetId: number;
+  versionNumber: number;
+  title: string;
+  summary: string;
+  content: string;
+  createdAt: string | null;
+}
+
+export interface CreateKnowledgeAssetRequest {
+  title: string;
+  summary: string;
+  content: string;
+  rootCauseId?: number | null;
+}
+
+export interface UpdateKnowledgeAssetRequest {
+  title: string;
+  summary: string;
+  content: string;
+}
+
+/* ---- Engineering Work Items ---- */
+export interface EngineeringWorkItemResponse {
+  id: number;
+  ticketId: number;
+  title: string;
+  technicalDescription: string;
+  status: string;
+  assignedToId: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+/* ---- Webhooks ---- */
+export interface WebhookSubscriptionResponse {
+  id: number;
+  name: string;
+  url: string;
+  events: string[];
+  active: boolean;
+  createdAt: string;
+}
+
+/* ---- SLA Compliance (Analytics) ---- */
+export interface SlaComplianceResult {
+  window: TimeWindow;
+  complianceRate: number;
+  totalEvaluated: number;
+  breached: number;
+  violations: SlaViolation[];
+}
+
+export interface SlaViolation {
+  ticketId: number;
+  ticketNumber: string;
+  priority: string;
+  minutesOverdue: number;
+  dueAt: string;
+  resolvedAt: string | null;
+}
+
+/* ---- Symptoms admin ---- */
+export interface CreateSymptomTagRequest {
+  code: string;
+  name: string;
+  group: string;
+}
+
+export interface UpdateSymptomTagRequest {
+  name: string;
+  group: string;
+}
+
+/* ---- Teams ---- */
+export interface CreateTeamRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface UpdateTeamRequest {
+  name: string;
+  description?: string | null;
+}
+
+/* ---- SLA Policies ---- */
+export interface SlaPolicyResponse {
+  id: number;
+  name: string;
+  priority: string;
+  responseTimeMinutes: number;
+  resolutionTimeMinutes: number;
+  active: boolean;
+  createdAt: string | null;
+}
+
+export interface SaveSlaPolicyRequest {
+  name: string;
+  priority: string;
+  responseTimeMinutes: number;
+  resolutionTimeMinutes: number;
+}
+
+/* ---- Channels ---- */
+export interface EmailInboundRequest {
+  from: string;
+  to: string;
+  subject: string;
+  body: string;
+  attachments?: { fileName: string; contentType: string; base64Content: string }[];
+}
+
+export interface WhatsAppInboundRequest {
+  from: string;
+  message: string;
+  timestamp: string;
+}
+
+/* ---- Internal: Tenants ---- */
+export interface TenantResponse {
+  id: number;
+  name: string;
+  subdomain: string;
+  active: boolean;
+  createdAt: string | null;
+}
+
+export interface CreateTenantRequest {
+  name: string;
+  subdomain: string;
+}
+
+export interface UpdateTenantRequest {
+  name: string;
+}
+
+/* ---- Internal: Access Rules ---- */
+export interface CreateAccessRuleRequest {
+  description: string;
+  keyName: string;
+  parentId?: number | null;
+  forAdministratorOnly?: boolean;
+}
+
+export interface UpdateAccessRuleRequest {
+  description: string;
+  keyName: string;
+  parentId?: number | null;
+  forAdministratorOnly?: boolean;
+}
+
+/* ---- Intelligence ---- */
+export interface IntelligenceRootCauseSuggestion {
+  rootCauseId: number | null;
+  title: string;
+  category: string;
+  confidence: number;
+  reasoning: string;
+}
+
+export interface IntelligenceResolutionSuggestion {
+  resolutionId: number | null;
+  summary: string;
+  steps: string;
+  confidence: number;
+  sourceTicketId: number | null;
+}
+
+export interface AutomationOpportunity {
+  id: number;
+  description: string;
+  potentialSavingsMinutes: number;
+  frequency: number;
+  category: string;
+}
+
 /* ---- Analytics / Dashboard ---- */
 export interface TimeWindow {
   from: string;

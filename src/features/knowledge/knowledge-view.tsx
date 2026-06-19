@@ -2,195 +2,161 @@
 
 import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Plus, Search, RefreshCw } from 'lucide-react';
-import { ticketsApi } from '@/shared/api/endpoints';
-import type { TicketResponse, TicketStatusName, PriorityName } from '@/shared/api/types';
-import { TicketStatus, Priority } from '@/shared/api/types';
+import { Plus, Search } from 'lucide-react';
+import { knowledgeApi } from '@/shared/api/endpoints';
+import type { KnowledgeAssetResponse } from '@/shared/api/types';
 import type { Locale } from '@/shared/i18n/config';
 import { useBrandingStore } from '@/features/tenant/branding-store';
 import { formatDateTime } from '@/shared/lib/datetime';
-import { openNewTicketWindow, openTicketTab } from '@/features/tickets/ticket-actions';
+import { useTabStore } from '@/features/workspace/tab-store';
 import { Can } from '@/features/auth/can';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { DataGrid, type ColumnDef, type DataGridLabels } from '@/shared/ui/data-grid';
 import { useDataGridQuery, type DataGridQueryParams } from '@/shared/ui/use-data-grid-query';
-import { PriorityBadge, StatusBadge } from './badges';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Map DataGridQueryParams to the shape ticketsApi.list expects. */
 function buildApiParams(params: DataGridQueryParams) {
   const apiParams: Record<string, unknown> = {
     page: params.page,
     pageSize: params.pageSize,
   };
-
-  if (params.search) {
-    apiParams.search = params.search;
-  }
-
-  // Sort — API accepts sortBy + sortDirection (single sort)
+  if (params.search) apiParams.search = params.search;
   if (params.sort.length > 0) {
     apiParams.sortBy = params.sort[0].field;
     apiParams.sortDirection = params.sort[0].direction;
   }
-
-  // Filters — map select filters to API params
-  const statusFilter = params.filters.status;
-  if (statusFilter?.type === 'select' && statusFilter.values.length > 0) {
-    apiParams.status = statusFilter.values.join(',');
-  }
-
-  const priorityFilter = params.filters.priority;
-  if (priorityFilter?.type === 'select' && priorityFilter.values.length > 0) {
-    apiParams.priority = priorityFilter.values.join(',');
-  }
-
   return apiParams;
+}
+
+function statusLabel(row: KnowledgeAssetResponse): 'published' | 'draft' | 'archived' {
+  // The API doesn't have an explicit archived flag yet, so we infer from isPublished
+  return row.isPublished ? 'published' : 'draft';
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function TicketsCentral() {
+export function KnowledgeView() {
   const locale = useLocale() as Locale;
-  const t = useTranslations('ticket');
-  const tStatus = useTranslations('ticketStatus');
-  const tPriority = useTranslations('priority');
+  const t = useTranslations('knowledge');
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
+  const openTab = useTabStore((s) => s.openTab);
 
-  // --- DataGrid query ---
-  const grid = useDataGridQuery<TicketResponse>({
-    queryKey: ['tickets', 'list'],
-    queryFn: (params) => ticketsApi.list(buildApiParams(params) as any),
+  const grid = useDataGridQuery<KnowledgeAssetResponse>({
+    queryKey: ['knowledge', 'list'],
+    queryFn: (params) => knowledgeApi.list(buildApiParams(params) as any),
     defaultPageSize: 20,
-    defaultSorts: [{ field: 'openedAt', direction: 'desc' }],
+    defaultSorts: [{ field: 'updatedAt', direction: 'desc' }],
   });
 
-  // --- Status filter options (translated) ---
-  const statusOptions = useMemo(
-    () =>
-      (Object.keys(TicketStatus) as TicketStatusName[]).map((k) => ({
-        label: tStatus(k),
-        value: k,
-      })),
-    [tStatus],
-  );
-
-  // --- Priority filter options (translated) ---
-  const priorityOptions = useMemo(
-    () =>
-      (Object.keys(Priority) as PriorityName[]).map((k) => ({
-        label: tPriority(k),
-        value: k,
-      })),
-    [tPriority],
-  );
-
-  // --- Column definitions ---
-  const columns = useMemo<ColumnDef<TicketResponse>[]>(
+  const columns = useMemo<ColumnDef<KnowledgeAssetResponse>[]>(
     () => [
       {
-        field: 'number',
-        header: '#',
+        field: 'title',
+        header: t('title'),
+        width: 300,
+        minWidth: 180,
+        sortable: true,
+        sticky: 'left',
+        cellClassName: 'max-w-[300px] truncate font-medium',
+      },
+      {
+        field: 'summary',
+        header: t('summary'),
+        width: 320,
+        minWidth: 150,
+        cellClassName: 'max-w-[320px] truncate',
+        render: (val: string) => (
+          <span className="text-xs text-muted">{val || '—'}</span>
+        ),
+      },
+      {
+        field: 'isPublished',
+        header: 'Status',
+        width: 120,
+        minWidth: 100,
+        sortable: true,
+        filterable: true,
+        filterType: 'select',
+        filterOptions: [
+          { label: t('statusPublished'), value: 'published' },
+          { label: t('statusDraft'), value: 'draft' },
+        ],
+        render: (_val: boolean, row: KnowledgeAssetResponse) => {
+          const s = statusLabel(row);
+          return (
+            <span
+              className={
+                s === 'published'
+                  ? 'inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-[11px] font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+              }
+            >
+              {s === 'published' ? t('statusPublished') : t('statusDraft')}
+            </span>
+          );
+        },
+      },
+      {
+        field: 'reuseCount',
+        header: t('reuseCount'),
         width: 110,
         minWidth: 80,
         sortable: true,
-        sticky: 'left',
-        render: (val: string) => (
-          <span className="font-mono text-xs font-semibold text-primary">{val}</span>
+        align: 'center',
+        render: (val: number) => (
+          <span className="text-xs font-mono">{val}</span>
         ),
       },
       {
-        field: 'title',
-        header: t('description' as any) === 'Descrição' ? 'Título' : 'Title',
-        width: 320,
-        minWidth: 180,
-        sortable: true,
-        cellClassName: 'max-w-[320px] truncate',
-      },
-      {
-        field: 'status',
-        header: 'Status',
-        width: 150,
-        minWidth: 120,
-        sortable: true,
-        filterable: true,
-        filterType: 'select',
-        filterOptions: statusOptions,
-        render: (val: TicketStatusName) => <StatusBadge status={val} />,
-      },
-      {
-        field: 'priority',
-        header: tPriority('High') === 'Alta' ? 'Prioridade' : 'Priority',
-        width: 130,
-        minWidth: 100,
-        sortable: true,
-        filterable: true,
-        filterType: 'select',
-        filterOptions: priorityOptions,
-        render: (val: PriorityName) => <PriorityBadge priority={val} />,
-      },
-      {
-        field: 'assignedUserId',
-        header: t('assignee'),
-        width: 150,
-        minWidth: 100,
-        sortable: false,
-        render: (val: number | null) => (
-          <span className="text-xs text-muted">{val ? `#${val}` : '—'}</span>
-        ),
-      },
-      {
-        field: 'assignedTeamId',
-        header: t('team'),
+        field: 'rootCauseId',
+        header: t('rootCause'),
         width: 120,
         minWidth: 80,
-        sortable: false,
         render: (val: number | null) => (
           <span className="text-xs text-muted">{val ? `#${val}` : '—'}</span>
         ),
       },
       {
-        field: 'openedAt',
-        header: t('openedAt'),
+        field: 'createdAt',
+        header: t('createdAt'),
         width: 160,
         minWidth: 130,
         sortable: true,
-        render: (val: string) => (
+        render: (val: string | null) => (
           <span className="text-xs text-muted">
-            {formatDateTime(val, { locale, timeZone })}
+            {val ? formatDateTime(val, { locale, timeZone }) : '—'}
           </span>
         ),
       },
       {
-        field: 'lastUpdateUTC',
+        field: 'updatedAt',
         header: t('updatedAt'),
         width: 160,
         minWidth: 130,
         sortable: true,
-        render: (val: string | null, row: TicketResponse) => (
+        render: (val: string | null) => (
           <span className="text-xs text-muted">
-            {formatDateTime(val ?? row.openedAt, { locale, timeZone })}
+            {val ? formatDateTime(val, { locale, timeZone }) : '—'}
           </span>
         ),
       },
     ],
-    [t, tStatus, tPriority, statusOptions, priorityOptions, locale, timeZone],
+    [t, locale, timeZone],
   );
 
-  // --- Translated labels for DataGrid ---
   const labels = useMemo<Partial<DataGridLabels>>(
     () =>
       locale === 'pt-BR'
         ? {
             showing: 'Mostrando',
             of: 'de',
-            noData: 'Nenhum ticket encontrado',
+            noData: t('emptyList'),
             loading: 'Carregando...',
             errorDefault: 'Erro ao carregar',
             retry: 'Tentar de novo',
@@ -212,16 +178,32 @@ export function TicketsCentral() {
             filterApply: 'Aplicar',
             filterClear: 'Limpar',
           }
-        : {},
-    [locale],
+        : locale === 'es-ES'
+          ? {
+              noData: t('emptyList'),
+            }
+          : {},
+    [locale, t],
   );
 
-  // --- Row click handler ---
-  const handleRowClick = (row: TicketResponse) => {
-    openTicketTab({ id: row.id, number: row.number, title: row.title });
+  const handleRowClick = (row: KnowledgeAssetResponse) => {
+    openTab({
+      kind: 'knowledge-article',
+      params: { id: row.id },
+      title: row.title,
+      icon: 'knowledge',
+    });
   };
 
-  // --- Toolbar ---
+  const handleNewArticle = () => {
+    openTab({
+      kind: 'knowledge-article',
+      params: { id: 'new' },
+      title: t('newArticle'),
+      icon: 'knowledge',
+    });
+  };
+
   const toolbar = (
     <>
       <div className="relative w-64 max-w-full">
@@ -229,14 +211,14 @@ export function TicketsCentral() {
         <Input
           value={grid.search}
           onChange={(e) => grid.setSearch(e.target.value)}
-          placeholder={locale === 'pt-BR' ? 'Buscar tickets...' : 'Search tickets...'}
+          placeholder={t('searchPlaceholder')}
           className="pl-9 h-8 text-xs"
         />
       </div>
-      <Can permission="ticket.create">
-        <Button size="sm" onClick={openNewTicketWindow}>
+      <Can permission="knowledge.create">
+        <Button size="sm" onClick={handleNewArticle}>
           <Plus className="h-3.5 w-3.5" aria-hidden />
-          {locale === 'pt-BR' ? 'Novo ticket' : 'New Ticket'}
+          {t('newArticle')}
         </Button>
       </Can>
     </>
@@ -245,20 +227,18 @@ export function TicketsCentral() {
   return (
     <div className="flex h-full flex-col p-md gap-md">
       <div>
-        <h1 className="text-lg font-bold">
-          {locale === 'pt-BR' ? 'Central de Tickets' : 'Ticket Center'}
-        </h1>
+        <h1 className="text-lg font-bold">{t('pageTitle')}</h1>
         <p className="text-xs text-muted">
           {grid.totalCount > 0
-            ? `${grid.totalCount} tickets`
+            ? `${grid.totalCount} ${t('articlesCount')}`
             : grid.isLoading
               ? '...'
               : '—'}
         </p>
       </div>
 
-      <DataGrid<TicketResponse>
-        gridId="tickets-central"
+      <DataGrid<KnowledgeAssetResponse>
+        gridId="knowledge-center"
         columns={columns}
         data={grid.data}
         rowKey="id"

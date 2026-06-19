@@ -47,6 +47,36 @@ import type {
   CreateRoleRequest,
   UpdateRoleRequest,
   IntelligenceReport,
+  ResolutionResponse,
+  ResolveTicketRequest,
+  ResolveTicketResponse,
+  ResolutionPatternResponse,
+  KnowledgeAssetResponse,
+  KnowledgeAssetVersionResponse,
+  CreateKnowledgeAssetRequest,
+  UpdateKnowledgeAssetRequest,
+  EngineeringWorkItemResponse,
+  WebhookSubscriptionResponse,
+  KpiSnapshot,
+  SlaComplianceResult,
+  TeamMetrics,
+  TicketTrendPoint,
+  CreateSymptomTagRequest,
+  UpdateSymptomTagRequest,
+  CreateTeamRequest,
+  UpdateTeamRequest,
+  SlaPolicyResponse,
+  SaveSlaPolicyRequest,
+  EmailInboundRequest,
+  WhatsAppInboundRequest,
+  TenantResponse,
+  CreateTenantRequest,
+  UpdateTenantRequest,
+  CreateAccessRuleRequest,
+  UpdateAccessRuleRequest,
+  IntelligenceRootCauseSuggestion,
+  IntelligenceResolutionSuggestion,
+  AutomationOpportunity,
 } from './types';
 
 /** Branding público do tenant, resolvido pelo subdomínio (pré-login, anônimo). */
@@ -78,18 +108,33 @@ export const mfaApi = {
 /** Analytics */
 export const analyticsApi = {
   dashboard: (days = 30) => api.get<DashboardSummary>('/analytics/dashboard', { params: { days } }),
-  kpis: (days = 30) => api.get<unknown>('/analytics/kpis', { params: { days } }),
-  slaCompliance: (days = 30) => api.get<unknown>('/analytics/sla-compliance', { params: { days } }),
-  teams: (days = 30) => api.get<unknown>('/analytics/teams', { params: { days } }),
-  trends: (days = 30) => api.get<unknown>('/analytics/trends', { params: { days } }),
+  kpis: (days = 30) => api.get<KpiSnapshot>('/analytics/kpis', { params: { days } }),
+  slaCompliance: (days = 30) => api.get<SlaComplianceResult>('/analytics/sla-compliance', { params: { days } }),
+  teams: (days = 30) => api.get<TeamMetrics[]>('/analytics/teams', { params: { days } }),
+  trends: (days = 30, granularity: 'Daily' | 'Weekly' | 'Monthly' = 'Daily') =>
+    api.get<TicketTrendPoint[]>('/analytics/trends', { params: { days, granularity } }),
 };
 
 /* ============================================================================
    TICKETING  — núcleo operacional, totalmente tipado.
    ============================================================================ */
+export interface TicketListParams {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  priority?: string;
+  assignedUserId?: number;
+  teamId?: number;
+  search?: string;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+}
+
 export const ticketsApi = {
-  list: (page = 1, pageSize = 20) =>
-    api.get<PagedResponse<TicketResponse>>('/tickets', { params: { page, pageSize } }),
+  list: (params: TicketListParams = {}) =>
+    api.get<PagedResponse<TicketResponse>>('/tickets', {
+      params: { page: 1, pageSize: 20, ...params } as Record<string, string | number | boolean>,
+    }),
   get: (id: number) => api.get<TicketDetailResponse>(`/tickets/${id}`),
   create: (body: CreateTicketRequest) => api.post<TicketCreatedResponse>('/tickets', body),
   update: (id: number, body: UpdateTicketRequest) => api.put<TicketResponse>(`/tickets/${id}`, body),
@@ -99,7 +144,7 @@ export const ticketsApi = {
     api.patch<TicketResponse>(`/tickets/${id}/assign`, { userId, teamId: teamId ?? null }),
   changeStatus: (id: number, status: TicketStatusValue) =>
     api.patch<TicketResponse>(`/tickets/${id}/status`, { status }),
-  resolve: (id: number, body: unknown) => api.post<unknown>(`/tickets/${id}/resolve`, body),
+  resolve: (id: number, body: ResolveTicketRequest) => api.post<ResolveTicketResponse>(`/tickets/${id}/resolve`, body),
   recommendationFeedback: (id: number, body: RecommendationFeedbackRequest) =>
     api.post<void>(`/tickets/${id}/recommendation-feedback`, body),
   addComment: (id: number, message: string, isInternal = false) =>
@@ -130,6 +175,10 @@ export const worklogsApi = {
 
 /** Investigações (F5.7) */
 export const investigationsApi = {
+  list: (params: { page?: number; pageSize?: number; ticketId?: number; status?: string } = {}) =>
+    api.get<PagedResponse<InvestigationResponse>>('/investigations', {
+      params: { page: 1, pageSize: 20, ...params } as Record<string, string | number | boolean>,
+    }),
   create: (ticketId: number, body: CreateInvestigationRequest) =>
     api.post<InvestigationResponse>(`/investigations/ticket/${ticketId}`, body),
   get: (id: number) => api.get<InvestigationResponse>(`/investigations/${id}`),
@@ -155,65 +204,76 @@ export const investigationsApi = {
   },
 };
 
-/** Resoluções*/
+/** Resoluções */
 export const resolutionsApi = {
-  create: (ticketId: number, body: unknown) => api.post<unknown>(`/resolutions/ticket/${ticketId}`, body),
-  get: (id: number) => api.get<unknown>(`/resolutions/${id}`),
-  validate: (id: number, body: unknown) => api.patch<unknown>(`/resolutions/${id}/validate`, body),
-  addLearning: (id: number, body: unknown) => api.post<unknown>(`/resolutions/${id}/learnings`, body),
-  resolveWithAi: (ticketId: number, body: { rootCauseId: number; summary: string; resolutionSteps: string; notifyCustomer?: boolean }) =>
-    api.post<TicketResponse>(`/tickets/${ticketId}/resolve-with-ai`, body),
+  create: (ticketId: number, body: { rootCauseId: number; summary: string; resolutionSteps: string; outcome: string }) =>
+    api.post<ResolutionResponse>(`/resolutions/ticket/${ticketId}`, body),
+  get: (id: number) => api.get<ResolutionResponse>(`/resolutions/${id}`),
+  validate: (id: number, body: { isValidated: boolean; notes?: string }) =>
+    api.patch<ResolutionResponse>(`/resolutions/${id}/validate`, body),
+  addLearning: (id: number, body: { description: string; impact: string }) =>
+    api.post<ResolutionResponse>(`/resolutions/${id}/learnings`, body),
 };
 
 /** Causas raiz (F5.8) */
 export const rootCausesApi = {
+  list: (params: { page?: number; pageSize?: number; search?: string; category?: string } = {}) =>
+    api.get<PagedResponse<RootCauseResponse>>('/rootcauses', {
+      params: { page: 1, pageSize: 20, ...params } as Record<string, string | number | boolean>,
+    }),
   create: (ticketId: number, body: CreateRootCauseRequest) =>
     api.post<RootCauseResponse>(`/rootcauses/ticket/${ticketId}`, body),
   get: (id: number) => api.get<RootCauseResponse>(`/rootcauses/${id}`),
   byTicket: (ticketId: number) => api.get<RootCauseResponse[]>(`/rootcauses/ticket/${ticketId}`),
+  update: (id: number, body: { title: string; description: string; category: string; confidenceScore: number }) =>
+    api.put<RootCauseResponse>(`/rootcauses/${id}`, body),
   updateConfidence: (id: number, score: number) =>
     api.patch<RootCauseResponse>(`/rootcauses/${id}/confidence`, { score }),
+  remove: (id: number) => api.delete<void>(`/rootcauses/${id}`),
 };
 
 /** Knowledge assets */
 export const knowledgeApi = {
-  list: (params?: Record<string, string | number | boolean>) =>
-    api.get<unknown>('/knowledgeassets', { params }),
-  get: (id: number) => api.get<unknown>(`/knowledgeassets/${id}`),
-  create: (body: unknown) => api.post<unknown>('/knowledgeassets', body),
-  update: (id: number, body: unknown) => api.put<unknown>(`/knowledgeassets/${id}`, body),
-  publish: (id: number) => api.patch<unknown>(`/knowledgeassets/${id}/publish`),
-  archive: (id: number) => api.patch<unknown>(`/knowledgeassets/${id}/archive`),
-  incrementReuse: (id: number) => api.patch<unknown>(`/knowledgeassets/${id}/reuse`),
-  versions: (id: number) => api.get<unknown>(`/knowledgeassets/${id}/versions`),
-  version: (id: number, versionId: number) => api.get<unknown>(`/knowledgeassets/${id}/versions/${versionId}`),
-  rollback: (id: number, versionId: number) => api.post<unknown>(`/knowledgeassets/${id}/rollback/${versionId}`),
+  list: (params?: { page?: number; pageSize?: number; search?: string }) =>
+    api.get<PagedResponse<KnowledgeAssetResponse>>('/knowledgeassets', {
+      params: { page: 1, pageSize: 20, ...params } as Record<string, string | number | boolean>,
+    }),
+  get: (id: number) => api.get<KnowledgeAssetResponse>(`/knowledgeassets/${id}`),
+  create: (body: CreateKnowledgeAssetRequest) => api.post<KnowledgeAssetResponse>('/knowledgeassets', body),
+  update: (id: number, body: UpdateKnowledgeAssetRequest) => api.put<KnowledgeAssetResponse>(`/knowledgeassets/${id}`, body),
+  publish: (id: number) => api.patch<void>(`/knowledgeassets/${id}/publish`),
+  archive: (id: number) => api.patch<void>(`/knowledgeassets/${id}/archive`),
+  incrementReuse: (id: number) => api.patch<void>(`/knowledgeassets/${id}/reuse`),
+  versions: (id: number) => api.get<KnowledgeAssetVersionResponse[]>(`/knowledgeassets/${id}/versions`),
+  version: (id: number, versionId: number) => api.get<KnowledgeAssetVersionResponse>(`/knowledgeassets/${id}/versions/${versionId}`),
+  rollback: (id: number, versionId: number) => api.post<KnowledgeAssetResponse>(`/knowledgeassets/${id}/rollback/${versionId}`),
 };
 
 /** Resolution patterns */
 export const resolutionPatternsApi = {
-  create: (body: unknown) => api.post<unknown>('/resolutionpatterns', body),
-  get: (id: number) => api.get<unknown>(`/resolutionpatterns/${id}`),
-  byRootCause: (rootCauseId: number) => api.get<unknown>(`/resolutionpatterns/root-cause/${rootCauseId}`),
-  recordUsage: (id: number, body: unknown) => api.patch<unknown>(`/resolutionpatterns/${id}/usage`, body),
+  create: (body: { rootCauseId: number; name: string }) => api.post<ResolutionPatternResponse>('/resolutionpatterns', body),
+  get: (id: number) => api.get<ResolutionPatternResponse>(`/resolutionpatterns/${id}`),
+  byRootCause: (rootCauseId: number) => api.get<ResolutionPatternResponse[]>(`/resolutionpatterns/root-cause/${rootCauseId}`),
+  recordUsage: (id: number, body: { ticketId: number }) => api.patch<ResolutionPatternResponse>(`/resolutionpatterns/${id}/usage`, body),
 };
 
 /** Engineering work items */
 export const workItemsApi = {
-  create: (ticketId: number, body: unknown) => api.post<unknown>(`/tickets/${ticketId}/workitems`, body),
-  byTicket: (ticketId: number) => api.get<unknown>(`/tickets/${ticketId}/workitems`),
-  updateStatus: (ticketId: number, id: number, body: unknown) =>
-    api.patch<unknown>(`/tickets/${ticketId}/workitems/${id}/status`, body),
+  create: (ticketId: number, body: { title: string; technicalDescription: string }) =>
+    api.post<EngineeringWorkItemResponse>(`/tickets/${ticketId}/workitems`, body),
+  byTicket: (ticketId: number) => api.get<EngineeringWorkItemResponse[]>(`/tickets/${ticketId}/workitems`),
+  updateStatus: (ticketId: number, id: number, body: { status: string }) =>
+    api.patch<EngineeringWorkItemResponse>(`/tickets/${ticketId}/workitems/${id}/status`, body),
 };
 
 /** Inteligência / IA */
 export const intelligenceApi = {
   ticketReport: (ticketId: number, maxResults = 5) =>
     api.get<IntelligenceReport>(`/intelligence/tickets/${ticketId}/report`, { params: { maxResults } }),
-  ticketRootCauses: (ticketId: number) => api.get<unknown>(`/intelligence/tickets/${ticketId}/root-causes`),
-  ticketResolutions: (ticketId: number) => api.get<unknown>(`/intelligence/tickets/${ticketId}/resolutions`),
-  patterns: () => api.get<unknown>('/intelligence/patterns'),
-  automationOpportunities: () => api.get<unknown>('/intelligence/automation-opportunities'),
+  ticketRootCauses: (ticketId: number) => api.get<IntelligenceRootCauseSuggestion[]>(`/intelligence/tickets/${ticketId}/root-causes`),
+  ticketResolutions: (ticketId: number) => api.get<IntelligenceResolutionSuggestion[]>(`/intelligence/tickets/${ticketId}/resolutions`),
+  patterns: () => api.get<ResolutionPatternResponse[]>('/intelligence/patterns'),
+  automationOpportunities: () => api.get<AutomationOpportunity[]>('/intelligence/automation-opportunities'),
 };
 
 /** Usuários */
@@ -229,11 +289,11 @@ export const usersApi = {
 /** Equipes */
 export const teamsApi = {
   list: () => api.get<TeamResponse[]>('/teams'),
-  get: (id: number) => api.get<unknown>(`/teams/${id}`),
-  create: (body: unknown) => api.post<unknown>('/teams', body),
-  update: (id: number, body: unknown) => api.put<unknown>(`/teams/${id}`, body),
-  activate: (id: number) => api.patch<unknown>(`/teams/${id}/activate`),
-  deactivate: (id: number) => api.patch<unknown>(`/teams/${id}/deactivate`),
+  get: (id: number) => api.get<TeamResponse>(`/teams/${id}`),
+  create: (body: CreateTeamRequest) => api.post<TeamResponse>('/teams', body),
+  update: (id: number, body: UpdateTeamRequest) => api.put<TeamResponse>(`/teams/${id}`, body),
+  activate: (id: number) => api.patch<TeamResponse>(`/teams/${id}/activate`),
+  deactivate: (id: number) => api.patch<TeamResponse>(`/teams/${id}/deactivate`),
 };
 
 /** Roles */
@@ -247,8 +307,8 @@ export const rolesApi = {
 
 /** Políticas de SLA */
 export const slaPoliciesApi = {
-  list: () => api.get<unknown>('/slapolicies'),
-  save: (body: unknown) => api.put<unknown>('/slapolicies', body),
+  list: () => api.get<SlaPolicyResponse[]>('/slapolicies'),
+  save: (body: SaveSlaPolicyRequest) => api.put<SlaPolicyResponse>('/slapolicies', body),
 };
 
 /** Catálogo de sintomas (vocabulário controlado). */
@@ -294,28 +354,28 @@ export const auditApi = {
 
 /** Webhooks */
 export const webhooksApi = {
-  list: () => api.get<unknown>('/webhooks'),
-  get: (id: number) => api.get<unknown>(`/webhooks/${id}`),
-  create: (body: unknown) => api.post<unknown>('/webhooks', body),
-  update: (id: number, body: unknown) => api.put<unknown>(`/webhooks/${id}`, body),
+  list: () => api.get<WebhookSubscriptionResponse[]>('/webhooks'),
+  get: (id: number) => api.get<WebhookSubscriptionResponse>(`/webhooks/${id}`),
+  create: (body: { name: string; url: string; events: string[] }) => api.post<WebhookSubscriptionResponse>('/webhooks', body),
+  update: (id: number, body: { name: string; url: string; events: string[] }) => api.put<WebhookSubscriptionResponse>(`/webhooks/${id}`, body),
   remove: (id: number) => api.delete<void>(`/webhooks/${id}`),
 };
 
 /** Canais de intake (e-mail/WhatsApp). */
 export const channelsApi = {
-  emailInbound: (body: unknown) => api.post<unknown>('/channels/email/inbound', body, { anonymous: true }),
-  whatsAppInbound: (body: unknown) => api.post<unknown>('/channels/whatsapp/inbound', body, { anonymous: true }),
+  emailInbound: (body: EmailInboundRequest) => api.post<void>('/channels/email/inbound', body, { anonymous: true }),
+  whatsAppInbound: (body: WhatsAppInboundRequest) => api.post<void>('/channels/whatsapp/inbound', body, { anonymous: true }),
 };
 
 /** Administração interna (tenants, perfis, regras de acesso, sistema). */
 export const internalApi = {
   tenants: {
-    list: () => api.get<unknown>('/internal/tenants'),
-    get: (id: number) => api.get<unknown>(`/internal/tenants/${id}`),
-    create: (body: unknown) => api.post<unknown>('/internal/tenants', body),
-    update: (id: number, body: unknown) => api.put<unknown>(`/internal/tenants/${id}`, body),
-    activate: (id: number) => api.patch<unknown>(`/internal/tenants/${id}/activate`),
-    deactivate: (id: number) => api.patch<unknown>(`/internal/tenants/${id}/deactivate`),
+    list: () => api.get<TenantResponse[]>('/internal/tenants'),
+    get: (id: number) => api.get<TenantResponse>(`/internal/tenants/${id}`),
+    create: (body: CreateTenantRequest) => api.post<TenantResponse>('/internal/tenants', body),
+    update: (id: number, body: UpdateTenantRequest) => api.put<TenantResponse>(`/internal/tenants/${id}`, body),
+    activate: (id: number) => api.patch<TenantResponse>(`/internal/tenants/${id}/activate`),
+    deactivate: (id: number) => api.patch<TenantResponse>(`/internal/tenants/${id}/deactivate`),
   },
   profileGroups: {
     list: () => api.get<ProfileGroupResponse[]>('/internal/profilegroups'),
@@ -328,12 +388,12 @@ export const internalApi = {
   accessRules: {
     list: () => api.get<AccessRuleResponse[]>('/internal/accessrules'),
     get: (id: number) => api.get<AccessRuleResponse>(`/internal/accessrules/${id}`),
-    create: (body: unknown) => api.post<unknown>('/internal/accessrules', body),
-    update: (id: number, body: unknown) => api.put<unknown>(`/internal/accessrules/${id}`, body),
+    create: (body: CreateAccessRuleRequest) => api.post<AccessRuleResponse>('/internal/accessrules', body),
+    update: (id: number, body: UpdateAccessRuleRequest) => api.put<AccessRuleResponse>(`/internal/accessrules/${id}`, body),
     remove: (id: number) => api.delete<void>(`/internal/accessrules/${id}`),
   },
   system: {
-    runMigrations: () => api.post<unknown>('/internal/system/run-migrations'),
+    runMigrations: () => api.post<void>('/internal/system/run-migrations'),
   },
 };
 

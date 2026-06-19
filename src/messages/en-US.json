@@ -1,22 +1,4 @@
 {
-  "timeline": {
-    "statusChanged": "Status changed from {from} to {to}",
-    "assigned": "Assigned to {user}",
-    "unassigned": "Unassigned",
-    "worklogAdded": "{user} logged {duration} minutes of {type}",
-    "commentAdded": "{user} added comment",
-    "investigationStarted": "Investigation started by {user}",
-    "investigationFinished": "Investigation completed by {user}",
-    "resolutionAdded": "Resolution added by {user}",
-    "worklogType": {
-      "Investigation": "Investigation",
-      "Meeting": "Meeting",
-      "Development": "Development",
-      "Validation": "Validation",
-      "CustomerContact": "Customer Contact",
-      "InternalDiscussion": "Internal Discussion"
-    }
-  },
   "common": {
     "appName": "Orbit",
     "loading": "Loading...",
@@ -156,7 +138,21 @@
     "yesterday": "Yesterday",
     "updated": "Update",
     "estimateMinutes": "Estimate",
-    "slaBreach": "SLA"
+    "slaBreach": "SLA",
+    "statusChanged": "Status changed from {from} to {to}",
+    "assigned": "Assigned to {user}",
+    "unassigned": "Unassigned",
+    "worklogAdded": "{user} logged {duration} minutes of {type}",
+    "commentAdded": "{user} added comment",
+    "resolutionAdded": "Resolution added by {user}",
+    "worklogType": {
+      "Investigation": "Investigation",
+      "Meeting": "Meeting",
+      "Development": "Development",
+      "Validation": "Validation",
+      "CustomerContact": "Customer Contact",
+      "InternalDiscussion": "Internal Discussion"
+    }
   },
   "ticket": {
     "loading": "Loading ticket…",
@@ -184,6 +180,7 @@
     "tabWorklogs": "Time",
     "tabAttachments": "Attachments",
     "tabIntelligence": "Intelligence",
+    "assistantButton": "Assistant",
     "tabInvestigation": "Investigation",
     "tabRootCauses": "Root Causes",
     "timeTracking": "Time tracking",
@@ -237,13 +234,12 @@
     "yesterday": "Yesterday"
   },
   "worklogType": {
-    "investigation": "Investigation",
-    "meeting": "Meeting",
-    "development": "Development",
-    "validation": "Validation",
-    "customerSupport": "Customer support",
-    "documentation": "Documentation",
-    "other": "Other"
+    "Investigation": "Investigation",
+    "Meeting": "Meeting",
+    "Development": "Development",
+    "Validation": "Validation",
+    "CustomerContact": "Customer Contact",
+    "InternalDiscussion": "Internal Discussion"
   },
   "intelligence": {
     "viewMore": "View analysis",
@@ -286,7 +282,12 @@
     "resolving": "Resolving...",
     "confirmResolution": "Are you sure you want to resolve this ticket with this solution?",
     "ticketAlreadyResolved": "This ticket has already been resolved.",
-    "otherPossibleCauses": "Other possible causes"
+    "otherPossibleCauses": "Other possible causes",
+    "relatedKnowledge": "Related knowledge",
+    "appliedSuccess": "Solution applied successfully",
+    "applyError": "Failed to apply solution",
+    "feedbackSent": "Feedback recorded",
+    "feedbackError": "Failed to record feedback"
   },
   "comments": {
     "addError": "Could not post comment",
@@ -456,5 +457,36 @@
     "finishConfirmation": "Are you sure you want to finish this investigation?",
     "linkToTicket": "Linked to ticket",
     "saveRootCause": "Save root cause"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "totalTickets": "Total Tickets",
+    "resolved": "Resolved",
+    "mttr": "MTTR",
+    "mttrSubtitle": "Mean Time to Resolution",
+    "slaCompliance": "SLA Compliance",
+    "resolutionRate": "Resolution Rate",
+    "recurrenceRate": "Recurrence Rate",
+    "trendTitle": "Ticket Trend",
+    "opened": "Opened",
+    "closed": "Closed",
+    "byPriority": "By Priority",
+    "byStatus": "By Status",
+    "byRootCause": "By Root Cause",
+    "teamsTitle": "Team Performance",
+    "teamName": "Team",
+    "avgMttr": "Avg MTTR",
+    "slaViolationsTitle": "SLA Violations",
+    "ticketNumber": "Ticket",
+    "priority": "Priority",
+    "minutesOverdue": "Overdue",
+    "dueAt": "Due Date",
+    "noViolations": "No SLA violations in this period.",
+    "noData": "No data available.",
+    "error": "Failed to load analytics data.",
+    "retry": "Retry",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly"
   }
 }
