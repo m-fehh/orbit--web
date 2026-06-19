@@ -793,19 +793,19 @@ function AttachmentsTab({ ticketId, userName }: { ticketId: number; userName: (u
   // TODO: ticketsApi.removeAttachment não implementado
   // const deleteAttachment = useMutation({
   //   mutationFn: (attachmentId: number) => ticketsApi.removeAttachment(ticketId, attachmentId),
-    onSuccess: (_data, attachmentId) => {
-      toast.success('Anexo removido');
-      if (thumbnailUrls[attachmentId]) {
-        URL.revokeObjectURL(thumbnailUrls[attachmentId]);
-        setThumbnailUrls((prev) => {
-          const next = { ...prev };
-          delete next[attachmentId];
-          return next;
-        });
-      }
-      qc.invalidateQueries({ queryKey: ['tickets', 'attachments', ticketId] });
-      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
-    },
+  //   onSuccess: (_data, attachmentId) => {
+  //     toast.success('Anexo removido');
+  //     if (thumbnailUrls[attachmentId]) {
+  //       URL.revokeObjectURL(thumbnailUrls[attachmentId]);
+  //       setThumbnailUrls((prev) => {
+  //         const next = { ...prev };
+  //         delete next[attachmentId];
+  //         return next;
+  //       });
+  //     }
+  //     qc.invalidateQueries({ queryKey: ['tickets', 'attachments', ticketId] });
+  //     qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+  //   },
   //   onError: (err) => toast.error(apiErrorMessage(err, 'Erro ao remover anexo')),
   // });
 
