@@ -196,6 +196,16 @@ export interface CreateInvestigationRequest { summary: string }
 export interface AddEvidenceRequest { type: EvidenceTypeValue; notes?: string | null; url?: string | null }
 export interface AddHypothesisRequest { description: string }
 export interface AddFindingRequest { description: string }
+
+/* ---- Symptom Catalog ---- */
+export interface SymptomTagResponse {
+  id: number;
+  code: string;
+  name: string;
+  group: string;
+}
+export interface AddTicketSymptomRequest { symptomTagId: number }
+
 export interface CreateRootCauseRequest {
   title: string;
   description: string;
@@ -218,6 +228,7 @@ export interface TicketDetailResponse {
   comments: TicketCommentResponse[];
   worklogs: WorklogResponse[];
   investigations: InvestigationResponse[];
+  symptoms?: SymptomTagResponse[];
   createdAt: string | null;
   updatedAt: string | null;
   estimateMinutes: number | null;

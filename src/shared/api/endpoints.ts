@@ -31,6 +31,8 @@ import type {
   AddEvidenceRequest,
   AddHypothesisRequest,
   AddFindingRequest,
+  SymptomTagResponse,
+  AddTicketSymptomRequest,
   CreateRootCauseRequest,
   HypothesisStatusValue,
   PriorityValue,
@@ -246,7 +248,15 @@ export const slaPoliciesApi = {
 
 /** Catálogo de sintomas (vocabulário controlado). */
 export const symptomsApi = {
-  list: () => api.get<unknown>('/symptoms'),
+  list: () => api.get<SymptomTagResponse[]>('/symptoms'),
+};
+
+/** Symptoms do ticket. */
+export const ticketSymptomsApi = {
+  add: (ticketId: number, body: AddTicketSymptomRequest) =>
+    api.post<SymptomTagResponse>(`/tickets/${ticketId}/symptoms`, body),
+  remove: (ticketId: number, symptomTagId: number) =>
+    api.delete<void>(`/tickets/${ticketId}/symptoms/${symptomTagId}`),
 };
 
 /** Auditoria. Captura quem / o quê / quando / contexto técnico de toda mudança. */
