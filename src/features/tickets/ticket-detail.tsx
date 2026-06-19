@@ -33,6 +33,7 @@ import { Input } from '@/shared/ui/input';
 import { cn } from '@/shared/lib/utils';
 import { SlaPanel } from './sla-panel';
 import { TicketTimeline } from './timeline';
+import { IntelligencePanel } from './intelligence-panel';
 import { tokenStore } from '@/shared/api/token-store';
 import { Portal } from '@/shared/ui/portal';
 
@@ -278,7 +279,7 @@ export function TicketDetail({ id }: { id: number }) {
 
         {sub === 'attachments' && <AttachmentsTab ticketId={id} userName={userName} />}
 
-        {sub === 'intelligence' && <IntelligencePanel ticketId={id} />}
+        {sub === 'intelligence' && <IntelligencePanel ticketId={id} ticketStatus={ticket.status} />}
       </div>
     </div>
   );
