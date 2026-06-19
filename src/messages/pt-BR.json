@@ -239,6 +239,7 @@
     "other": "Outro"
   },
   "intelligence": {
+    "viewMore": "Ver análise",
     "analyzing": "Analisando a demanda…",
     "analysisError": "Não foi possível analisar",
     "retry": "Tentar de novo",

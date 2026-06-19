@@ -207,6 +207,8 @@ export function TicketDetail({ id }: { id: number }) {
                 </div>
               </div>
 
+              <IntelligenceQuickView ticketId={id} onExpand={() => setSub('intelligence')} />
+
               <RecommendationsPanel ticketId={id} onOpenIntelligence={() => setSub('intelligence')} />
             </div>
             <aside className="flex flex-col gap-lg">
@@ -406,6 +408,58 @@ function TrackMini({ label, value, accent }: { label: string; value: string; acc
     <div className="rounded-md bg-panel-2/50 px-1 py-1.5">
       <p className="text-[10px] uppercase tracking-wide text-dim">{label}</p>
       <p className={cn('text-sm font-bold', accent === 'primary' && 'text-primary', accent === 'danger' && 'text-danger', !accent && 'text-text')}>{value}</p>
+    </div>
+  );
+}
+
+/* ---- Intelligence Quick View ---- */
+function IntelligenceQuickView({ ticketId, onExpand }: { ticketId: number; onExpand: () => void }) {
+  const t = useTranslations('intelligence');
+  const { data, isLoading } = useQuery({
+    queryKey: ['tickets', 'intelligence', ticketId],
+    queryFn: () => intelligenceApi.ticketReport(ticketId),
+    retry: false,
+  });
+
+  if (isLoading || !data || (data.rootCauseCandidates.length === 0 && data.resolutionSuggestions.length === 0)) {
+    return null;
+  }
+
+  const topRootCause = data.rootCauseCandidates[0];
+  const topResolution = data.resolutionSuggestions[0];
+
+  return (
+    <div className="card-surface p-md bg-primary/5 border border-primary/20">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <p className="text-xs font-semibold uppercase text-primary">Intelligence</p>
+        </div>
+        <Button size="sm" variant="ghost" onClick={onExpand} className="h-6 text-xs">
+          {t('viewMore')}
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        {topRootCause && (
+          <div className="flex items-start gap-2">
+            <span className="shrink-0 rounded bg-primary/20 px-1.5 py-0.5 font-medium text-primary">{Math.round(topRootCause.confidenceScore * 100)}%</span>
+            <div className="min-w-0">
+              <p className="font-medium text-text truncate">{topRootCause.category}</p>
+              <p className="text-dim text-[10px] line-clamp-2">{topRootCause.description}</p>
+            </div>
+          </div>
+        )}
+        {topResolution && (
+          <div className="flex items-start gap-2">
+            <span className="shrink-0 rounded bg-success/20 px-1.5 py-0.5 font-medium text-success">{Math.round(topResolution.successRate * 100)}%</span>
+            <div className="min-w-0">
+              <p className="font-medium text-text truncate line-clamp-1">{topResolution.summary}</p>
+              <p className="text-dim text-[10px]">Usado {topResolution.reusedCount}x</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

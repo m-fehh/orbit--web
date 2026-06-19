@@ -239,6 +239,7 @@
     "other": "Other"
   },
   "intelligence": {
+    "viewMore": "View analysis",
     "analyzing": "Analyzing the request…",
     "analysisError": "Analysis failed",
     "retry": "Try again",
