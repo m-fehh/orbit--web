@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { usersApi, internalApi } from '@/shared/api/endpoints';
@@ -12,6 +13,7 @@ import { openUserWindow } from './user-actions';
 
 /** Tela de Usuários: lista paginada + criação/edição (com busca de perfil). */
 export function UsersView() {
+  const t = useTranslations('admin.users');
   const [page, setPage] = useState(1);
   const [term, setTerm] = useState('');
   const pageSize = 20;
@@ -36,38 +38,38 @@ export function UsersView() {
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-sm border-b border-border p-md">
         <div>
-          <h1 className="text-lg font-bold">Usuários</h1>
-          <p className="text-xs text-muted">{data ? `${data.totalCount} usuários` : '—'}</p>
+          <h1 className="text-lg font-bold">{t('title')}</h1>
+          <p className="text-xs text-muted">{data ? `${data.totalCount} ${t('title').toLowerCase()}` : '—'}</p>
         </div>
         <div className="relative ml-auto w-64 max-w-full">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" aria-hidden />
-          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Filtrar por nome ou e-mail…" className="pl-9" />
+          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('filterPlaceholder')} className="" />
         </div>
-        <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label="Atualizar">
+        <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label={t('refresh')}>
           <RefreshCw className={isFetching ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} aria-hidden />
         </Button>
         <Can permission="admin.users.create">
           <Button onClick={() => openUserWindow()}>
-            <Plus className="h-4 w-4" /> Novo usuário
+            <Plus className="h-4 w-4" /> {t('newUser')}
           </Button>
         </Can>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
         {isLoading ? (
-          <LoadingState label="Carregando usuários…" />
+          <LoadingState label={t('loading')} />
         ) : isError ? (
-          <ErrorState title="Erro ao carregar" onRetry={() => refetch()} retryLabel="Tentar de novo" />
+          <ErrorState title={t('loadError')} onRetry={() => refetch()} retryLabel={t('retry')} />
         ) : items.length === 0 ? (
-          <EmptyState message="Nenhum usuário encontrado." />
+          <EmptyState message={t('empty')} />
         ) : (
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-bg-subtle/90 backdrop-blur">
               <tr className="text-left text-xs uppercase tracking-wide text-dim">
-                <th className="px-md py-2 font-semibold">Nome</th>
-                <th className="px-md py-2 font-semibold">E-mail</th>
-                <th className="px-md py-2 font-semibold">Papel</th>
-                <th className="px-md py-2 font-semibold">Perfil</th>
+                <th className="px-md py-2 font-semibold">{t('name')}</th>
+                <th className="px-md py-2 font-semibold">{t('email')}</th>
+                <th className="px-md py-2 font-semibold">{t('role')}</th>
+                <th className="px-md py-2 font-semibold">{t('profileGroup')}</th>
                 <th className="px-md py-2 text-center font-semibold">MFA</th>
               </tr>
             </thead>
@@ -94,11 +96,11 @@ export function UsersView() {
 
       {data && totalPages > 1 && (
         <div className="flex items-center justify-end gap-sm border-t border-border px-md py-2 text-sm">
-          <span className="text-muted">Página {page} de {totalPages}</span>
-          <Button variant="secondary" size="icon" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Anterior">
+          <span className="text-muted">{t('page', { page, totalPages })}</span>
+          <Button variant="secondary" size="icon" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label={t('previous')}>
             <ChevronLeft className="h-4 w-4" aria-hidden />
           </Button>
-          <Button variant="secondary" size="icon" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label="Próxima">
+          <Button variant="secondary" size="icon" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label={t('next')}>
             <ChevronRight className="h-4 w-4" aria-hidden />
           </Button>
         </div>

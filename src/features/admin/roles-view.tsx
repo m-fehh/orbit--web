@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, KeyRound } from 'lucide-react';
 import { rolesApi } from '@/shared/api/endpoints';
@@ -11,10 +12,10 @@ import { LoadingState, EmptyState, ErrorState } from '@/shared/ui/states';
 import { useWindowStore } from '@/features/windows/window-store';
 import { RoleForm } from './role-form';
 
-function openRoleWindow() {
+function openRoleWindow(title: string) {
   useWindowStore.getState().open({
     id: 'role-new',
-    title: 'Novo papel',
+    title,
     icon: <KeyRound className="h-4 w-4" />,
     modal: true,
     content: <RoleForm windowId="role-new" />,
@@ -23,6 +24,7 @@ function openRoleWindow() {
 
 /** Papéis (Roles): tabela com busca e cadastro. */
 export function RolesView() {
+  const t = useTranslations('admin.roles');
   const [term, setTerm] = useState('');
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['roles'], queryFn: () => rolesApi.list() });
 
@@ -36,14 +38,14 @@ export function RolesView() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-sm border-b border-border p-md">
-        <h1 className="text-base font-bold">Papéis</h1>
+        <h1 className="text-base font-bold">{t('title')}</h1>
         <div className="relative ml-auto w-56 max-w-full">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" aria-hidden />
-          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Buscar papel…" className="pl-9" />
+          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('searchPlaceholder')} className="" />
         </div>
         <Can permission="role.create">
-          <Button onClick={openRoleWindow}>
-            <Plus className="h-4 w-4" /> Novo
+          <Button onClick={() => openRoleWindow(t('newRole'))}>
+            <Plus className="h-4 w-4" /> {t('new')}
           </Button>
         </Can>
       </div>
@@ -52,9 +54,9 @@ export function RolesView() {
         {isLoading ? (
           <LoadingState />
         ) : isError ? (
-          <ErrorState title="Erro ao carregar" onRetry={() => refetch()} retryLabel="Tentar de novo" />
+          <ErrorState title={t('loadError')} onRetry={() => refetch()} retryLabel={t('retry')} />
         ) : items.length === 0 ? (
-          <EmptyState icon={KeyRound} message="Nenhum papel encontrado." />
+          <EmptyState icon={KeyRound} message={t('empty')} />
         ) : (
           <ul className="flex flex-col gap-1">
             {items.map((r) => (

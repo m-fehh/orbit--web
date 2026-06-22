@@ -154,9 +154,11 @@ function fromWorklog(
 export function TicketTimeline({
   ticket,
   userName,
+  teamName,
 }: {
   ticket: TicketDetailResponse;
   userName: (uid: number | null) => string;
+  teamName?: (tid: number | null) => string;
 }) {
   const t = useTranslations();
   const locale = useLocale() as Locale;
@@ -210,6 +212,14 @@ export function TicketTimeline({
           }).format(date);
         }
       } catch { /* fallback */ }
+    }
+
+    if (fieldName === 'AssignedUserId' && !isNaN(Number(value))) {
+      return userName(Number(value));
+    }
+
+    if (fieldName === 'AssignedTeamId' && !isNaN(Number(value))) {
+      return teamName ? teamName(Number(value)) : value;
     }
 
     if (fieldName === 'EstimateMinutes' && !isNaN(Number(value))) {

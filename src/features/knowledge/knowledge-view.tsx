@@ -44,6 +44,7 @@ function statusLabel(row: KnowledgeAssetResponse): 'published' | 'draft' | 'arch
 export function KnowledgeView() {
   const locale = useLocale() as Locale;
   const t = useTranslations('knowledge');
+  const tGrid = useTranslations('dataGrid');
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const openTab = useTabStore((s) => s.openTab);
 
@@ -151,39 +152,32 @@ export function KnowledgeView() {
   );
 
   const labels = useMemo<Partial<DataGridLabels>>(
-    () =>
-      locale === 'pt-BR'
-        ? {
-            showing: 'Mostrando',
-            of: 'de',
-            noData: t('emptyList'),
-            loading: 'Carregando...',
-            errorDefault: 'Erro ao carregar',
-            retry: 'Tentar de novo',
-            refresh: 'Atualizar',
-            exportCsv: 'Exportar CSV',
-            page: 'Página',
-            pageSize: 'Por página',
-            first: 'Primeira',
-            last: 'Última',
-            previous: 'Anterior',
-            next: 'Próxima',
-            selectAll: 'Selecionar tudo',
-            selectedCount: '{count} selecionados',
-            filterContains: 'Contém',
-            filterStartsWith: 'Começa com',
-            filterEquals: 'Igual a',
-            filterFrom: 'De',
-            filterTo: 'Até',
-            filterApply: 'Aplicar',
-            filterClear: 'Limpar',
-          }
-        : locale === 'es-ES'
-          ? {
-              noData: t('emptyList'),
-            }
-          : {},
-    [locale, t],
+    () => ({
+      showing: tGrid('showing'),
+      of: tGrid('of'),
+      noData: tGrid('noData'),
+      loading: tGrid('loading'),
+      errorDefault: tGrid('errorDefault'),
+      retry: tGrid('retry'),
+      refresh: tGrid('refresh'),
+      exportCsv: tGrid('exportCsv'),
+      page: tGrid('page'),
+      pageSize: tGrid('pageSize'),
+      first: tGrid('first'),
+      last: tGrid('last'),
+      previous: tGrid('previous'),
+      next: tGrid('next'),
+      selectAll: tGrid('selectAll'),
+      selectedCount: tGrid('selectedCount'),
+      filterContains: tGrid('filterContains'),
+      filterStartsWith: tGrid('filterStartsWith'),
+      filterEquals: tGrid('filterEquals'),
+      filterFrom: tGrid('filterFrom'),
+      filterTo: tGrid('filterTo'),
+      filterApply: tGrid('filterApply'),
+      filterClear: tGrid('filterClear'),
+    }),
+    [tGrid],
   );
 
   const handleRowClick = (row: KnowledgeAssetResponse) => {
@@ -212,7 +206,7 @@ export function KnowledgeView() {
           value={grid.search}
           onChange={(e) => grid.setSearch(e.target.value)}
           placeholder={t('searchPlaceholder')}
-          className="pl-9 h-8 text-xs"
+          className=" h-8 text-xs"
         />
       </div>
       <Can permission="knowledge.create">

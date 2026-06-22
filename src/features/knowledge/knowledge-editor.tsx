@@ -23,14 +23,16 @@ import { cn } from '@/shared/lib/utils';
 // Schema
 // ---------------------------------------------------------------------------
 
-const articleSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  summary: z.string().min(1, 'Summary is required'),
-  content: z.string().min(1, 'Content is required'),
-  rootCauseId: z.number().nullable().optional(),
-});
+function createArticleSchema(t: (key: string) => string) {
+  return z.object({
+    title: z.string().min(1, t('titleRequired')),
+    summary: z.string().min(1, t('summaryRequired')),
+    content: z.string().min(1, t('contentRequired')),
+    rootCauseId: z.number().nullable().optional(),
+  });
+}
 
-type ArticleFormData = z.infer<typeof articleSchema>;
+type ArticleFormData = z.infer<ReturnType<typeof createArticleSchema>>;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -71,6 +73,7 @@ export function KnowledgeEditor({ id }: KnowledgeEditorProps) {
   const rootCauses: RootCauseResponse[] = rootCausesData?.items ?? [];
 
   // --- Form ---
+  const articleSchema = createArticleSchema(t);
   const {
     register,
     handleSubmit,
@@ -279,7 +282,7 @@ export function KnowledgeEditor({ id }: KnowledgeEditorProps) {
                 <Button
                   type="button"
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => publishMutation.mutate()}
                   disabled={publishMutation.isPending || article?.isPublished}
                 >
@@ -346,7 +349,7 @@ export function KnowledgeEditor({ id }: KnowledgeEditorProps) {
               </p>
               <Button
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={() => rollbackMutation.mutate(selectedVersion.id)}
                 disabled={rollbackMutation.isPending}
                 className="w-full"

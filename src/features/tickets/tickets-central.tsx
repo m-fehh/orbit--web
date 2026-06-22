@@ -59,6 +59,7 @@ function buildApiParams(params: DataGridQueryParams) {
 export function TicketsCentral() {
   const locale = useLocale() as Locale;
   const t = useTranslations('ticket');
+  const tGrid = useTranslations('dataGrid');
   const tStatus = useTranslations('ticketStatus');
   const tPriority = useTranslations('priority');
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
@@ -107,7 +108,7 @@ export function TicketsCentral() {
       },
       {
         field: 'title',
-        header: t('description' as any) === 'Descrição' ? 'Título' : 'Title',
+        header: t('titleColumn' as any),
         width: 320,
         minWidth: 180,
         sortable: true,
@@ -126,7 +127,7 @@ export function TicketsCentral() {
       },
       {
         field: 'priority',
-        header: tPriority('High') === 'Alta' ? 'Prioridade' : 'Priority',
+        header: t('priorityColumn' as any),
         width: 130,
         minWidth: 100,
         sortable: true,
@@ -185,35 +186,32 @@ export function TicketsCentral() {
 
   // --- Translated labels for DataGrid ---
   const labels = useMemo<Partial<DataGridLabels>>(
-    () =>
-      locale === 'pt-BR'
-        ? {
-            showing: 'Mostrando',
-            of: 'de',
-            noData: 'Nenhum ticket encontrado',
-            loading: 'Carregando...',
-            errorDefault: 'Erro ao carregar',
-            retry: 'Tentar de novo',
-            refresh: 'Atualizar',
-            exportCsv: 'Exportar CSV',
-            page: 'Página',
-            pageSize: 'Por página',
-            first: 'Primeira',
-            last: 'Última',
-            previous: 'Anterior',
-            next: 'Próxima',
-            selectAll: 'Selecionar tudo',
-            selectedCount: '{count} selecionados',
-            filterContains: 'Contém',
-            filterStartsWith: 'Começa com',
-            filterEquals: 'Igual a',
-            filterFrom: 'De',
-            filterTo: 'Até',
-            filterApply: 'Aplicar',
-            filterClear: 'Limpar',
-          }
-        : {},
-    [locale],
+    () => ({
+      showing: tGrid('showing'),
+      of: tGrid('of'),
+      noData: tGrid('noData'),
+      loading: tGrid('loading'),
+      errorDefault: tGrid('errorDefault'),
+      retry: tGrid('retry'),
+      refresh: tGrid('refresh'),
+      exportCsv: tGrid('exportCsv'),
+      page: tGrid('page'),
+      pageSize: tGrid('pageSize'),
+      first: tGrid('first'),
+      last: tGrid('last'),
+      previous: tGrid('previous'),
+      next: tGrid('next'),
+      selectAll: tGrid('selectAll'),
+      selectedCount: tGrid('selectedCount'),
+      filterContains: tGrid('filterContains'),
+      filterStartsWith: tGrid('filterStartsWith'),
+      filterEquals: tGrid('filterEquals'),
+      filterFrom: tGrid('filterFrom'),
+      filterTo: tGrid('filterTo'),
+      filterApply: tGrid('filterApply'),
+      filterClear: tGrid('filterClear'),
+    }),
+    [tGrid],
   );
 
   // --- Row click handler ---
@@ -229,14 +227,14 @@ export function TicketsCentral() {
         <Input
           value={grid.search}
           onChange={(e) => grid.setSearch(e.target.value)}
-          placeholder={locale === 'pt-BR' ? 'Buscar tickets...' : 'Search tickets...'}
-          className="pl-9 h-8 text-xs"
+          placeholder={t('searchPlaceholder' as any)}
+          className=" h-8 text-xs"
         />
       </div>
       <Can permission="ticket.create">
         <Button size="sm" onClick={openNewTicketWindow}>
           <Plus className="h-3.5 w-3.5" aria-hidden />
-          {locale === 'pt-BR' ? 'Novo ticket' : 'New Ticket'}
+          {t('newTicket' as any)}
         </Button>
       </Can>
     </>
@@ -246,7 +244,7 @@ export function TicketsCentral() {
     <div className="flex h-full flex-col p-md gap-md">
       <div>
         <h1 className="text-lg font-bold">
-          {locale === 'pt-BR' ? 'Central de Tickets' : 'Ticket Center'}
+          {t('center' as any)}
         </h1>
         <p className="text-xs text-muted">
           {grid.totalCount > 0

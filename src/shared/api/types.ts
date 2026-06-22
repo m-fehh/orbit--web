@@ -79,6 +79,9 @@ export interface TicketResponse {
   estimateMinutes: number | null;
   remainingMinutes: number | null;
   completedMinutes: number;
+  iterationId?: number | null;
+  iteration?: IterationResponse | null;
+  tags?: TagResponse[];
 }
 
 export interface TicketCommentResponse {
@@ -167,6 +170,7 @@ export interface InvestigationResponse {
   findingItems: FindingResponse[];
   createdAt: string | null;
   rootCauseId?: number | null;
+  rootCause?: RootCauseResponse | null;
 }
 
 /* Enums numéricos (backend espera número). */
@@ -234,6 +238,9 @@ export interface TicketDetailResponse {
   estimateMinutes: number | null;
   remainingMinutes: number | null;
   completedMinutes: number;
+  iterationId?: number | null;
+  iteration?: IterationResponse | null;
+  tags?: TagResponse[];
 }
 
 export interface IntakeRecommendation {
@@ -329,6 +336,8 @@ export interface CreateTicketRequest {
   title: string;
   description: string;
   priority: PriorityValue;
+  iterationId?: number | null;
+  tagIds?: number[];
 }
 
 export interface UpdateTicketRequest {
@@ -806,4 +815,53 @@ export interface DashboardSummary {
   ticketsByPriority: Record<string, number>;
   ticketsByStatus: Record<string, number>;
   rootCausesByCategory: Record<string, number>;
+}
+
+// ── Iterations ──
+export interface IterationResponse {
+  id: number;
+  name: string;
+  goal: string | null;
+  startDate: string;
+  endDate: string;
+  status: string;
+  ticketCount: number;
+  creationUTC: string | null;
+}
+
+export interface CreateIterationRequest {
+  name: string;
+  goal?: string | null;
+  startDate: string;
+  endDate: string;
+}
+
+export interface UpdateIterationRequest {
+  name: string;
+  goal?: string | null;
+  startDate: string;
+  endDate: string;
+  status: string;
+}
+
+// ── Tags ──
+export interface TagResponse {
+  id: number;
+  name: string;
+  color: string | null;
+  group: string | null;
+  active: boolean;
+}
+
+export interface CreateTagRequest {
+  name: string;
+  color?: string | null;
+  group?: string | null;
+}
+
+export interface UpdateTagRequest {
+  name: string;
+  color?: string | null;
+  group?: string | null;
+  active?: boolean;
 }

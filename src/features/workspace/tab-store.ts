@@ -7,10 +7,13 @@ export type ViewKind =
   | 'dashboard'
   | 'users'
   | 'knowledge'
+  | 'knowledge-article'
   | 'investigations'
   | 'analytics'
   | 'admin'
-  | 'audit';
+  | 'audit'
+  | 'iterations'
+  | 'tags';
 
 /** Chave de ícone (resolvida para um componente lucide no TabBar). */
 export type IconKey =

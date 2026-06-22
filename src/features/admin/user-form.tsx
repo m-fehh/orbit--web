@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { usersApi, rolesApi, teamsApi, internalApi } from '@/shared/api/endpoints';
@@ -13,6 +14,8 @@ import { Input } from '@/shared/ui/input';
 
 /** Formulário de criação/edição de usuário (dentro de uma janela). */
 export function UserForm({ windowId, user }: { windowId: string; user?: UserResponse }) {
+  const t = useTranslations('admin.users');
+  const tc = useTranslations('common');
   const qc = useQueryClient();
   const closeWindow = useWindowStore((s) => s.close);
   const isEdit = !!user;
@@ -44,11 +47,11 @@ export function UserForm({ windowId, user }: { windowId: string; user?: UserResp
       return usersApi.create({ name, email, password, roleId: roleId!, teamId, profileId });
     },
     onSuccess: () => {
-      toast.success(isEdit ? 'Usuário atualizado' : 'Usuário criado');
+      toast.success(isEdit ? t('userUpdated') : t('userCreated'));
       qc.invalidateQueries({ queryKey: ['users'] });
       closeWindow(windowId);
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Não foi possível salvar o usuário')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
   });
 
   const canSave = name.trim() && email.trim() && roleId && (isEdit || password.length >= 6);
@@ -63,42 +66,42 @@ export function UserForm({ windowId, user }: { windowId: string; user?: UserResp
     >
       <div className="flex flex-1 flex-col gap-md overflow-auto p-lg">
       <label className="flex flex-col gap-1.5 text-sm font-medium">
-        Nome
+        {t('name')}
         <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-medium">
-        E-mail
+        {t('email')}
         <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </label>
       {!isEdit && (
         <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Senha inicial
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="mín. 6 caracteres" />
+          {t('initialPassword')}
+          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('passwordHint')} />
         </label>
       )}
 
       <div className="flex flex-col gap-1.5 text-sm font-medium">
-        Papel (role)
-        <AsyncCombobox options={roleOptions} value={roleId} onChange={setRoleId} loading={roles.isLoading} placeholder="Selecionar papel" allowClear={false} onCreate={openRolesIndexWindow} createLabel="Gerenciar papéis" />
+        {t('role')}
+        <AsyncCombobox options={roleOptions} value={roleId} onChange={setRoleId} loading={roles.isLoading} placeholder={t('selectRole')} allowClear={false} onCreate={openRolesIndexWindow} createLabel={t('manageRoles')} />
       </div>
 
       <div className="flex flex-col gap-1.5 text-sm font-medium">
-        Grupo de perfil (PBAC)
-        <AsyncCombobox options={profileOptions} value={profileId} onChange={setProfileId} loading={profiles.isLoading} placeholder="Buscar perfil…" />
+        {t('profileGroup')}
+        <AsyncCombobox options={profileOptions} value={profileId} onChange={setProfileId} loading={profiles.isLoading} placeholder={t('searchProfile')} />
       </div>
 
       <div className="flex flex-col gap-1.5 text-sm font-medium">
-        Equipe (opcional)
-        <AsyncCombobox options={teamOptions} value={teamId} onChange={setTeamId} loading={teams.isLoading} placeholder="Selecionar equipe" onCreate={openTeamsIndexWindow} createLabel="Gerenciar equipes" />
+        {t('teamOptional')}
+        <AsyncCombobox options={teamOptions} value={teamId} onChange={setTeamId} loading={teams.isLoading} placeholder={t('selectTeam')} onCreate={openTeamsIndexWindow} createLabel={t('manageTeams')} />
       </div>
 
       </div>
       <div className="flex shrink-0 justify-end gap-sm border-t border-border bg-panel p-md">
         <Button type="button" variant="secondary" onClick={() => closeWindow(windowId)}>
-          Cancelar
+          {tc('cancel')}
         </Button>
         <Button type="submit" loading={save.isPending} disabled={!canSave}>
-          {isEdit ? 'Salvar' : 'Criar usuário'}
+          {t('saveUser')}
         </Button>
       </div>
     </form>

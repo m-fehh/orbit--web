@@ -16,7 +16,7 @@ import { formatDateTime } from '@/shared/lib/datetime';
 import { cn } from '@/shared/lib/utils';
 
 export function InvestigationsView() {
-  const t = useTranslations('investigation');
+  const t = useTranslations('investigationView');
   const locale = useLocale() as Locale;
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const [page, setPage] = useState(1);
@@ -37,7 +37,7 @@ export function InvestigationsView() {
         <div>
           <h1 className="text-lg font-bold">{t('title')}</h1>
           <p className="text-xs text-muted">
-            {data ? `${data.totalCount} investigações` : '—'}
+            {data ? t('countLabel', { count: data.totalCount }) : '—'}
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -46,11 +46,11 @@ export function InvestigationsView() {
             onChange={(e) => { setStatus(e.target.value); setPage(1); }}
             className="h-8 rounded-md border border-border bg-bg-subtle px-2 text-xs text-text outline-none focus:border-primary"
           >
-            <option value="">Todos os status</option>
-            <option value="open">Em andamento</option>
-            <option value="finished">Concluída</option>
+            <option value="">{t('allStatus')}</option>
+            <option value="open">{t('inProgress')}</option>
+            <option value="finished">{t('completed')}</option>
           </select>
-          <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label="Atualizar">
+          <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label={t('refresh')}>
             <RefreshCw className={isFetching ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} aria-hidden />
           </Button>
         </div>
@@ -60,25 +60,25 @@ export function InvestigationsView() {
         {isLoading ? (
           <LoadingState />
         ) : isError ? (
-          <ErrorState title="Erro ao carregar" onRetry={() => refetch()} retryLabel="Tentar de novo" />
+          <ErrorState title={t('loadError')} onRetry={() => refetch()} retryLabel={t('retry')} />
         ) : items.length === 0 ? (
           <EmptyState icon={FlaskConical} message={t('empty')} />
         ) : (
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-bg-subtle/90 backdrop-blur">
               <tr className="text-left text-xs uppercase tracking-wide text-dim">
-                <th className="px-md py-2 font-semibold">ID</th>
-                <th className="px-md py-2 font-semibold">Ticket</th>
-                <th className="px-md py-2 font-semibold">Resumo</th>
-                <th className="px-md py-2 font-semibold">Status</th>
+                <th className="px-md py-2 font-semibold">{t('colId')}</th>
+                <th className="px-md py-2 font-semibold">{t('colTicket')}</th>
+                <th className="px-md py-2 font-semibold">{t('colSummary')}</th>
+                <th className="px-md py-2 font-semibold">{t('colStatus')}</th>
                 <th className="px-md py-2 text-center font-semibold">
                   <Lightbulb className="mx-auto h-3.5 w-3.5" />
                 </th>
                 <th className="px-md py-2 text-center font-semibold">
                   <FileText className="mx-auto h-3.5 w-3.5" />
                 </th>
-                <th className="px-md py-2 font-semibold">Causa raiz</th>
-                <th className="px-md py-2 font-semibold">Início</th>
+                <th className="px-md py-2 font-semibold">{t('colRootCause')}</th>
+                <th className="px-md py-2 font-semibold">{t('colStartDate')}</th>
               </tr>
             </thead>
             <tbody>
@@ -96,7 +96,7 @@ export function InvestigationsView() {
                       'inline-flex rounded px-2 py-0.5 text-[11px] font-semibold uppercase',
                       inv.finishedAt ? 'bg-success/15 text-success' : 'bg-info/15 text-info',
                     )}>
-                      {inv.finishedAt ? 'Concluída' : 'Em andamento'}
+                      {inv.finishedAt ? t('statusCompleted') : t('statusInProgress')}
                     </span>
                   </td>
                   <td className="px-md py-2.5 text-center text-xs text-muted">{inv.hypotheses?.length ?? 0}</td>
@@ -122,11 +122,11 @@ export function InvestigationsView() {
 
       {data && totalPages > 1 && (
         <div className="flex items-center justify-end gap-sm border-t border-border px-md py-2 text-sm">
-          <span className="text-muted">Página {page} de {totalPages}</span>
-          <Button variant="secondary" size="icon" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Anterior">
+          <span className="text-muted">{t('page', { page, total: totalPages })}</span>
+          <Button variant="secondary" size="icon" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label={t('previous')}>
             ←
           </Button>
-          <Button variant="secondary" size="icon" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label="Próxima">
+          <Button variant="secondary" size="icon" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label={t('next')}>
             →
           </Button>
         </div>

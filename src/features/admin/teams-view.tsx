@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, Users } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { teamsApi } from '@/shared/api/endpoints';
 import type { TeamResponse } from '@/shared/api/types';
 import { Can } from '@/features/auth/can';
@@ -12,10 +13,10 @@ import { LoadingState, EmptyState, ErrorState } from '@/shared/ui/states';
 import { useWindowStore } from '@/features/windows/window-store';
 import { TeamForm } from './team-form';
 
-function openTeamWindow() {
+function openTeamWindow(title: string) {
   useWindowStore.getState().open({
     id: 'team-new',
-    title: 'Nova equipe',
+    title,
     icon: <Users className="h-4 w-4" />,
     modal: true,
     content: <TeamForm windowId="team-new" />,
@@ -24,6 +25,7 @@ function openTeamWindow() {
 
 /** Equipes (Teams): tabela com busca e cadastro. */
 export function TeamsView() {
+  const t = useTranslations('admin.teams');
   const [term, setTerm] = useState('');
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['teams'], queryFn: () => teamsApi.list() });
 
@@ -37,14 +39,14 @@ export function TeamsView() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-sm border-b border-border p-md">
-        <h1 className="text-base font-bold">Equipes</h1>
+        <h1 className="text-base font-bold">{t('title')}</h1>
         <div className="relative ml-auto w-56 max-w-full">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" aria-hidden />
-          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Buscar equipe…" className="pl-9" />
+          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('searchPlaceholder')} className="" />
         </div>
         <Can permission="admin.teams.create">
-          <Button onClick={openTeamWindow}>
-            <Plus className="h-4 w-4" /> Nova
+          <Button onClick={() => openTeamWindow(t('newTeam'))}>
+            <Plus className="h-4 w-4" /> {t('new')}
           </Button>
         </Can>
       </div>
@@ -53,9 +55,9 @@ export function TeamsView() {
         {isLoading ? (
           <LoadingState />
         ) : isError ? (
-          <ErrorState title="Erro ao carregar" onRetry={() => refetch()} retryLabel="Tentar de novo" />
+          <ErrorState title={t('loadError')} onRetry={() => refetch()} retryLabel={t('retry')} />
         ) : items.length === 0 ? (
-          <EmptyState icon={Users} message="Nenhuma equipe encontrada." />
+          <EmptyState icon={Users} message={t('empty')} />
         ) : (
           <ul className="flex flex-col gap-1">
             {items.map((r) => (
@@ -65,7 +67,7 @@ export function TeamsView() {
                   <p className="truncate text-sm font-medium">{r.name}</p>
                   {r.description && <p className="truncate text-xs text-muted">{r.description}</p>}
                 </div>
-                {r.inactive && <span className="rounded bg-panel-2 px-1.5 text-[10px] font-semibold text-dim">INATIVA</span>}
+                {r.inactive && <span className="rounded bg-panel-2 px-1.5 text-[10px] font-semibold text-dim">{t('inactive')}</span>}
               </li>
             ))}
           </ul>

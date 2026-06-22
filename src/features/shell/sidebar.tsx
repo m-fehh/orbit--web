@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import {
   LayoutDashboard,
   LayoutGrid,
-  Search as SearchIcon,
   BookOpen,
   BarChart3,
   Users as UsersIcon,
@@ -14,6 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Repeat,
+  Tags,
   type LucideIcon,
 } from 'lucide-react';
 import { useUiStore } from '@/features/shell/ui-store';
@@ -21,7 +22,7 @@ import { useTabStore, currentLocation, type TabLocation } from '@/features/works
 import { usePermissions } from '@/features/auth/use-permissions';
 import { cn } from '@/shared/lib/utils';
 
-type NavLabel = 'dashboard' | 'tickets' | 'investigations' | 'knowledge' | 'analytics' | 'users' | 'admin' | 'audit';
+type NavLabel = 'dashboard' | 'tickets' | 'knowledge' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'tags';
 
 interface NavItem {
   loc: TabLocation;
@@ -41,8 +42,10 @@ const SECTIONS: NavSection[] = [
     items: [
       { loc: { kind: 'dashboard', params: {}, title: 'Dashboard', icon: 'dashboard' }, labelKey: 'dashboard', icon: LayoutDashboard, perm: ['analytics.dashboard'] },
       { loc: { kind: 'tickets', params: {}, title: 'Central de Tickets', icon: 'tickets' }, labelKey: 'tickets', icon: LayoutGrid, perm: ['ticket.view'] },
-      { loc: { kind: 'investigations', params: {}, title: 'Investigações', icon: 'search' }, labelKey: 'investigations', icon: SearchIcon, perm: ['investigation.view'] },
+
       { loc: { kind: 'knowledge', params: {}, title: 'Conhecimento', icon: 'knowledge' }, labelKey: 'knowledge', icon: BookOpen, perm: ['knowledge.view'] },
+      { loc: { kind: 'iterations', params: {}, title: 'Iterações', icon: 'tickets' }, labelKey: 'iterations', icon: Repeat, perm: ['ticket.view'] },
+      { loc: { kind: 'tags', params: {}, title: 'Tags', icon: 'admin' }, labelKey: 'tags', icon: Tags, perm: ['ticket.view'] },
     ],
   },
   {

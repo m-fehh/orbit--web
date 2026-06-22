@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import { auditApi } from '@/shared/api/endpoints';
 import type { AuditLogResponse } from '@/shared/api/types';
@@ -23,6 +23,7 @@ const ACTION_COLOR: Record<AuditLogResponse['action'], string> = {
 
 /** Tela administrativa de Auditoria: filtros básicos + tabela + drill-down de campos. */
 export function AuditLogView() {
+  const t = useTranslations('admin.audit');
   const locale = useLocale() as Locale;
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const [page, setPage] = useState(1);
@@ -41,39 +42,39 @@ export function AuditLogView() {
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-sm border-b border-border p-md">
         <div>
-          <h1 className="text-lg font-bold">Auditoria</h1>
-          <p className="text-xs text-muted">{data ? `${data.totalCount} eventos` : '—'}</p>
+          <h1 className="text-lg font-bold">{t('title')}</h1>
+          <p className="text-xs text-muted">{data ? `${data.totalCount} ${t('events')}` : '—'}</p>
         </div>
         <div className="relative ml-auto w-64 max-w-full">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" aria-hidden />
           <Input
             value={entityName}
             onChange={(e) => { setEntityName(e.target.value); setPage(1); }}
-            placeholder="Filtrar por entidade (ex.: Ticket)"
-            className="pl-9"
+            placeholder={t('entityPlaceholder')}
+            className=""
           />
         </div>
-        <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label="Atualizar">
+        <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label={t('refresh')}>
           <RefreshCw className={isFetching ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} aria-hidden />
         </Button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
         {isLoading ? (
-          <LoadingState label="Carregando auditoria…" />
+          <LoadingState label={t('loading')} />
         ) : isError ? (
-          <ErrorState title="Erro ao carregar" onRetry={() => refetch()} retryLabel="Tentar de novo" />
+          <ErrorState title={t('loadError')} onRetry={() => refetch()} retryLabel={t('retry')} />
         ) : !data || data.items.length === 0 ? (
-          <EmptyState message="Sem eventos de auditoria para os filtros atuais." />
+          <EmptyState message={t('empty')} />
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 bg-panel text-xs uppercase tracking-wide text-dim">
               <tr>
-                <th className="px-md py-2">Quando</th>
-                <th className="px-md py-2">Ação</th>
-                <th className="px-md py-2">Entidade</th>
-                <th className="px-md py-2">Usuário</th>
-                <th className="px-md py-2">Origem</th>
+                <th className="px-md py-2">{t('when')}</th>
+                <th className="px-md py-2">{t('action')}</th>
+                <th className="px-md py-2">{t('entity')}</th>
+                <th className="px-md py-2">{t('user')}</th>
+                <th className="px-md py-2">{t('origin')}</th>
               </tr>
             </thead>
             <tbody>
@@ -106,9 +107,9 @@ export function AuditLogView() {
                       <table className="w-full text-xs">
                         <thead className="text-dim">
                           <tr>
-                            <th className="text-left">Campo</th>
-                            <th className="text-left">De</th>
-                            <th className="text-left">Para</th>
+                            <th className="text-left">{t('colField')}</th>
+                            <th className="text-left">{t('colFrom')}</th>
+                            <th className="text-left">{t('colTo')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -133,11 +134,11 @@ export function AuditLogView() {
 
       {data && data.items.length > 0 && (
         <div className="flex items-center justify-end gap-sm border-t border-border p-md text-xs">
-          <span className="text-muted">Página {page} de {totalPages}</span>
-          <Button variant="ghost" size="icon" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Anterior">
+          <span className="text-muted">{t('pageOf', { page, total: totalPages })}</span>
+          <Button variant="ghost" size="icon" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label={t('previous')}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label="Próxima">
+          <Button variant="ghost" size="icon" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label={t('next')}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

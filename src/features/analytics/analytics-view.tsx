@@ -389,7 +389,7 @@ export function AnalyticsView() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 max-w-[1400px] mx-auto">
+    <div className="flex flex-col gap-6 p-4 md:p-6 max-w-[1400px] mx-auto h-full overflow-y-auto">
       {/* ---- Toolbar ---- */}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-bold text-text mr-auto">{t('title')}</h1>

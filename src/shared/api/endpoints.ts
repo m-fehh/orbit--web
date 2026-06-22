@@ -77,6 +77,12 @@ import type {
   IntelligenceRootCauseSuggestion,
   IntelligenceResolutionSuggestion,
   AutomationOpportunity,
+  IterationResponse,
+  CreateIterationRequest,
+  UpdateIterationRequest,
+  TagResponse,
+  CreateTagRequest,
+  UpdateTagRequest,
 } from './types';
 
 /** Branding público do tenant, resolvido pelo subdomínio (pré-login, anônimo). */
@@ -401,6 +407,40 @@ export const internalApi = {
 export const searchApi = {
   search: (q: string, perType = 8) =>
     api.get<GlobalSearchResponse>('/search', { params: { q, perType } }),
+};
+
+/** Iterations */
+export const iterationsApi = {
+  list: (page = 1, pageSize = 20, status?: string) =>
+    api.get<IterationResponse[]>('/iterations', { params: { page, pageSize, ...(status && { status }) } as Record<string, string | number | boolean> }),
+  getById: (id: number) =>
+    api.get<IterationResponse>(`/iterations/${id}`),
+  create: (data: CreateIterationRequest) =>
+    api.post<IterationResponse>('/iterations', data),
+  update: (id: number, data: UpdateIterationRequest) =>
+    api.put<IterationResponse>(`/iterations/${id}`, data),
+  delete: (id: number) =>
+    api.delete(`/iterations/${id}`),
+};
+
+/** Tags */
+export const tagsApi = {
+  list: () =>
+    api.get<TagResponse[]>('/tags'),
+  create: (data: CreateTagRequest) =>
+    api.post<TagResponse>('/tags', data),
+  update: (id: number, data: UpdateTagRequest) =>
+    api.put<TagResponse>(`/tags/${id}`, data),
+  deactivate: (id: number) =>
+    api.patch<TagResponse>(`/tags/${id}/deactivate`),
+  ticketTags: (ticketId: number) =>
+    api.get<TagResponse[]>(`/tags/ticket/${ticketId}`),
+  addToTicket: (ticketId: number, tagId: number) =>
+    api.post<void>(`/tags/ticket/${ticketId}`, { tagId }),
+  removeFromTicket: (ticketId: number, tagId: number) =>
+    api.delete(`/tags/ticket/${ticketId}/${tagId}`),
+  ticketsByTag: (tagId: number, page = 1, pageSize = 20) =>
+    api.get<any>(`/tags/${tagId}/tickets`, { params: { page, pageSize } }),
 };
 
 /** Notification Center  */

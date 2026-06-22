@@ -95,7 +95,7 @@ export function KnowledgeDetail({ id }: KnowledgeDetailProps) {
           <div className="flex items-center gap-sm shrink-0">
             <Button
               size="sm"
-              variant="outline"
+              variant="secondary"
               onClick={() => reuseMutation.mutate()}
               disabled={reuseMutation.isPending}
             >

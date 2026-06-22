@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ScrollText, ChevronLeft, ChevronRight, RefreshCw, Search, ArrowRight, Globe, Hash, Calendar } from 'lucide-react';
 import { auditApi } from '@/shared/api/endpoints';
 import type { AuditLogResponse } from '@/shared/api/types';
@@ -22,8 +22,8 @@ const ACTION_STYLE: Record<string, string> = {
   Restore: 'bg-primary-soft text-primary',
 };
 
-/** Consulta ao log de auditoria (somente leitura — gerado pelo AuditInterceptor). */
 export function AuditLogsView() {
+  const t = useTranslations('auditLogs');
   const locale = useLocale() as Locale;
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const [page, setPage] = useState(1);
@@ -49,7 +49,6 @@ export function AuditLogsView() {
   });
 
   const items = data?.items ?? [];
-
   const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1;
 
   return (
@@ -57,11 +56,11 @@ export function AuditLogsView() {
       <div className="flex flex-col gap-2 border-b border-border p-md">
         <div className="flex flex-wrap items-center gap-sm">
           <div>
-            <h1 className="text-lg font-bold">Logs de auditoria</h1>
-            <p className="text-xs text-muted">{data ? `${data.totalCount} registros` : '—'} · somente leitura</p>
+            <h1 className="text-lg font-bold">{t('title')}</h1>
+            <p className="text-xs text-muted">{data ? t('recordCount', { count: data.totalCount }) : '—'} · {t('readOnly')}</p>
           </div>
           <div className="ml-auto flex items-center gap-sm">
-            <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label="Atualizar">
+            <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label={t('refresh')}>
               <RefreshCw className={isFetching ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} aria-hidden />
             </Button>
           </div>
@@ -70,7 +69,7 @@ export function AuditLogsView() {
           <Input
             value={entityName}
             onChange={(e) => { setEntityName(e.target.value); setPage(1); }}
-            placeholder="Entidade"
+            placeholder={t('entity')}
             className="h-8 w-36"
           />
           <select
@@ -78,7 +77,7 @@ export function AuditLogsView() {
             onChange={(e) => { setAction(e.target.value); setPage(1); }}
             className="h-8 rounded-md border border-border bg-bg-subtle px-2 text-xs text-text outline-none focus:border-primary"
           >
-            <option value="">Todas ações</option>
+            <option value="">{t('allActions')}</option>
             <option value="Insert">Insert</option>
             <option value="Update">Update</option>
             <option value="Delete">Delete</option>
@@ -106,21 +105,21 @@ export function AuditLogsView() {
 
       <div className="min-h-0 flex-1 overflow-auto">
         {isLoading ? (
-          <LoadingState label="Carregando auditoria…" />
+          <LoadingState label={t('loading')} />
         ) : isError ? (
-          <ErrorState title="Erro ao carregar" onRetry={() => refetch()} retryLabel="Tentar de novo" />
+          <ErrorState title={t('loadError')} onRetry={() => refetch()} retryLabel={t('retry')} />
         ) : items.length === 0 ? (
-          <EmptyState icon={ScrollText} message="Nenhum registro de auditoria." />
+          <EmptyState icon={ScrollText} message={t('empty')} />
         ) : (
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-bg-subtle/90 backdrop-blur">
               <tr className="text-left text-xs uppercase tracking-wide text-dim">
-                <th className="px-md py-2 font-semibold">Quando</th>
-                <th className="px-md py-2 font-semibold">Ação</th>
-                <th className="px-md py-2 font-semibold">Entidade</th>
-                <th className="px-md py-2 font-semibold">Usuário</th>
-                <th className="px-md py-2 font-semibold">IP</th>
-                <th className="px-md py-2 font-semibold">Origem</th>
+                <th className="px-md py-2 font-semibold">{t('colWhen')}</th>
+                <th className="px-md py-2 font-semibold">{t('colAction')}</th>
+                <th className="px-md py-2 font-semibold">{t('colEntity')}</th>
+                <th className="px-md py-2 font-semibold">{t('colUser')}</th>
+                <th className="px-md py-2 font-semibold">{t('colIp')}</th>
+                <th className="px-md py-2 font-semibold">{t('colOrigin')}</th>
               </tr>
             </thead>
             <tbody>
@@ -134,11 +133,11 @@ export function AuditLogsView() {
 
       {data && totalPages > 1 && (
         <div className="flex items-center justify-end gap-sm border-t border-border px-md py-2 text-sm">
-          <span className="text-muted">Página {page} de {totalPages}</span>
-          <Button variant="secondary" size="icon" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Anterior">
+          <span className="text-muted">{t('pageOf', { page, total: totalPages })}</span>
+          <Button variant="secondary" size="icon" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label={t('previous')}>
             <ChevronLeft className="h-4 w-4" aria-hidden />
           </Button>
-          <Button variant="secondary" size="icon" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label="Próxima">
+          <Button variant="secondary" size="icon" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label={t('next')}>
             <ChevronRight className="h-4 w-4" aria-hidden />
           </Button>
         </div>

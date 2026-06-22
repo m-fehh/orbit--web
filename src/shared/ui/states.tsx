@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2, type LucideIcon, Inbox, AlertTriangle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/ui/button';
 
 export function LoadingState({ label }: { label?: string }) {
@@ -41,6 +42,7 @@ export function ErrorState({
   onRetry?: () => void;
   retryLabel?: string;
 }) {
+  const tc = useTranslations('common');
   return (
     <div className="flex flex-col items-center justify-center gap-sm py-2xl text-center" role="alert">
       <AlertTriangle className="h-8 w-8 text-danger" aria-hidden />
@@ -48,7 +50,7 @@ export function ErrorState({
       {body && <p className="text-sm text-muted">{body}</p>}
       {onRetry && (
         <Button variant="secondary" size="sm" onClick={onRetry}>
-          {retryLabel ?? 'Retry'}
+          {retryLabel ?? tc('retry')}
         </Button>
       )}
     </div>

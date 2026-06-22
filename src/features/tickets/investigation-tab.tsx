@@ -37,7 +37,7 @@ export function InvestigationTab({ ticketId, investigations }: { ticketId: numbe
   const create = useMutation({
     mutationFn: () => investigationsApi.create(ticketId, { summary: summary.trim() }),
     onSuccess: () => { setSummary(''); invalidate(); toast.success(t('create')); },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Erro')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
   });
 
   return (
@@ -87,14 +87,16 @@ const HYP_STYLE: Record<string, string> = {
 };
 
 /** Placeholders por tipo de evidência (sugestão de conteúdo / autocomplete). */
-const EVIDENCE_HINTS: Record<EvidenceTypeValue, { ph: string; suggestions: string[]; needsUrl: boolean }> = {
-  [EvidenceType.Screenshot]: { ph: 'O que aparece na captura?', suggestions: ['Tela de erro 500', 'Modal de pagamento', 'Console do navegador'], needsUrl: false },
-  [EvidenceType.Log]: { ph: 'Trecho relevante do log…', suggestions: ['Stack trace', 'Linha de exceção', 'Resposta da API'], needsUrl: false },
-  [EvidenceType.Video]: { ph: 'Descreva o que o vídeo demonstra', suggestions: ['Passos para reproduzir', 'Comportamento esperado vs real'], needsUrl: true },
-  [EvidenceType.File]: { ph: 'Descrição do arquivo anexo', suggestions: ['Dump de banco', 'Configuração exportada'], needsUrl: false },
-  [EvidenceType.Observation]: { ph: 'O que foi observado?', suggestions: ['Reproduz somente em produção', 'Ocorre após login', 'Intermitente'], needsUrl: false },
-  [EvidenceType.Url]: { ph: 'Por que esta URL é relevante?', suggestions: ['Issue relacionada', 'Documento de referência', 'Endpoint afetado'], needsUrl: true },
-};
+function getEvidenceHints(t: (key: string) => string): Record<EvidenceTypeValue, { ph: string; suggestions: string[]; needsUrl: boolean }> {
+  return {
+    [EvidenceType.Screenshot]: { ph: t('evidenceHints.screenshotPlaceholder'), suggestions: t('evidenceHints.screenshotSuggestions').split(', '), needsUrl: false },
+    [EvidenceType.Log]: { ph: t('evidenceHints.logPlaceholder'), suggestions: t('evidenceHints.logSuggestions').split(', '), needsUrl: false },
+    [EvidenceType.Video]: { ph: t('evidenceHints.videoPlaceholder'), suggestions: t('evidenceHints.videoSuggestions').split(', '), needsUrl: true },
+    [EvidenceType.File]: { ph: t('evidenceHints.filePlaceholder'), suggestions: t('evidenceHints.fileSuggestions').split(', '), needsUrl: false },
+    [EvidenceType.Observation]: { ph: t('evidenceHints.observationPlaceholder'), suggestions: t('evidenceHints.observationSuggestions').split(', '), needsUrl: false },
+    [EvidenceType.Url]: { ph: t('evidenceHints.urlPlaceholder'), suggestions: t('evidenceHints.urlSuggestions').split(', '), needsUrl: true },
+  };
+}
 
 function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onChanged: () => void }) {
   const t = useTranslations('investigation');
@@ -152,7 +154,8 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
     hint: `${Math.round(rc.confidenceScore * 100)}%`,
   }));
 
-  const evHint = EVIDENCE_HINTS[evType];
+  const evidenceHints = getEvidenceHints(t as any);
+  const evHint = evidenceHints[evType];
   const datalistId = `inv-${inv.id}-ev-suggestions`;
 
   return (
@@ -428,22 +431,25 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
     onSuccess: () => {
       setTitle(''); setDescription(''); setOpen(false); setStep(1); setConfidence(70);
       qc.invalidateQueries({ queryKey: ['rootcauses', ticketId] });
-      toast.success('✅ Causa raiz criada');
+      toast.success(t('rcCreated'));
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Erro')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('rcError'))),
   });
 
   const filteredList = (list.data ?? [])
-    .filter(rc => !filterCategory || rc.category === filterCategory)
+    .filter(rc => !filterCategory || rc.category === String(filterCategory))
     .sort((a, b) => sortBy === 'confidence' ? (b.confidenceScore - a.confidenceScore) : a.title.localeCompare(b.title));
 
   const CAT_ICONS: Record<RootCauseCategoryValue, string> = {
     [RootCauseCategory.Bug]: '🐛',
     [RootCauseCategory.Configuration]: '⚙️',
     [RootCauseCategory.Infrastructure]: '🏗️',
-    [RootCauseCategory.DataIssue]: '📊',
-    [RootCauseCategory.ThirdParty]: '🔗',
+    [RootCauseCategory.Process]: '📋',
     [RootCauseCategory.UserError]: '👤',
+    [RootCauseCategory.ThirdParty]: '🔗',
+    [RootCauseCategory.Documentation]: '📝',
+    [RootCauseCategory.Security]: '🔒',
+    [RootCauseCategory.Performance]: '⚡',
   };
 
   // Reset form
@@ -456,11 +462,11 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
     <section>
       <div className="mb-md flex items-center justify-between">
         <p className="flex items-center gap-2 text-base font-bold">
-          <GitBranch className="h-5 w-5 text-primary" /> Causas Raiz
+          <GitBranch className="h-5 w-5 text-primary" /> {t('rcSectionTitle')}
         </p>
         <Can permission="rootcause.create">
           <Button onClick={() => { resetForm(); setOpen(true); }} className="bg-primary">
-            <Plus className="h-4 w-4 mr-2" /> Nova Causa
+            <Plus className="h-4 w-4 mr-2" /> {t('rcNewCause')}
           </Button>
         </Can>
       </div>
@@ -472,7 +478,7 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
             {/* Header */}
             <div className="border-b border-border px-6 py-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold">Nova Causa Raiz</h2>
+                <h2 className="text-lg font-bold">{t('rcModalTitle')}</h2>
                 <button onClick={resetForm} className="text-muted hover:text-text">✕</button>
               </div>
               <div className="mt-3 flex gap-2">
@@ -487,22 +493,22 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
               {step === 1 && (
                 <div className="flex flex-col gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">O que é a causa?</label>
+                    <label className="block text-sm font-medium mb-2">{t('rcWhatIsCause')}</label>
                     <input
                       className="w-full p-3 rounded border border-border bg-bg-subtle focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Ex: Timeout na conexão do banco de dados"
+                      placeholder={t('rcCausePlaceholder')}
                       autoFocus
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Descrição (contexto)</label>
+                    <label className="block text-sm font-medium mb-2">{t('rcDescriptionContext')}</label>
                     <textarea
                       className="w-full p-3 rounded border border-border bg-bg-subtle focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none h-28 resize-none"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Descreva os sintomas, quando ocorre, impacto..."
+                      placeholder={t('rcDescriptionPlaceholder')}
                     />
                   </div>
                 </div>
@@ -510,7 +516,7 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
 
               {step === 2 && (
                 <div className="flex flex-col gap-4">
-                  <label className="block text-sm font-medium">Categoria</label>
+                  <label className="block text-sm font-medium">{t('category')}</label>
                   <div className="grid grid-cols-3 gap-2">
                     {Object.entries(RootCauseCategory).map(([k, v]) => (
                       <button
@@ -529,7 +535,7 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
                   </div>
 
                   <div className="mt-6">
-                    <label className="block text-sm font-medium mb-3">Confiança: <strong>{confidence}%</strong></label>
+                    <label className="block text-sm font-medium mb-3">{t('rcConfidencePct', { value: confidence })}</label>
                     <input
                       type="range"
                       min="0"
@@ -542,8 +548,8 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
                       }}
                     />
                     <div className="flex justify-between text-xs text-muted mt-2">
-                      <span>Baixa</span>
-                      <span>Alta</span>
+                      <span>{t('rcLow')}</span>
+                      <span>{t('rcHigh')}</span>
                     </div>
                   </div>
                 </div>
@@ -552,12 +558,12 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
               {step === 3 && (
                 <div className="flex flex-col gap-4">
                   <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
-                    <p className="text-sm mb-3"><strong>Resumo da Causa Raiz:</strong></p>
+                    <p className="text-sm mb-3"><strong>{t('rcSummaryTitle')}</strong></p>
                     <div className="space-y-2 text-sm">
-                      <div><span className="text-muted">Titulo:</span> <strong>{title}</strong></div>
-                      <div><span className="text-muted">Categoria:</span> <strong>{CAT_ICONS[category]} {category}</strong></div>
-                      <div><span className="text-muted">Confiança:</span> <strong className="text-primary">{confidence}%</strong></div>
-                      {description && <div className="pt-2 border-t border-primary/20"><span className="text-muted">Detalhes:</span><p className="mt-1 text-text">{description}</p></div>}
+                      <div><span className="text-muted">{t('rcTitleLabel')}</span> <strong>{title}</strong></div>
+                      <div><span className="text-muted">{t('rcCategoryLabel')}</span> <strong>{CAT_ICONS[category]} {category}</strong></div>
+                      <div><span className="text-muted">{t('rcConfidenceLabel')}</span> <strong className="text-primary">{confidence}%</strong></div>
+                      {description && <div className="pt-2 border-t border-primary/20"><span className="text-muted">{t('rcDetailsLabel')}</span><p className="mt-1 text-text">{description}</p></div>}
                     </div>
                   </div>
                 </div>
@@ -566,9 +572,9 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
 
             {/* Footer */}
             <div className="border-t border-border px-6 py-4 flex gap-2 justify-end">
-              <Button variant="secondary" onClick={resetForm}>Cancelar</Button>
-              {step < 3 && <Button onClick={() => setStep(s => s + 1)} disabled={step === 1 && !title.trim()}>Próximo</Button>}
-              {step === 3 && <Button onClick={() => create.mutate()} loading={create.isPending} className="bg-success hover:bg-success/90">Criar Causa</Button>}
+              <Button variant="secondary" onClick={resetForm}>{t('cancel')}</Button>
+              {step < 3 && <Button onClick={() => setStep(s => s + 1)} disabled={step === 1 && !title.trim()}>{t('rcNext')}</Button>}
+              {step === 3 && <Button onClick={() => create.mutate()} loading={create.isPending} className="bg-success hover:bg-success/90">{t('rcCreateCause')}</Button>}
             </div>
           </div>
         </div>
@@ -578,7 +584,7 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
       {list.isLoading ? (
         <LoadingState />
       ) : (list.data?.length ?? 0) === 0 ? (
-        <EmptyState icon={GitBranch} message="Nenhuma causa raiz ainda" />
+        <EmptyState icon={GitBranch} message={t('rcEmptyCauses')} />
       ) : (
         <div className="card-surface overflow-hidden">
           {/* Toolbar */}
@@ -589,7 +595,7 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
                 onChange={(e) => setFilterCategory((e.target.value || null) as RootCauseCategoryValue | null)}
                 className="text-xs px-2 py-1 rounded border border-border bg-bg-subtle focus:border-primary"
               >
-                <option value="">Todas as categorias</option>
+                <option value="">{t('rcAllCategories')}</option>
                 {Object.entries(RootCauseCategory).map(([k, v]) => (
                   <option key={v} value={v}>{k}</option>
                 ))}
@@ -601,17 +607,17 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
                 onChange={(e) => setSortBy(e.target.value as 'confidence' | 'title')}
                 className="text-xs px-2 py-1 rounded border border-border bg-bg-subtle focus:border-primary"
               >
-                <option value="confidence">Ordenar: Confiança</option>
-                <option value="title">Ordenar: Título</option>
+                <option value="confidence">{t('rcSortConfidence')}</option>
+                <option value="title">{t('rcSortTitle')}</option>
               </select>
             </div>
-            <div className="ml-auto text-xs text-muted">{filteredList.length} causa(s)</div>
+            <div className="ml-auto text-xs text-muted">{t('rcCausesCount', { count: filteredList.length })}</div>
           </div>
 
           {/* List */}
           {filteredList.length === 0 ? (
             <div className="p-8 text-center text-muted">
-              <p className="text-sm">Nenhuma causa encontrada com esses filtros</p>
+              <p className="text-sm">{t('rcNoCausesFound')}</p>
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -620,7 +626,7 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">{CAT_ICONS[rc.category as RootCauseCategoryValue]}</span>
+                        <span className="text-lg">{CAT_ICONS[RootCauseCategory[rc.category as keyof typeof RootCauseCategory] as RootCauseCategoryValue] ?? '❓'}</span>
                         <span className="text-sm font-medium truncate">{rc.title}</span>
                       </div>
                       {rc.description && <p className="text-xs text-muted line-clamp-2">{rc.description}</p>}
@@ -628,12 +634,12 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
                     <div className="flex items-center gap-4 shrink-0">
                       <div className="text-right">
                         <div className="text-lg font-bold text-primary">{Math.round(rc.confidenceScore * 100)}%</div>
-                        <div className="text-[10px] text-muted">Confiança</div>
+                        <div className="text-[10px] text-muted">{t('rcConfidenceSmall')}</div>
                       </div>
                       {rc.resolutionsCount > 0 && (
                         <div className="text-right">
                           <div className="text-sm font-semibold text-success">{rc.resolutionsCount}</div>
-                          <div className="text-[10px] text-muted">Soluções</div>
+                          <div className="text-[10px] text-muted">{t('rcSolutions')}</div>
                         </div>
                       )}
                     </div>

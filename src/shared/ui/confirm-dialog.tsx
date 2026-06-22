@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { Modal } from './modal';
 import { Button } from './button';
 
@@ -20,6 +21,7 @@ interface ConfirmOptions {
 }
 
 export function useConfirm() {
+  const tc = useTranslations('common');
   // Implementação simples: state local + Promise. Para uma versão global,
   // promover para Context. Mantemos local para evitar dependência transversal.
   const [state, setState] = useState<{ opts: ConfirmOptions; resolve: (ok: boolean) => void } | null>(null);
@@ -36,13 +38,13 @@ export function useConfirm() {
       footer={(
         <>
           <Button variant="ghost" onClick={() => { state.resolve(false); setState(null); }}>
-            {state.opts.cancelLabel ?? 'Cancelar'}
+            {state.opts.cancelLabel ?? tc('cancel')}
           </Button>
           <Button
             variant={state.opts.danger ? 'danger' : 'primary'}
             onClick={() => { state.resolve(true); setState(null); }}
           >
-            {state.opts.confirmLabel ?? 'Confirmar'}
+            {state.opts.confirmLabel ?? tc('confirm')}
           </Button>
         </>
       )}
