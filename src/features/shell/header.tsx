@@ -2,7 +2,7 @@
 
 import { Menu } from 'lucide-react';
 import { useUiStore } from '@/features/shell/ui-store';
-import { GlobalSearch } from '@/features/search/global-search';
+import { CommandPalette } from '@/features/search/command-palette';
 import { NotificationCenter } from '@/features/notifications/notification-center';
 import { Logo } from './logo';
 import { ThemeToggle } from './theme-toggle';
@@ -27,7 +27,7 @@ export function Header() {
       <Logo size={24} className="mr-sm shrink-0" />
 
       <div className="flex flex-1 px-sm">
-        <GlobalSearch />
+        <CommandPalette />
       </div>
 
       <div className="flex items-center gap-0.5 sm:gap-1">

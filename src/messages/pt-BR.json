@@ -79,10 +79,11 @@
     "statusDisabled": "Desativado"
   },
   "search": {
-    "placeholder": "Buscar tickets, conhecimento, causas raiz...",
+    "placeholder": "Buscar ou digitar um comando…",
     "open": "Buscar",
     "noResults": "Nenhum resultado para \"{q}\".",
     "minChars": "Digite ao menos 2 caracteres.",
+    "typeToSearch": "Digite para buscar em todas as entidades",
     "groups": {
       "ticket": "Tickets",
       "knowledge": "Conhecimento",
@@ -354,7 +355,16 @@
     "feedbackError": "Erro ao registrar feedback",
     "smartRecommendations": "Recomendações inteligentes",
     "viewFullAnalysis": "Ver análise completa",
-    "reuse": "reuso"
+    "reuse": "reuso",
+    "noCauses": "Nenhuma causa raiz identificada ainda.",
+    "noKnowledge": "Nenhum conhecimento relacionado encontrado.",
+    "poweredBy": "Baseado em análise histórica",
+    "analyzingSteps": {
+      "scanning": "Analisando contexto do ticket…",
+      "matching": "Buscando padrões históricos…",
+      "reasoning": "Analisando causas raiz…",
+      "generating": "Gerando recomendações…"
+    }
   },
   "comments": {
     "addError": "Não foi possível comentar",
@@ -647,7 +657,8 @@
       "previous": "Anterior",
       "next": "Próximo",
       "active": "Ativo",
-      "inactive": "Inativo"
+      "inactive": "Inativo",
+      "status": "Status"
     },
     "roles": {
       "title": "Papéis",
@@ -666,7 +677,11 @@
       "keyHint": "Identificador único, minúsculas e hífens.",
       "descriptionOptional": "Descrição (opcional)",
       "descriptionPlaceholder": "Para que serve este papel",
-      "createRole": "Criar papel"
+      "createRole": "Criar papel",
+      "description": "Descrição",
+      "status": "Status",
+      "active": "Ativo",
+      "inactive": "Inativo"
     },
     "teams": {
       "title": "Equipes",
@@ -683,7 +698,10 @@
       "descriptionOptional": "Descrição (opcional)",
       "descriptionPlaceholder": "Para que serve esta equipe",
       "createTeam": "Criar equipe",
-      "inactive": "INATIVA"
+      "inactive": "Inativa",
+      "active": "Ativa",
+      "status": "Status",
+      "description": "Descrição"
     },
     "profiles": {
       "title": "Grupos de Perfil",
@@ -882,7 +900,21 @@
     "filterFrom": "De",
     "filterTo": "Até",
     "filterApply": "Aplicar",
-    "filterClear": "Limpar"
+    "filterClear": "Limpar",
+    "emptyHint": "Seus dados aparecerão aqui. Tente ajustar os filtros ou crie um novo registro."
+  },
+  "dateRange": {
+    "selectRange": "Selecionar período",
+    "from": "De",
+    "to": "Até",
+    "today": "Hoje",
+    "yesterday": "Ontem",
+    "last7days": "Últimos 7 dias",
+    "last30days": "Últimos 30 dias",
+    "last90days": "Últimos 90 dias",
+    "yearToDate": "Este ano",
+    "customRange": "Período personalizado",
+    "selectEndDate": "Clique na data final do período"
   },
   "workItems": {
     "newWorkItem": "Novo Work Item",

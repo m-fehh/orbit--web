@@ -34,6 +34,7 @@ import { SlaPanel } from './sla-panel';
 import { TicketTimeline } from './timeline';
 import { tokenStore } from '@/shared/api/token-store';
 import { Portal } from '@/shared/ui/portal';
+import { Checkbox } from '@/shared/ui/checkbox';
 import { openIntelligenceModal } from './intelligence-modal';
 
 type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'investigation' | 'rootCauses' | 'resolution' | 'workItems' | 'attachments';
@@ -1791,11 +1792,12 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
             <input className={FIELD_MD} value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder={t('outcomePh')} />
           </label>
 
-          <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
-            <input type="checkbox" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} />
-            <RotateCcw className="h-3.5 w-3.5" />
-            {t('isRecurring')}
-          </label>
+          <Checkbox
+            checked={isRecurring}
+            onChange={(e) => setIsRecurring(e.currentTarget.checked)}
+            label={<span className="flex items-center gap-1.5"><RotateCcw className="h-3.5 w-3.5" />{t('isRecurring')}</span>}
+            size="sm"
+          />
         </div>
       )}
 
@@ -2013,10 +2015,12 @@ function Conversation({ ticketId, comments, userName, locale, timeZone }: { tick
         <div className={cn('card-surface p-md', internal && 'border-warning/40 bg-warning/5')}>
           <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder={internal ? t('placeholderInternal') : t('placeholderPublic')} className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-dim" />
           <div className="mt-sm flex items-center justify-between">
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted">
-              <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} />
-              <Lock className="h-3 w-3" /> {t('internalToggle')}
-            </label>
+            <Checkbox
+              checked={internal}
+              onChange={(e) => setInternal(e.currentTarget.checked)}
+              label={<span className="flex items-center gap-1.5"><Lock className="h-3 w-3" />{t('internalToggle')}</span>}
+              size="sm"
+            />
             <Button size="sm" disabled={!text.trim() || add.isPending} loading={add.isPending} onClick={() => add.mutate()}>
               <Send className="h-3.5 w-3.5" /> {t('submit')}
             </Button>

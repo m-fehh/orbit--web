@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Plus, ShieldCheck, Save } from 'lucide-react';
+import { Plus, ShieldCheck, Save, Search } from 'lucide-react';
+import { Checkbox } from '@/shared/ui/checkbox';
 import { toast } from 'sonner';
 import { internalApi } from '@/shared/api/endpoints';
 import { apiErrorMessage, type ProfileGroupResponse } from '@/shared/api/types';
@@ -20,12 +21,20 @@ export function ProfileGroupsView() {
   const t = useTranslations('admin.profiles');
   const qc = useQueryClient();
   const [draft, setDraft] = useState<Draft>(emptyDraft());
+  const [sidebarSearch, setSidebarSearch] = useState('');
   const [query, setQuery] = useState('');
   const [onlySelected, setOnlySelected] = useState(false);
 
   const groups = useQuery({ queryKey: ['profile-groups'], queryFn: () => internalApi.profileGroups.list() });
   const rules = useQuery({ queryKey: ['access-rules'], queryFn: () => internalApi.accessRules.list() });
   const totalRules = rules.data?.length ?? 0;
+
+  const filteredGroups = useMemo(() => {
+    const list = groups.data ?? [];
+    if (!sidebarSearch.trim()) return list;
+    const q = sidebarSearch.toLowerCase();
+    return list.filter((g) => g.name.toLowerCase().includes(q));
+  }, [groups.data, sidebarSearch]);
 
   function edit(g: ProfileGroupResponse) {
     setDraft({
@@ -65,15 +74,26 @@ export function ProfileGroupsView() {
             <Plus className="h-4 w-4" /> {t('new')}
           </Button>
         </div>
+        <div className="border-b border-border px-sm py-1.5">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-dim" />
+            <Input
+              value={sidebarSearch}
+              onChange={(e) => setSidebarSearch(e.target.value)}
+              placeholder={t('filterPlaceholder')}
+              className="h-8 pl-8 text-xs"
+            />
+          </div>
+        </div>
         <div className="min-h-0 flex-1 overflow-auto p-sm">
           {groups.isLoading ? (
             <LoadingState />
           ) : groups.isError ? (
             <ErrorState title={t('loadError')} onRetry={() => groups.refetch()} retryLabel={t('retry')} />
-          ) : (groups.data?.length ?? 0) === 0 ? (
+          ) : filteredGroups.length === 0 ? (
             <EmptyState icon={ShieldCheck} message={t('empty')} />
           ) : (
-            groups.data!.map((g) => (
+            filteredGroups.map((g) => (
               <button
                 key={g.id}
                 type="button"
@@ -133,15 +153,12 @@ export function ProfileGroupsView() {
                   placeholder={t('filterPlaceholder')}
                   className="h-8 max-w-xs"
                 />
-                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted">
-                  <input
-                    type="checkbox"
-                    checked={onlySelected}
-                    onChange={(e) => setOnlySelected(e.target.checked)}
-                    className="h-3.5 w-3.5 accent-[var(--orbit-color-primary)]"
-                  />
-                  {t('onlyGranted')}
-                </label>
+                <Checkbox
+                  checked={onlySelected}
+                  onChange={(e) => setOnlySelected(e.currentTarget.checked)}
+                  label={t('onlyGranted')}
+                  size="sm"
+                />
                 <span className="ml-auto inline-flex items-center gap-3 text-xs text-dim">
                   <span className="inline-flex items-center gap-1">
                     <span className="h-2 w-2 rounded-full bg-success" /> {t('granted')}

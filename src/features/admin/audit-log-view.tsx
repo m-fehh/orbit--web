@@ -1,17 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ClipboardList, ChevronRight } from 'lucide-react';
 import { auditApi } from '@/shared/api/endpoints';
 import type { AuditLogResponse } from '@/shared/api/types';
 import type { Locale } from '@/shared/i18n/config';
-import { Button } from '@/shared/ui/button';
-import { Input } from '@/shared/ui/input';
-import { LoadingState, EmptyState, ErrorState } from '@/shared/ui/states';
+import { DataGrid, type ColumnDef, useDataGridLabels } from '@/shared/ui/data-grid';
+import { PageTransition } from '@/shared/ui/states';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { useBrandingStore } from '@/features/tenant/branding-store';
+import { cn } from '@/shared/lib/utils';
 
 const ACTION_COLOR: Record<AuditLogResponse['action'], string> = {
   Insert: 'bg-success/15 text-success',
@@ -21,128 +22,160 @@ const ACTION_COLOR: Record<AuditLogResponse['action'], string> = {
   Restore: 'bg-primary/15 text-primary',
 };
 
-/** Tela administrativa de Auditoria: filtros básicos + tabela + drill-down de campos. */
 export function AuditLogView() {
   const t = useTranslations('admin.audit');
   const locale = useLocale() as Locale;
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [entityName, setEntityName] = useState('');
   const [expanded, setExpanded] = useState<number | null>(null);
-  const pageSize = 50;
+  const gridLabels = useDataGridLabels();
 
-  const { data, isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey: ['audit', 'admin', page, entityName],
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['audit', 'admin', page, pageSize, entityName],
     queryFn: () => auditApi.list({ page, pageSize, entityName: entityName || undefined }),
   });
 
-  const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1;
+  const items = data?.items ?? [];
+
+  const columns: ColumnDef<AuditLogResponse>[] = useMemo(() => [
+    {
+      field: 'occurredAt',
+      header: t('when'),
+      sortable: true,
+      width: 170,
+      render: (v) => (
+        <span className="whitespace-nowrap text-xs text-muted">
+          {formatDateTime(v, { locale, timeZone })}
+        </span>
+      ),
+    },
+    {
+      field: 'action',
+      header: t('action'),
+      sortable: true,
+      filterable: true,
+      filterType: 'select',
+      filterOptions: [
+        { label: 'Insert', value: 'Insert' },
+        { label: 'Update', value: 'Update' },
+        { label: 'Delete', value: 'Delete' },
+        { label: 'SoftDelete', value: 'SoftDelete' },
+        { label: 'Restore', value: 'Restore' },
+      ],
+      width: 110,
+      render: (v: AuditLogResponse['action']) => (
+        <span className={cn('rounded px-1.5 py-0.5 text-xs font-medium', ACTION_COLOR[v])}>
+          {v}
+        </span>
+      ),
+    },
+    {
+      field: 'entityName',
+      header: t('entity'),
+      sortable: true,
+      filterable: true,
+      filterType: 'text',
+      width: 200,
+      render: (_v, row) => (
+        <span className="font-mono text-xs">{row.entityName} #{row.entityId}</span>
+      ),
+    },
+    {
+      field: 'userName',
+      header: t('user'),
+      sortable: true,
+      width: 160,
+      render: (v) => <span className="text-xs">{v ?? '—'}</span>,
+    },
+    {
+      field: 'origin',
+      header: t('origin'),
+      width: 100,
+      render: (v) => <span className="text-xs text-dim">{v ?? '—'}</span>,
+    },
+    {
+      field: 'fields',
+      header: '',
+      width: 40,
+      render: (_v, row) => row.fields?.length > 0 ? (
+        <ChevronRight
+          className={cn(
+            'h-3.5 w-3.5 text-dim transition-transform',
+            expanded === row.id && 'rotate-90 text-primary',
+          )}
+        />
+      ) : null,
+    },
+  ], [t, locale, timeZone, expanded]);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-sm border-b border-border p-md">
-        <div>
-          <h1 className="text-lg font-bold">{t('title')}</h1>
-          <p className="text-xs text-muted">{data ? `${data.totalCount} ${t('events')}` : '—'}</p>
-        </div>
-        <div className="relative ml-auto w-64 max-w-full">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" aria-hidden />
-          <Input
-            value={entityName}
-            onChange={(e) => { setEntityName(e.target.value); setPage(1); }}
-            placeholder={t('entityPlaceholder')}
-            className=""
-          />
-        </div>
-        <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label={t('refresh')}>
-          <RefreshCw className={isFetching ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} aria-hidden />
-        </Button>
-      </div>
+    <PageTransition className="flex h-full flex-col">
+      <DataGrid<AuditLogResponse>
+        gridId="admin-audit"
+        columns={columns}
+        data={items}
+        rowKey="id"
+        totalCount={data?.totalCount ?? 0}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(ps) => { setPageSize(ps); setPage(1); }}
+        onRowClick={(row) => {
+          if (row.fields?.length > 0) {
+            setExpanded(expanded === row.id ? null : row.id);
+          }
+        }}
+        onRefresh={() => refetch()}
+        loading={isLoading}
+        error={isError ? t('loadError') : null}
+        emptyMessage={t('empty')}
+        emptyIcon={ClipboardList}
+        labels={gridLabels}
+      />
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        {isLoading ? (
-          <LoadingState label={t('loading')} />
-        ) : isError ? (
-          <ErrorState title={t('loadError')} onRetry={() => refetch()} retryLabel={t('retry')} />
-        ) : !data || data.items.length === 0 ? (
-          <EmptyState message={t('empty')} />
-        ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 bg-panel text-xs uppercase tracking-wide text-dim">
-              <tr>
-                <th className="px-md py-2">{t('when')}</th>
-                <th className="px-md py-2">{t('action')}</th>
-                <th className="px-md py-2">{t('entity')}</th>
-                <th className="px-md py-2">{t('user')}</th>
-                <th className="px-md py-2">{t('origin')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.items.flatMap((row) => {
-                const main = (
-                  <tr
-                    key={row.id}
-                    onClick={() => setExpanded(expanded === row.id ? null : row.id)}
-                    className="cursor-pointer border-t border-border hover:bg-panel-2"
-                  >
-                    <td className="whitespace-nowrap px-md py-2 text-xs text-muted">
-                      {formatDateTime(row.occurredAt, { locale, timeZone })}
-                    </td>
-                    <td className="px-md py-2">
-                      <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${ACTION_COLOR[row.action]}`}>
-                        {row.action}
-                      </span>
-                    </td>
-                    <td className="px-md py-2 font-mono text-xs">
-                      {row.entityName} #{row.entityId}
-                    </td>
-                    <td className="px-md py-2 text-xs">{row.userName ?? '—'}</td>
-                    <td className="px-md py-2 text-xs text-dim">{row.origin ?? '—'}</td>
-                  </tr>
-                );
-                if (expanded !== row.id || row.fields.length === 0) return [main];
-                const detail = (
-                  <tr key={`${row.id}-detail`} className="border-t border-border bg-panel/50">
-                    <td colSpan={5} className="px-md py-sm">
-                      <table className="w-full text-xs">
-                        <thead className="text-dim">
-                          <tr>
-                            <th className="text-left">{t('colField')}</th>
-                            <th className="text-left">{t('colFrom')}</th>
-                            <th className="text-left">{t('colTo')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {row.fields.map((f, j) => (
-                            <tr key={j} className="border-t border-border/50">
-                              <td className="py-1 font-mono">{f.fieldName}</td>
-                              <td className="py-1 text-muted">{f.oldValue ?? '∅'}</td>
-                              <td className="py-1 text-text">{f.newValue ?? '∅'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-                );
-                return [main, detail];
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {data && data.items.length > 0 && (
-        <div className="flex items-center justify-end gap-sm border-t border-border p-md text-xs">
-          <span className="text-muted">{t('pageOf', { page, total: totalPages })}</span>
-          <Button variant="ghost" size="icon" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label={t('previous')}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label={t('next')}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
-    </div>
+      {/* Expanded field detail overlay (rendered outside DataGrid for flexibility) */}
+      <AnimatePresence>
+        {expanded != null && (() => {
+          const row = items.find((r) => r.id === expanded);
+          if (!row || row.fields.length === 0) return null;
+          return (
+            <motion.div
+              key={expanded}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="border-t border-border bg-panel/50 px-lg py-sm"
+            >
+              <p className="mb-sm text-[10px] font-semibold uppercase tracking-wide text-dim">
+                {t('colField')} — {row.entityName} #{row.entityId}
+              </p>
+              <div className="overflow-auto rounded border border-border">
+                <table className="w-full text-xs">
+                  <thead className="bg-bg-subtle text-dim">
+                    <tr>
+                      <th className="px-md py-1.5 text-left font-semibold">{t('colField')}</th>
+                      <th className="px-md py-1.5 text-left font-semibold">{t('colFrom')}</th>
+                      <th className="px-md py-1.5 text-left font-semibold">{t('colTo')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {row.fields.map((f, j) => (
+                      <tr key={j} className="border-t border-border/50">
+                        <td className="px-md py-1 font-mono">{f.fieldName}</td>
+                        <td className="px-md py-1 text-muted">{f.oldValue ?? '∅'}</td>
+                        <td className="px-md py-1 text-text">{f.newValue ?? '∅'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
+    </PageTransition>
   );
 }

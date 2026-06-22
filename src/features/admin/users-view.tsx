@@ -1,110 +1,124 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Search, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import { usersApi, internalApi } from '@/shared/api/endpoints';
+import type { UserResponse } from '@/shared/api/types';
 import { Can } from '@/features/auth/can';
 import { Button } from '@/shared/ui/button';
-import { Input } from '@/shared/ui/input';
-import { LoadingState, EmptyState, ErrorState } from '@/shared/ui/states';
+import { DataGrid, type ColumnDef, useDataGridLabels } from '@/shared/ui/data-grid';
+import { PageTransition } from '@/shared/ui/states';
 import { openUserWindow } from './user-actions';
 
-/** Tela de Usuários: lista paginada + criação/edição (com busca de perfil). */
+type UserRow = UserResponse & { profileName: string };
+
 export function UsersView() {
   const t = useTranslations('admin.users');
   const [page, setPage] = useState(1);
-  const [term, setTerm] = useState('');
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState(20);
+  const [search, setSearch] = useState('');
+  const gridLabels = useDataGridLabels();
 
-  const { data, isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey: ['users', 'list', page],
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['users', 'list', page, pageSize],
     queryFn: () => usersApi.list(page, pageSize),
   });
+
   const profiles = useQuery({ queryKey: ['profile-groups'], queryFn: () => internalApi.profileGroups.list() });
-  const profileName = (id: number | null) => profiles.data?.find((p) => p.id === id)?.name ?? '—';
+  const profileName = useCallback(
+    (id: number | null) => profiles.data?.find((p) => p.id === id)?.name ?? '—',
+    [profiles.data],
+  );
 
-  const items = useMemo(() => {
-    const list = data?.items ?? [];
-    if (!term.trim()) return list;
-    const q = term.toLowerCase();
+  const rows: UserRow[] = useMemo(() => {
+    const list = (data?.items ?? []).map((u) => ({
+      ...u,
+      profileName: profileName(u.profileId),
+    }));
+    if (!search.trim()) return list;
+    const q = search.toLowerCase();
     return list.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
-  }, [data, term]);
+  }, [data, search, profileName]);
 
-  const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1;
+  const columns: ColumnDef<UserRow>[] = useMemo(() => [
+    {
+      field: 'name',
+      header: t('name'),
+      sortable: true,
+      width: 200,
+      render: (v) => <span className="font-medium">{v}</span>,
+    },
+    {
+      field: 'email',
+      header: t('email'),
+      sortable: true,
+      width: 260,
+      render: (v) => <span className="text-muted">{v}</span>,
+    },
+    {
+      field: 'role',
+      header: t('role'),
+      sortable: true,
+      filterable: true,
+      filterType: 'select',
+      filterOptions: [
+        { label: 'Admin', value: 'Admin' },
+        { label: 'Analyst', value: 'Analyst' },
+        { label: 'Operator', value: 'Operator' },
+        { label: 'Viewer', value: 'Viewer' },
+      ],
+      width: 120,
+      render: (v) => (
+        <span className="rounded-full border border-border px-2 py-0.5 text-xs">{v}</span>
+      ),
+    },
+    {
+      field: 'profileName',
+      header: t('profileGroup'),
+      sortable: true,
+      width: 180,
+      render: (v) => <span className="text-muted">{v}</span>,
+    },
+    {
+      field: 'twoFactorEnabled',
+      header: 'MFA',
+      width: 70,
+      align: 'center',
+      render: (v) => v
+        ? <span className="text-success" title="MFA enabled">●</span>
+        : <span className="text-dim" title="MFA disabled">○</span>,
+    },
+  ], [t]);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-sm border-b border-border p-md">
-        <div>
-          <h1 className="text-lg font-bold">{t('title')}</h1>
-          <p className="text-xs text-muted">{data ? `${data.totalCount} ${t('title').toLowerCase()}` : '—'}</p>
-        </div>
-        <div className="relative ml-auto w-64 max-w-full">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" aria-hidden />
-          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('filterPlaceholder')} className="" />
-        </div>
-        <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label={t('refresh')}>
-          <RefreshCw className={isFetching ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} aria-hidden />
-        </Button>
-        <Can permission="admin.users.create">
-          <Button onClick={() => openUserWindow()}>
-            <Plus className="h-4 w-4" /> {t('newUser')}
-          </Button>
-        </Can>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-auto">
-        {isLoading ? (
-          <LoadingState label={t('loading')} />
-        ) : isError ? (
-          <ErrorState title={t('loadError')} onRetry={() => refetch()} retryLabel={t('retry')} />
-        ) : items.length === 0 ? (
-          <EmptyState message={t('empty')} />
-        ) : (
-          <table className="w-full border-collapse text-sm">
-            <thead className="sticky top-0 z-10 bg-bg-subtle/90 backdrop-blur">
-              <tr className="text-left text-xs uppercase tracking-wide text-dim">
-                <th className="px-md py-2 font-semibold">{t('name')}</th>
-                <th className="px-md py-2 font-semibold">{t('email')}</th>
-                <th className="px-md py-2 font-semibold">{t('role')}</th>
-                <th className="px-md py-2 font-semibold">{t('profileGroup')}</th>
-                <th className="px-md py-2 text-center font-semibold">MFA</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((u) => (
-                <tr
-                  key={u.id}
-                  onClick={() => openUserWindow(u)}
-                  className="cursor-pointer border-t border-border/60 transition-colors hover:bg-primary-soft/40"
-                >
-                  <td className="px-md py-2.5 font-medium">{u.name}</td>
-                  <td className="px-md py-2.5 text-muted">{u.email}</td>
-                  <td className="px-md py-2.5"><span className="rounded-full border border-border px-2 py-0.5 text-xs">{u.role}</span></td>
-                  <td className="px-md py-2.5 text-muted">{profileName(u.profileId)}</td>
-                  <td className="px-md py-2.5 text-center">
-                    {u.twoFactorEnabled ? <span className="text-success">●</span> : <span className="text-dim">○</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {data && totalPages > 1 && (
-        <div className="flex items-center justify-end gap-sm border-t border-border px-md py-2 text-sm">
-          <span className="text-muted">{t('page', { page, totalPages })}</span>
-          <Button variant="secondary" size="icon" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label={t('previous')}>
-            <ChevronLeft className="h-4 w-4" aria-hidden />
-          </Button>
-          <Button variant="secondary" size="icon" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} aria-label={t('next')}>
-            <ChevronRight className="h-4 w-4" aria-hidden />
-          </Button>
-        </div>
-      )}
-    </div>
+    <PageTransition className="flex h-full flex-col">
+      <DataGrid<UserRow>
+        gridId="admin-users"
+        columns={columns}
+        data={rows}
+        rowKey="id"
+        totalCount={search ? rows.length : (data?.totalCount ?? 0)}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(ps) => { setPageSize(ps); setPage(1); }}
+        onRowClick={(u) => openUserWindow(u)}
+        onRefresh={() => refetch()}
+        loading={isLoading}
+        error={isError ? t('loadError') : null}
+        emptyMessage={t('empty')}
+        emptyIcon={Users}
+        labels={gridLabels}
+        toolbar={
+          <Can permission="admin.users.create">
+            <Button size="sm" onClick={() => openUserWindow()} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" /> {t('newUser')}
+            </Button>
+          </Can>
+        }
+      />
+    </PageTransition>
   );
 }

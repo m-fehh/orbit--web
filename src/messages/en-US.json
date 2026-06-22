@@ -79,10 +79,11 @@
     "statusDisabled": "Disabled"
   },
   "search": {
-    "placeholder": "Search tickets, knowledge, root causes...",
+    "placeholder": "Search or type a command…",
     "open": "Search",
     "noResults": "No results for \"{q}\".",
     "minChars": "Type at least 2 characters.",
+    "typeToSearch": "Type to search across all entities",
     "groups": {
       "ticket": "Tickets",
       "knowledge": "Knowledge",
@@ -318,7 +319,16 @@
     "feedbackError": "Failed to record feedback",
     "smartRecommendations": "Smart recommendations",
     "viewFullAnalysis": "View full analysis",
-    "reuse": "reuse"
+    "reuse": "reuse",
+    "noCauses": "No root causes identified yet.",
+    "noKnowledge": "No related knowledge found.",
+    "poweredBy": "Powered by historical analysis",
+    "analyzingSteps": {
+      "scanning": "Scanning ticket context…",
+      "matching": "Matching historical patterns…",
+      "reasoning": "Analyzing root causes…",
+      "generating": "Generating recommendations…"
+    }
   },
   "comments": {
     "addError": "Could not post comment",
@@ -611,7 +621,8 @@
       "previous": "Previous",
       "next": "Next",
       "active": "Active",
-      "inactive": "Inactive"
+      "inactive": "Inactive",
+      "status": "Status"
     },
     "roles": {
       "title": "Roles",
@@ -630,7 +641,11 @@
       "keyHint": "Unique identifier, lowercase and hyphens.",
       "descriptionOptional": "Description (optional)",
       "descriptionPlaceholder": "What this role is for",
-      "createRole": "Create role"
+      "createRole": "Create role",
+      "description": "Description",
+      "status": "Status",
+      "active": "Active",
+      "inactive": "Inactive"
     },
     "teams": {
       "title": "Teams",
@@ -647,7 +662,10 @@
       "descriptionOptional": "Description (optional)",
       "descriptionPlaceholder": "What this team is for",
       "createTeam": "Create team",
-      "inactive": "INACTIVE"
+      "inactive": "Inactive",
+      "active": "Active",
+      "status": "Status",
+      "description": "Description"
     },
     "profiles": {
       "title": "Profile Groups",
@@ -882,7 +900,21 @@
     "filterFrom": "From",
     "filterTo": "To",
     "filterApply": "Apply",
-    "filterClear": "Clear"
+    "filterClear": "Clear",
+    "emptyHint": "Your data will appear here. Try adjusting filters or creating a new record."
+  },
+  "dateRange": {
+    "selectRange": "Select period",
+    "from": "From",
+    "to": "To",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "last7days": "Last 7 days",
+    "last30days": "Last 30 days",
+    "last90days": "Last 90 days",
+    "yearToDate": "Year to date",
+    "customRange": "Custom range",
+    "selectEndDate": "Click to select the end date"
   },
   "workItems": {
     "newWorkItem": "New Work Item",

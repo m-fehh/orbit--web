@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   ChevronUp,
   ChevronDown,
@@ -25,6 +26,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { cn } from '@/shared/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -94,6 +96,7 @@ export interface DataGridLabels {
   filterTo: string;
   filterApply: string;
   filterClear: string;
+  emptyHint: string;
 }
 
 const DEFAULT_LABELS: DataGridLabels = {
@@ -120,7 +123,42 @@ const DEFAULT_LABELS: DataGridLabels = {
   filterTo: 'To',
   filterApply: 'Apply',
   filterClear: 'Clear',
+  emptyHint: 'Your data will appear here. Try adjusting filters or creating a new record.',
 };
+
+/**
+ * Hook that builds translated DataGrid labels from the `dataGrid` i18n namespace.
+ * Usage: `const labels = useDataGridLabels();` then `<DataGrid labels={labels} … />`
+ */
+export function useDataGridLabels(): DataGridLabels {
+  const tGrid = useTranslations('dataGrid');
+  return useMemo<DataGridLabels>(() => ({
+    showing: tGrid('showing'),
+    of: tGrid('of'),
+    noData: tGrid('noData'),
+    loading: tGrid('loading'),
+    errorDefault: tGrid('errorDefault'),
+    retry: tGrid('retry'),
+    refresh: tGrid('refresh'),
+    exportCsv: tGrid('exportCsv'),
+    page: tGrid('page'),
+    pageSize: tGrid('pageSize'),
+    first: tGrid('first'),
+    last: tGrid('last'),
+    previous: tGrid('previous'),
+    next: tGrid('next'),
+    selectAll: tGrid('selectAll'),
+    selectedCount: tGrid('selectedCount'),
+    filterContains: tGrid('filterContains'),
+    filterStartsWith: tGrid('filterStartsWith'),
+    filterEquals: tGrid('filterEquals'),
+    filterFrom: tGrid('filterFrom'),
+    filterTo: tGrid('filterTo'),
+    filterApply: tGrid('filterApply'),
+    filterClear: tGrid('filterClear'),
+    emptyHint: tGrid('emptyHint'),
+  }), [tGrid]);
+}
 
 export interface DataGridProps<T extends Record<string, any>> {
   gridId: string;
@@ -527,9 +565,10 @@ export function DataGrid<T extends Record<string, any>>({
   labels: labelsProp,
   pageSizeOptions = [10, 20, 50, 100],
 }: DataGridProps<T>) {
+  const i18nLabels = useDataGridLabels();
   const labels = useMemo(
-    () => ({ ...DEFAULT_LABELS, ...labelsProp }),
-    [labelsProp],
+    () => ({ ...DEFAULT_LABELS, ...i18nLabels, ...labelsProp }),
+    [i18nLabels, labelsProp],
   );
 
   // Visible columns
@@ -971,19 +1010,30 @@ export function DataGrid<T extends Record<string, any>>({
 
             {!loading && error && (
               <tr>
-                <td colSpan={colCount} className="px-4 py-16 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <AlertCircle className="h-8 w-8 text-red-400" />
-                    <p className="text-sm text-muted">{error || labels.errorDefault}</p>
+                <td colSpan={colCount} className="px-4 py-20 text-center">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col items-center gap-4"
+                  >
+                    <div className="rounded-2xl bg-danger/5 p-5">
+                      <AlertCircle className="h-10 w-10 text-danger/40" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-text">{error || labels.errorDefault}</p>
+                    </div>
                     {onRefresh && (
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={onRefresh}
-                        className="px-3 py-1.5 text-xs rounded border border-border hover:bg-bg-subtle text-text"
+                        className="rounded-md border border-border bg-panel px-4 py-2 text-xs font-medium text-text shadow-sm transition-colors hover:bg-bg-subtle"
                       >
                         {labels.retry}
-                      </button>
+                      </motion.button>
                     )}
-                  </div>
+                  </motion.div>
                 </td>
               </tr>
             )}
@@ -991,10 +1041,108 @@ export function DataGrid<T extends Record<string, any>>({
             {!loading && !error && data.length === 0 && (
               <tr>
                 <td colSpan={colCount} className="px-4 py-16 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <EmptyIcon className="h-8 w-8 text-muted/50" />
-                    <p className="text-sm text-muted">{emptyMessage || labels.noData}</p>
-                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    className="flex flex-col items-center gap-5"
+                  >
+                    <motion.div
+                      initial={{ scale: 0.85, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.1, duration: 0.6, type: 'spring', stiffness: 180 }}
+                    >
+                      <svg width="180" height="140" viewBox="0 0 180 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                          <linearGradient id="emptyGrad1" x1="40" y1="23" x2="140" y2="105">
+                            <stop offset="0%" style={{ stopColor: 'var(--orbit-color-primary)', stopOpacity: 0.12 }} />
+                            <stop offset="100%" style={{ stopColor: 'var(--orbit-color-primary)', stopOpacity: 0.03 }} />
+                          </linearGradient>
+                          <linearGradient id="emptyGrad2" x1="55" y1="42" x2="95" y2="92">
+                            <stop offset="0%" style={{ stopColor: 'var(--orbit-color-panel)', stopOpacity: 1 }} />
+                            <stop offset="100%" style={{ stopColor: 'var(--orbit-color-bg-subtle)', stopOpacity: 1 }} />
+                          </linearGradient>
+                        </defs>
+                        {/* Shadow on floor */}
+                        <motion.ellipse
+                          cx="90" cy="122" rx="65" ry="7"
+                          style={{ fill: 'var(--orbit-color-border)', opacity: 0.3 }}
+                          animate={{ rx: [65, 70, 65] }}
+                          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                        />
+                        {/* Folder */}
+                        <motion.path
+                          d="M40 35h30l8-12h62a6 6 0 016 6v70a6 6 0 01-6 6H40a6 6 0 01-6-6V41a6 6 0 016-6z"
+                          fill="url(#emptyGrad1)"
+                          style={{ stroke: 'var(--orbit-color-primary)', strokeOpacity: 0.15 }}
+                          strokeWidth="1.2"
+                          animate={{ y: [0, -2, 0] }}
+                          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                        />
+                        {/* Document 1 */}
+                        <motion.g
+                          animate={{ y: [0, -4, 0], rotate: [-1.5, 0.5, -1.5] }}
+                          transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+                        >
+                          <rect x="55" y="42" width="40" height="50" rx="4" fill="url(#emptyGrad2)" style={{ stroke: 'var(--orbit-color-border)' }} strokeWidth="0.8" />
+                          <rect x="62" y="52" width="26" height="2.5" rx="1" style={{ fill: 'var(--orbit-color-primary)', opacity: 0.25 }} />
+                          <rect x="62" y="58" width="20" height="2.5" rx="1" style={{ fill: 'var(--orbit-color-primary)', opacity: 0.15 }} />
+                          <rect x="62" y="64" width="23" height="2.5" rx="1" style={{ fill: 'var(--orbit-color-primary)', opacity: 0.15 }} />
+                          <rect x="62" y="70" width="16" height="2.5" rx="1" style={{ fill: 'var(--orbit-color-primary)', opacity: 0.1 }} />
+                        </motion.g>
+                        {/* Document 2 */}
+                        <motion.g
+                          animate={{ y: [0, -3, 0], rotate: [1.5, -0.5, 1.5] }}
+                          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+                        >
+                          <rect x="85" y="46" width="40" height="50" rx="4" fill="url(#emptyGrad2)" style={{ stroke: 'var(--orbit-color-border)' }} strokeWidth="0.8" />
+                          <rect x="92" y="56" width="26" height="2.5" rx="1" style={{ fill: 'var(--orbit-color-primary)', opacity: 0.25 }} />
+                          <rect x="92" y="62" width="18" height="2.5" rx="1" style={{ fill: 'var(--orbit-color-primary)', opacity: 0.15 }} />
+                          <rect x="92" y="68" width="22" height="2.5" rx="1" style={{ fill: 'var(--orbit-color-primary)', opacity: 0.15 }} />
+                        </motion.g>
+                        {/* Magnifying glass */}
+                        <motion.g
+                          animate={{ x: [0, 3, 0], y: [0, -2, 0] }}
+                          transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
+                        >
+                          <circle cx="130" cy="50" r="14" style={{ fill: 'var(--orbit-color-panel)', stroke: 'var(--orbit-color-primary)', strokeOpacity: 0.3 }} strokeWidth="2" />
+                          <circle cx="130" cy="50" r="10" style={{ stroke: 'var(--orbit-color-primary)', strokeOpacity: 0.12 }} strokeWidth="1" fill="none" />
+                          <line x1="140" y1="60" x2="150" y2="72" style={{ stroke: 'var(--orbit-color-primary)', strokeOpacity: 0.3 }} strokeWidth="3" strokeLinecap="round" />
+                        </motion.g>
+                        {/* Sparkles */}
+                        <motion.circle cx="50" cy="28" r="2" style={{ fill: 'var(--orbit-color-primary)', opacity: 0.3 }}
+                          animate={{ opacity: [0, 0.5, 0], scale: [0.5, 1.2, 0.5] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        />
+                        <motion.circle cx="155" cy="35" r="1.5" style={{ fill: 'var(--orbit-color-warning, #f59e0b)', opacity: 0.4 }}
+                          animate={{ opacity: [0, 0.6, 0], scale: [0.5, 1.2, 0.5] }}
+                          transition={{ duration: 2.5, repeat: Infinity, delay: 0.7 }}
+                        />
+                        <motion.circle cx="38" cy="65" r="1.5" style={{ fill: 'var(--orbit-color-success, #22c55e)', opacity: 0.3 }}
+                          animate={{ opacity: [0, 0.5, 0], scale: [0.5, 1.2, 0.5] }}
+                          transition={{ duration: 2, repeat: Infinity, delay: 1.2 }}
+                        />
+                        {/* Small cross sparkle */}
+                        <motion.g
+                          animate={{ opacity: [0, 0.4, 0], rotate: [0, 90, 180] }}
+                          transition={{ duration: 3, repeat: Infinity, delay: 0.4 }}
+                          style={{ transformOrigin: '161px 80px' }}
+                        >
+                          <line x1="158" y1="80" x2="164" y2="80" style={{ stroke: 'var(--orbit-color-primary)', strokeOpacity: 0.25 }} strokeWidth="1.5" strokeLinecap="round" />
+                          <line x1="161" y1="77" x2="161" y2="83" style={{ stroke: 'var(--orbit-color-primary)', strokeOpacity: 0.25 }} strokeWidth="1.5" strokeLinecap="round" />
+                        </motion.g>
+                      </svg>
+                    </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3, duration: 0.4 }}
+                      className="space-y-1.5 text-center"
+                    >
+                      <p className="text-sm font-semibold text-text">{emptyMessage || labels.noData}</p>
+                      <p className="max-w-[260px] text-xs leading-relaxed text-muted/60">{labels.emptyHint}</p>
+                    </motion.div>
+                  </motion.div>
                 </td>
               </tr>
             )}

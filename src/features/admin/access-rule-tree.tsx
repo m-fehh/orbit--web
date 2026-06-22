@@ -4,6 +4,7 @@ import { useMemo, useRef, useEffect } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import type { AccessRuleResponse } from '@/shared/api/types';
+import { Checkbox } from '@/shared/ui/checkbox';
 import { cn } from '@/shared/lib/utils';
 
 interface TreeNode extends Omit<AccessRuleResponse, 'id'> {
@@ -211,13 +212,12 @@ function TreeRow({
         ) : (
           <span className="inline-block h-4 w-4" />
         )}
-        <label className="flex flex-1 cursor-pointer items-center gap-sm">
-          <input
+        <div className="flex flex-1 items-center gap-sm">
+          <Checkbox
             ref={ref}
-            type="checkbox"
             checked={checked}
             onChange={() => onToggle(node)}
-            className="h-4 w-4 accent-[var(--orbit-color-primary)]"
+            size="sm"
           />
           <span className={cn('text-sm', node.isModule ? 'font-semibold text-text' : 'text-text')}>
             {node.description}
@@ -230,7 +230,7 @@ function TreeRow({
               {ids.length}
             </span>
           )}
-        </label>
+        </div>
       </div>
       {hasChildren && open && (
         <div>

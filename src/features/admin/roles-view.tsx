@@ -1,14 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Search, KeyRound } from 'lucide-react';
+import { Plus, KeyRound } from 'lucide-react';
 import { rolesApi } from '@/shared/api/endpoints';
+import type { RoleResponse } from '@/shared/api/types';
 import { Can } from '@/features/auth/can';
 import { Button } from '@/shared/ui/button';
-import { Input } from '@/shared/ui/input';
-import { LoadingState, EmptyState, ErrorState } from '@/shared/ui/states';
+import { DataGrid, type ColumnDef, useDataGridLabels } from '@/shared/ui/data-grid';
+import { PageTransition } from '@/shared/ui/states';
 import { useWindowStore } from '@/features/windows/window-store';
 import { RoleForm } from './role-form';
 
@@ -22,57 +23,84 @@ function openRoleWindow(title: string) {
   });
 }
 
-/** Papéis (Roles): tabela com busca e cadastro. */
 export function RolesView() {
   const t = useTranslations('admin.roles');
-  const [term, setTerm] = useState('');
+  const gridLabels = useDataGridLabels();
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['roles'], queryFn: () => rolesApi.list() });
 
-  const items = useMemo(() => {
-    const list = data ?? [];
-    if (!term.trim()) return list;
-    const q = term.toLowerCase();
-    return list.filter((r) => r.name.toLowerCase().includes(q) || r.key.toLowerCase().includes(q));
-  }, [data, term]);
+  const items = data ?? [];
+
+  const columns: ColumnDef<RoleResponse>[] = useMemo(() => [
+    {
+      field: 'name',
+      header: t('name'),
+      sortable: true,
+      filterable: true,
+      filterType: 'text',
+      width: 220,
+      render: (v) => (
+        <span className="flex items-center gap-sm">
+          <KeyRound className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span className="font-medium">{v}</span>
+        </span>
+      ),
+    },
+    {
+      field: 'key',
+      header: t('key'),
+      sortable: true,
+      width: 180,
+      render: (v) => <span className="rounded bg-panel-2 px-1.5 py-0.5 font-mono text-xs text-dim">{v}</span>,
+    },
+    {
+      field: 'description',
+      header: t('description'),
+      sortable: true,
+      width: 350,
+      render: (v) => <span className="text-muted">{v ?? '—'}</span>,
+    },
+    {
+      field: 'isAdminRole',
+      header: 'Admin',
+      width: 80,
+      align: 'center',
+      render: (v) => v
+        ? <span className="rounded bg-warning/15 px-1.5 text-[10px] font-semibold text-warning">ADMIN</span>
+        : null,
+    },
+    {
+      field: 'inactive',
+      header: t('status'),
+      width: 90,
+      align: 'center',
+      render: (v) => v
+        ? <span className="rounded-full bg-danger/15 px-2 py-0.5 text-[10px] font-bold text-danger">{t('inactive')}</span>
+        : <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold text-success">{t('active')}</span>,
+    },
+  ], [t]);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-sm border-b border-border p-md">
-        <h1 className="text-base font-bold">{t('title')}</h1>
-        <div className="relative ml-auto w-56 max-w-full">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" aria-hidden />
-          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('searchPlaceholder')} className="" />
-        </div>
-        <Can permission="role.create">
-          <Button onClick={() => openRoleWindow(t('newRole'))}>
-            <Plus className="h-4 w-4" /> {t('new')}
-          </Button>
-        </Can>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-auto p-sm">
-        {isLoading ? (
-          <LoadingState />
-        ) : isError ? (
-          <ErrorState title={t('loadError')} onRetry={() => refetch()} retryLabel={t('retry')} />
-        ) : items.length === 0 ? (
-          <EmptyState icon={KeyRound} message={t('empty')} />
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {items.map((r) => (
-              <li key={r.id} className="card-surface flex items-center gap-sm p-md">
-                <KeyRound className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{r.name}</p>
-                  {r.description && <p className="truncate text-xs text-muted">{r.description}</p>}
-                </div>
-                <span className="rounded bg-panel-2 px-1.5 py-0.5 font-mono text-xs text-dim">{r.key}</span>
-                {r.isAdminRole && <span className="rounded bg-warning/15 px-1.5 text-[10px] font-semibold text-warning">ADMIN</span>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
+    <PageTransition className="flex h-full flex-col">
+      <DataGrid<RoleResponse>
+        gridId="admin-roles"
+        columns={columns}
+        data={items}
+        rowKey="id"
+        totalCount={items.length}
+        onRefresh={() => refetch()}
+        loading={isLoading}
+        error={isError ? t('loadError') : null}
+        emptyMessage={t('empty')}
+        emptyIcon={KeyRound}
+        labels={gridLabels}
+        toolbar={
+          <Can permission="role.create">
+            <Button size="sm" onClick={() => openRoleWindow(t('newRole'))} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" /> {t('new')}
+            </Button>
+          </Can>
+        }
+      />
+    </PageTransition>
   );
 }

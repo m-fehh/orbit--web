@@ -2,14 +2,14 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Search, Users } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { teamsApi } from '@/shared/api/endpoints';
 import type { TeamResponse } from '@/shared/api/types';
 import { Can } from '@/features/auth/can';
 import { Button } from '@/shared/ui/button';
-import { Input } from '@/shared/ui/input';
-import { LoadingState, EmptyState, ErrorState } from '@/shared/ui/states';
+import { DataGrid, type ColumnDef, useDataGridLabels } from '@/shared/ui/data-grid';
+import { PageTransition } from '@/shared/ui/states';
 import { useWindowStore } from '@/features/windows/window-store';
 import { TeamForm } from './team-form';
 
@@ -23,56 +23,74 @@ function openTeamWindow(title: string) {
   });
 }
 
-/** Equipes (Teams): tabela com busca e cadastro. */
 export function TeamsView() {
   const t = useTranslations('admin.teams');
-  const [term, setTerm] = useState('');
+  const gridLabels = useDataGridLabels();
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['teams'], queryFn: () => teamsApi.list() });
 
-  const items = useMemo(() => {
-    const list = (data ?? []) as TeamResponse[];
-    if (!term.trim()) return list;
-    const q = term.toLowerCase();
-    return list.filter((r) => r.name.toLowerCase().includes(q));
-  }, [data, term]);
+  const items = (data ?? []) as TeamResponse[];
+
+  const columns: ColumnDef<TeamResponse>[] = useMemo(() => [
+    {
+      field: 'name',
+      header: t('name'),
+      sortable: true,
+      filterable: true,
+      filterType: 'text',
+      width: 260,
+      render: (v) => (
+        <span className="flex items-center gap-sm">
+          <Users className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span className="font-medium">{v}</span>
+        </span>
+      ),
+    },
+    {
+      field: 'description',
+      header: t('description'),
+      sortable: true,
+      width: 400,
+      render: (v) => <span className="text-muted">{v ?? '—'}</span>,
+    },
+    {
+      field: 'inactive',
+      header: t('status'),
+      width: 100,
+      align: 'center',
+      filterable: true,
+      filterType: 'select',
+      filterOptions: [
+        { label: t('active'), value: 'false' },
+        { label: t('inactive'), value: 'true' },
+      ],
+      render: (v) => v
+        ? <span className="rounded-full bg-danger/15 px-2 py-0.5 text-[10px] font-bold text-danger">{t('inactive')}</span>
+        : <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold text-success">{t('active')}</span>,
+    },
+  ], [t]);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-sm border-b border-border p-md">
-        <h1 className="text-base font-bold">{t('title')}</h1>
-        <div className="relative ml-auto w-56 max-w-full">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" aria-hidden />
-          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('searchPlaceholder')} className="" />
-        </div>
-        <Can permission="admin.teams.create">
-          <Button onClick={() => openTeamWindow(t('newTeam'))}>
-            <Plus className="h-4 w-4" /> {t('new')}
-          </Button>
-        </Can>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-auto p-sm">
-        {isLoading ? (
-          <LoadingState />
-        ) : isError ? (
-          <ErrorState title={t('loadError')} onRetry={() => refetch()} retryLabel={t('retry')} />
-        ) : items.length === 0 ? (
-          <EmptyState icon={Users} message={t('empty')} />
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {items.map((r) => (
-              <li key={r.id} className="card-surface flex items-center gap-sm p-md">
-                <Users className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{r.name}</p>
-                  {r.description && <p className="truncate text-xs text-muted">{r.description}</p>}
-                </div>
-                {r.inactive && <span className="rounded bg-panel-2 px-1.5 text-[10px] font-semibold text-dim">{t('inactive')}</span>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
+    <PageTransition className="flex h-full flex-col">
+      <DataGrid<TeamResponse>
+        gridId="admin-teams"
+        columns={columns}
+        data={items}
+        rowKey="id"
+        totalCount={items.length}
+        onRefresh={() => refetch()}
+        loading={isLoading}
+        error={isError ? t('loadError') : null}
+        emptyMessage={t('empty')}
+        emptyIcon={Users}
+        labels={gridLabels}
+        toolbar={
+          <Can permission="admin.teams.create">
+            <Button size="sm" onClick={() => openTeamWindow(t('newTeam'))} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" /> {t('new')}
+            </Button>
+          </Can>
+        }
+      />
+    </PageTransition>
   );
 }
