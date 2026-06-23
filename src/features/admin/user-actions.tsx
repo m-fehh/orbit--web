@@ -13,8 +13,8 @@ export function openUserWindow(user?: UserResponse) {
     title: user ? user.name : 'Novo usuário',
     icon: user ? <UserCog className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />,
     modal: true,
-    width: 540,
-    height: 600,
+    width: 640,
+    height: 650,
     content: <UserForm windowId={id} user={user} />,
   });
 }

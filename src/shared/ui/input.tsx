@@ -121,7 +121,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         'transition-all duration-500 ease-spring',
         invalid
           ? 'border-danger shadow-[0_0_0_4px_var(--orbit-color-danger)/0.1]'
-          : 'border-border shadow-sm hover:border-border-strong hover:shadow focus-within:border-primary focus-within:shadow-[0_0_0_6px_var(--orbit-color-primary)/0.1,0_4px_16px_var(--orbit-color-primary)/0.08]',
+          : 'border-border shadow-sm hover:border-border-strong hover:shadow focus-within:border-primary focus-within:shadow-[0_0_0_6px_var(--orbit-color-primary)/0.1,0_4px_px_var(--orbit-color-primary)/0.08]',
       ),
       
       filled: cn(

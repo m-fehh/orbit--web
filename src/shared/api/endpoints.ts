@@ -131,6 +131,7 @@ export interface TicketListParams {
   priority?: string;
   assignedUserId?: number;
   teamId?: number;
+  iterationId?: number;
   search?: string;
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
@@ -150,6 +151,8 @@ export const ticketsApi = {
     api.patch<TicketResponse>(`/tickets/${id}/assign`, { userId, teamId: teamId ?? null }),
   changeStatus: (id: number, status: TicketStatusValue) =>
     api.patch<TicketResponse>(`/tickets/${id}/status`, { status }),
+  setIteration: (id: number, iterationId: number | null) =>
+    api.patch<TicketResponse>(`/tickets/${id}/iteration`, { iterationId }),
   resolve: (id: number, body: ResolveTicketRequest) => api.post<ResolveTicketResponse>(`/tickets/${id}/resolve`, body),
   recommendationFeedback: (id: number, body: RecommendationFeedbackRequest) =>
     api.post<void>(`/tickets/${id}/recommendation-feedback`, body),
@@ -263,13 +266,19 @@ export const resolutionPatternsApi = {
   recordUsage: (id: number, body: { ticketId: number }) => api.patch<ResolutionPatternResponse>(`/resolutionpatterns/${id}/usage`, body),
 };
 
-/** Engineering work items */
+/** Engineering work items (tasks / subtasks) */
+export const WorkItemStatusMap: Record<string, number> = { Open: 0, InProgress: 1, Done: 2, Cancelled: 3 };
+
 export const workItemsApi = {
-  create: (ticketId: number, body: { title: string; technicalDescription: string }) =>
+  create: (ticketId: number, body: { title: string; technicalDescription: string; parentId?: number | null; assignedToId?: number | null }) =>
     api.post<EngineeringWorkItemResponse>(`/tickets/${ticketId}/workitems`, body),
   byTicket: (ticketId: number) => api.get<EngineeringWorkItemResponse[]>(`/tickets/${ticketId}/workitems`),
-  updateStatus: (ticketId: number, id: number, body: { status: string }) =>
-    api.patch<EngineeringWorkItemResponse>(`/tickets/${ticketId}/workitems/${id}/status`, body),
+  update: (ticketId: number, id: number, body: { title?: string; technicalDescription?: string; assignedToId?: number | null; status?: number }) =>
+    api.patch<EngineeringWorkItemResponse>(`/tickets/${ticketId}/workitems/${id}`, body),
+  updateStatus: (ticketId: number, id: number, status: string) =>
+    api.patch<EngineeringWorkItemResponse>(`/tickets/${ticketId}/workitems/${id}`, { status: WorkItemStatusMap[status] ?? 0 }),
+  remove: (ticketId: number, id: number) =>
+    api.delete<void>(`/tickets/${ticketId}/workitems/${id}`),
 };
 
 /** Inteligência / IA */
@@ -436,9 +445,9 @@ export const tagsApi = {
   ticketTags: (ticketId: number) =>
     api.get<TagResponse[]>(`/tags/ticket/${ticketId}`),
   addToTicket: (ticketId: number, tagId: number) =>
-    api.post<void>(`/tags/ticket/${ticketId}`, { tagId }),
+    api.post<void>(`/tags/ticket/${ticketId}/tag/${tagId}`),
   removeFromTicket: (ticketId: number, tagId: number) =>
-    api.delete(`/tags/ticket/${ticketId}/${tagId}`),
+    api.delete(`/tags/ticket/${ticketId}/tag/${tagId}`),
   ticketsByTag: (tagId: number, page = 1, pageSize = 20) =>
     api.get<any>(`/tags/${tagId}/tickets`, { params: { page, pageSize } }),
 };

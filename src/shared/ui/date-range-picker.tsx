@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, X, CalendarDays } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/shared/lib/utils';
+import { Portal } from '@/shared/ui/portal';
 
 export interface DateRange {
   from: string | null;
@@ -31,6 +33,11 @@ function formatDisplay(iso: string, locale: string): string {
   return d.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function formatShort(iso: string, locale: string): string {
+  const d = parseISO(iso);
+  return d.toLocaleDateString(locale, { day: '2-digit', month: 'short' });
+}
+
 function daysAgo(n: number): DateRange {
   const to = new Date();
   const from = new Date();
@@ -38,14 +45,18 @@ function daysAgo(n: number): DateRange {
   return { from: toISO(from), to: toISO(to) };
 }
 
-function isSameDay(a: string, b: string) { return a === b; }
-
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
 }
 
 function getFirstDayOfWeek(year: number, month: number) {
   return new Date(year, month, 1).getDay();
+}
+
+function countDays(from: string, to: string): number {
+  const a = parseISO(from);
+  const b = parseISO(to);
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000) + 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,16 +67,17 @@ interface Preset {
   key: string;
   label: string;
   range: () => DateRange;
+  icon?: string;
 }
 
 function buildPresets(t: (k: string) => string): Preset[] {
   return [
-    { key: 'today', label: t('today'), range: () => { const d = toISO(new Date()); return { from: d, to: d }; } },
-    { key: 'yesterday', label: t('yesterday'), range: () => { const d = new Date(); d.setDate(d.getDate() - 1); const s = toISO(d); return { from: s, to: s }; } },
-    { key: '7d', label: t('last7days'), range: () => daysAgo(7) },
-    { key: '30d', label: t('last30days'), range: () => daysAgo(30) },
-    { key: '90d', label: t('last90days'), range: () => daysAgo(90) },
-    { key: 'ytd', label: t('yearToDate'), range: () => ({ from: `${new Date().getFullYear()}-01-01`, to: toISO(new Date()) }) },
+    { key: 'today', label: t('today'), icon: '·', range: () => { const d = toISO(new Date()); return { from: d, to: d }; } },
+    { key: 'yesterday', label: t('yesterday'), icon: '‹', range: () => { const d = new Date(); d.setDate(d.getDate() - 1); const s = toISO(d); return { from: s, to: s }; } },
+    { key: '7d', label: t('last7days'), icon: '7', range: () => daysAgo(7) },
+    { key: '30d', label: t('last30days'), icon: '30', range: () => daysAgo(30) },
+    { key: '90d', label: t('last90days'), icon: '90', range: () => daysAgo(90) },
+    { key: 'ytd', label: t('yearToDate'), icon: '∞', range: () => ({ from: `${new Date().getFullYear()}-01-01`, to: toISO(new Date()) }) },
   ];
 }
 
@@ -74,25 +86,29 @@ function buildPresets(t: (k: string) => string): Preset[] {
 // ---------------------------------------------------------------------------
 
 function MiniCalendar({
-  year, month, selected, hovered, onSelect, onHover, rangeFrom, rangeTo, locale,
+  year, month, hovered, onSelect, onHover, rangeFrom, rangeTo, locale,
+  onPrev, onNext, showNav,
 }: {
   year: number; month: number;
-  selected: { from: string | null; to: string | null };
   hovered: string | null;
   onSelect: (iso: string) => void;
   onHover: (iso: string | null) => void;
   rangeFrom: string | null;
   rangeTo: string | null;
   locale: string;
+  onPrev?: () => void;
+  onNext?: () => void;
+  showNav: 'left' | 'right';
 }) {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfWeek(year, month);
   const today = toISO(new Date());
 
-  const monthLabel = new Date(year, month).toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+  const monthLabel = new Date(year, month).toLocaleDateString(locale, { month: 'long' });
+  const yearLabel = String(year);
 
   const weekDays = useMemo(() => {
-    const base = new Date(2024, 0, 7); // Sunday
+    const base = new Date(2024, 0, 7);
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(base);
       d.setDate(d.getDate() + i);
@@ -110,14 +126,12 @@ function MiniCalendar({
 
   function isStart(iso: string) {
     if (!rangeFrom || !effectiveEnd) return false;
-    const [a] = rangeFrom <= effectiveEnd ? [rangeFrom] : [effectiveEnd];
-    return iso === a;
+    return iso === (rangeFrom <= effectiveEnd ? rangeFrom : effectiveEnd);
   }
 
   function isEnd(iso: string) {
     if (!rangeFrom || !effectiveEnd) return false;
-    const [, b] = rangeFrom <= effectiveEnd ? [rangeFrom, effectiveEnd] : [effectiveEnd, rangeFrom];
-    return iso === b;
+    return iso === (rangeFrom <= effectiveEnd ? effectiveEnd : rangeFrom);
   }
 
   const cells: (number | null)[] = [];
@@ -125,11 +139,33 @@ function MiniCalendar({
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   return (
-    <div className="w-[252px]">
-      <p className="mb-2 text-center text-xs font-semibold capitalize text-text">{monthLabel}</p>
-      <div className="grid grid-cols-7 text-center text-[10px] font-semibold uppercase text-dim">
-        {weekDays.map((wd, i) => <span key={i} className="py-1">{wd}</span>)}
+    <div className="w-[260px]">
+      {/* Month header */}
+      <div className="mb-3 flex items-center justify-between px-1">
+        {showNav === 'left' ? (
+          <button type="button" onClick={onPrev} className="group flex h-7 w-7 items-center justify-center rounded-lg text-dim transition-all hover:bg-primary/10 hover:text-primary">
+            <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+          </button>
+        ) : <span className="w-7" />}
+        <div className="text-center">
+          <span className="text-sm font-bold capitalize text-text">{monthLabel}</span>
+          <span className="ml-1.5 text-sm font-normal text-dim">{yearLabel}</span>
+        </div>
+        {showNav === 'right' ? (
+          <button type="button" onClick={onNext} className="group flex h-7 w-7 items-center justify-center rounded-lg text-dim transition-all hover:bg-primary/10 hover:text-primary">
+            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </button>
+        ) : <span className="w-7" />}
       </div>
+
+      {/* Week day headers */}
+      <div className="mb-1 grid grid-cols-7 text-center">
+        {weekDays.map((wd, i) => (
+          <span key={i} className="py-1 text-[10px] font-bold uppercase tracking-wider text-dim/60">{wd}</span>
+        ))}
+      </div>
+
+      {/* Day grid */}
       <div className="grid grid-cols-7">
         {cells.map((day, idx) => {
           if (day == null) return <span key={idx} />;
@@ -138,26 +174,37 @@ function MiniCalendar({
           const start = isStart(iso);
           const end = isEnd(iso);
           const isToday = iso === today;
+          const isFuture = iso > today;
 
           return (
-            <button
+            <div
               key={idx}
-              type="button"
-              onClick={() => onSelect(iso)}
-              onMouseEnter={() => onHover(iso)}
-              onMouseLeave={() => onHover(null)}
               className={cn(
-                'relative h-8 text-xs transition-colors',
-                inRange && !start && !end && 'bg-primary/10',
-                start && 'rounded-l-full bg-primary text-primary-fg',
-                end && 'rounded-r-full bg-primary text-primary-fg',
-                start && end && 'rounded-full',
-                !inRange && !start && !end && 'hover:bg-bg-subtle',
-                isToday && !start && !end && 'font-bold text-primary',
+                'relative flex items-center justify-center',
+                inRange && !start && !end && 'bg-primary/[0.07]',
+                start && !end && 'bg-gradient-to-r from-transparent to-primary/[0.07] [&:has(+.bg-primary\\/\\[0\\.07\\])]:to-primary/[0.07]',
+                end && !start && 'bg-gradient-to-l from-transparent to-primary/[0.07]',
               )}
             >
-              {day}
-            </button>
+              <button
+                type="button"
+                onClick={() => onSelect(iso)}
+                onMouseEnter={() => onHover(iso)}
+                onMouseLeave={() => onHover(null)}
+                className={cn(
+                  'relative z-10 flex h-8 w-8 items-center justify-center rounded-full text-xs transition-all duration-150',
+                  start || end
+                    ? 'bg-primary font-bold text-primary-fg shadow-[0_2px_8px_var(--orbit-color-primary)/0.35]'
+                    : inRange
+                      ? 'font-medium text-primary hover:bg-primary/20'
+                      : 'text-text hover:bg-bg-subtle',
+                  isToday && !start && !end && 'font-bold text-primary ring-1 ring-primary/30',
+                  isFuture && !start && !end && !inRange && 'text-dim/40',
+                )}
+              >
+                {day}
+              </button>
+            </div>
           );
         })}
       </div>
@@ -179,45 +226,58 @@ export interface DateRangePickerProps {
 export function DateRangePicker({ value, onChange, className, placeholder }: DateRangePickerProps) {
   const t = useTranslations('dateRange');
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
 
-  // Selecting state: null = nothing, string = first date picked (waiting for second)
   const [selecting, setSelecting] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
 
-  // Calendar months
   const now = new Date();
-  const [leftMonth, setLeftMonth] = useState({ year: now.getFullYear(), month: now.getMonth() - 1 < 0 ? 11 : now.getMonth() - 1 });
+  const prevM = now.getMonth() - 1;
+  const [leftMonth, setLeftMonth] = useState({ year: prevM < 0 ? now.getFullYear() - 1 : now.getFullYear(), month: prevM < 0 ? 11 : prevM });
   const [rightMonth, setRightMonth] = useState({ year: now.getFullYear(), month: now.getMonth() });
 
   const presets = useMemo(() => buildPresets(t), [t]);
   const activePreset = useMemo(() => {
-    return presets.find((p) => {
-      const r = p.range();
-      return r.from === value.from && r.to === value.to;
-    });
+    return presets.find((p) => { const r = p.range(); return r.from === value.from && r.to === value.to; });
   }, [presets, value]);
 
-  // Detect locale from intl
   const locale = typeof navigator !== 'undefined' ? navigator.language : 'pt-BR';
 
   const displayText = useMemo(() => {
     if (activePreset) return activePreset.label;
     if (value.from && value.to) {
       if (value.from === value.to) return formatDisplay(value.from, locale);
-      return `${formatDisplay(value.from, locale)}  —  ${formatDisplay(value.to, locale)}`;
+      return `${formatShort(value.from, locale)}  →  ${formatShort(value.to, locale)}`;
     }
-    if (value.from) return `${formatDisplay(value.from, locale)} — ...`;
+    if (value.from) return `${formatShort(value.from, locale)} → …`;
     return '';
   }, [activePreset, value, locale]);
 
+  const dayCount = value.from && value.to ? countDays(value.from, value.to) : null;
   const hasValue = !!(value.from || value.to);
+
+  // Position dropdown
+  useEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+    const popW = 580;
+    const popH = 380;
+    const gap = 6;
+    const spaceBelow = vh - rect.bottom;
+    const top = spaceBelow >= popH + gap ? rect.bottom + gap : Math.max(8, rect.top - popH - gap);
+    const left = Math.min(Math.max(8, rect.left), vw - popW - 8);
+    setDropdownPos({ top, left });
+  }, [open]);
 
   // Close on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
         setSelecting(null);
       }
@@ -226,34 +286,29 @@ export function DateRangePicker({ value, onChange, className, placeholder }: Dat
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const prevLeftMonth = useCallback(() => {
-    setLeftMonth((m) => {
-      const nm = m.month - 1;
-      return nm < 0 ? { year: m.year - 1, month: 11 } : { year: m.year, month: nm };
-    });
-    setRightMonth((m) => {
-      const nm = m.month - 1;
-      return nm < 0 ? { year: m.year - 1, month: 11 } : { year: m.year, month: nm };
-    });
-  }, []);
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); setSelecting(null); } };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open]);
 
-  const nextRightMonth = useCallback(() => {
-    setLeftMonth((m) => {
-      const nm = m.month + 1;
-      return nm > 11 ? { year: m.year + 1, month: 0 } : { year: m.year, month: nm };
-    });
-    setRightMonth((m) => {
-      const nm = m.month + 1;
-      return nm > 11 ? { year: m.year + 1, month: 0 } : { year: m.year, month: nm };
-    });
+  const shiftMonths = useCallback((dir: -1 | 1) => {
+    const shift = (m: { year: number; month: number }) => {
+      const nm = m.month + dir;
+      if (nm < 0) return { year: m.year - 1, month: 11 };
+      if (nm > 11) return { year: m.year + 1, month: 0 };
+      return { year: m.year, month: nm };
+    };
+    setLeftMonth(shift);
+    setRightMonth(shift);
   }, []);
 
   const handleDaySelect = useCallback((iso: string) => {
     if (selecting == null) {
-      // First click — start selection
       setSelecting(iso);
     } else {
-      // Second click — complete range
       const [from, to] = selecting <= iso ? [selecting, iso] : [iso, selecting];
       onChange({ from, to });
       setSelecting(null);
@@ -273,101 +328,167 @@ export function DateRangePicker({ value, onChange, className, placeholder }: Dat
     setSelecting(null);
   }, [onChange]);
 
-  // Effective range for calendar highlighting
-  const calRange = {
-    from: selecting ?? value.from,
-    to: selecting ? null : value.to,
-  };
+  const calRange = { from: selecting ?? value.from, to: selecting ? null : value.to };
 
   return (
-    <div ref={ref} className={cn('relative inline-block', className)}>
-      {/* Single input trigger */}
+    <div className={cn('relative inline-block', className)}>
+      {/* ── Trigger ── */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
-          'flex h-8 items-center gap-2 rounded-lg border bg-panel px-3 text-xs transition-all min-w-[200px]',
+          'group flex h-9 items-center gap-2.5 rounded-lg border px-3 text-xs transition-all duration-200 min-w-[220px]',
+          'bg-panel shadow-sm',
           open
-            ? 'border-primary shadow-[0_0_0_3px_var(--orbit-color-primary)/0.1]'
+            ? 'border-primary ring-[3px] ring-primary/10'
             : hasValue
-              ? 'border-primary/30 hover:border-primary/50'
-              : 'border-border hover:border-border-strong hover:shadow-sm',
+              ? 'border-primary/25 hover:border-primary/50 hover:shadow-md'
+              : 'border-border hover:border-border-strong hover:shadow-md',
         )}
       >
-        <Calendar className="h-3.5 w-3.5 shrink-0 text-primary/60" />
-        <span className={cn('flex-1 truncate text-left', hasValue ? 'font-medium text-text' : 'text-dim')}>
+        <div className={cn(
+          'flex h-6 w-6 items-center justify-center rounded-md transition-colors duration-200',
+          hasValue || open ? 'bg-primary/10 text-primary' : 'bg-bg-subtle text-dim group-hover:text-muted',
+        )}>
+          <CalendarDays className="h-3.5 w-3.5" />
+        </div>
+        <span className={cn(
+          'flex-1 truncate text-left transition-colors',
+          hasValue ? 'font-semibold text-text' : 'text-dim',
+        )}>
           {displayText || placeholder || t('selectRange')}
         </span>
-        {hasValue && (
-          <X className="h-3 w-3 shrink-0 text-dim hover:text-danger transition-colors" onClick={clear} />
+        {hasValue && dayCount && dayCount > 1 && (
+          <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-primary">
+            {dayCount}d
+          </span>
+        )}
+        {hasValue ? (
+          <div onClick={clear} className="flex h-5 w-5 items-center justify-center rounded-md text-dim transition-all hover:bg-danger/10 hover:text-danger">
+            <X className="h-3 w-3" />
+          </div>
+        ) : (
+          <ChevronRight className={cn('h-3 w-3 text-dim transition-transform duration-200', open && 'rotate-90')} />
         )}
       </button>
 
-      {/* Dropdown */}
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 flex overflow-hidden rounded-xl border border-border bg-panel shadow-2xl animate-in fade-in slide-in-from-top-1 duration-150">
-          {/* Presets sidebar */}
-          <div className="flex w-40 shrink-0 flex-col border-r border-border bg-bg-subtle/50 py-2">
-            <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-dim">{t('selectRange')}</p>
-            {presets.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => handlePreset(p)}
-                className={cn(
-                  'px-3 py-1.5 text-left text-xs transition-colors',
-                  activePreset?.key === p.key
-                    ? 'bg-primary/10 font-semibold text-primary'
-                    : 'text-muted hover:bg-panel hover:text-text',
-                )}
+      {/* ── Dropdown ── */}
+      <AnimatePresence>
+        {open && (
+          <Portal>
+            <div ref={containerRef} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}>
+              <motion.div
+                initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                transition={{ duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
+                style={{ position: 'absolute', top: dropdownPos.top, left: dropdownPos.left }}
+                className="flex overflow-hidden rounded-2xl border border-border bg-panel shadow-[0_25px_60px_-12px_rgba(0,0,0,0.25)]"
               >
-                {p.label}
-              </button>
-            ))}
-          </div>
+                {/* ── Presets sidebar ── */}
+                <div className="flex w-44 shrink-0 flex-col border-r border-border bg-gradient-to-b from-bg-subtle/80 to-bg-subtle/40">
+                  <div className="px-4 pb-2 pt-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-dim/70">{t('selectRange')}</p>
+                  </div>
+                  <div className="flex flex-1 flex-col gap-0.5 px-2 pb-3">
+                    {presets.map((p) => {
+                      const active = activePreset?.key === p.key;
+                      return (
+                        <button
+                          key={p.key}
+                          type="button"
+                          onClick={() => handlePreset(p)}
+                          className={cn(
+                            'group/preset flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all duration-150',
+                            active
+                              ? 'bg-primary font-semibold text-primary-fg shadow-[0_2px_8px_var(--orbit-color-primary)/0.3]'
+                              : 'text-muted hover:bg-panel hover:text-text hover:shadow-sm',
+                          )}
+                        >
+                          <span className={cn(
+                            'flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-black tabular-nums transition-colors',
+                            active ? 'bg-white/20 text-primary-fg' : 'bg-bg-subtle text-dim group-hover/preset:bg-primary/10 group-hover/preset:text-primary',
+                          )}>
+                            {p.icon}
+                          </span>
+                          <span>{p.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-          {/* Calendars */}
-          <div className="p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <button type="button" onClick={prevLeftMonth} className="rounded-md p-1 text-dim hover:bg-bg-subtle hover:text-text transition-colors">
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button type="button" onClick={nextRightMonth} className="rounded-md p-1 text-dim hover:bg-bg-subtle hover:text-text transition-colors">
-                <ChevronRight className="h-4 w-4" />
-              </button>
+                  {/* Range summary footer */}
+                  {hasValue && (
+                    <div className="border-t border-border/60 px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-dim/60">{t('customRange')}</p>
+                      <p className="mt-1 text-xs font-semibold text-text">
+                        {value.from && formatShort(value.from, locale)}
+                        <span className="mx-1 text-dim">→</span>
+                        {value.to && formatShort(value.to, locale)}
+                      </p>
+                      {dayCount && dayCount > 1 && (
+                        <p className="mt-0.5 text-[10px] text-primary font-medium">{dayCount} {dayCount === 1 ? 'dia' : 'dias'}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Calendars ── */}
+                <div className="px-5 pb-4 pt-3">
+                  <div className="flex gap-6">
+                    <MiniCalendar
+                      year={leftMonth.year}
+                      month={leftMonth.month}
+                      hovered={hovered}
+                      onSelect={handleDaySelect}
+                      onHover={setHovered}
+                      rangeFrom={calRange.from}
+                      rangeTo={calRange.to}
+                      locale={locale}
+                      onPrev={() => shiftMonths(-1)}
+                      showNav="left"
+                    />
+                    <div className="w-px self-stretch bg-border/50" />
+                    <MiniCalendar
+                      year={rightMonth.year}
+                      month={rightMonth.month}
+                      hovered={hovered}
+                      onSelect={handleDaySelect}
+                      onHover={setHovered}
+                      rangeFrom={calRange.from}
+                      rangeTo={calRange.to}
+                      locale={locale}
+                      onNext={() => shiftMonths(1)}
+                      showNav="right"
+                    />
+                  </div>
+
+                  {/* Selecting hint */}
+                  <AnimatePresence>
+                    {selecting && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-primary/[0.06] px-3 py-2"
+                      >
+                        <span className="relative flex h-2 w-2">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-50" />
+                          <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+                        </span>
+                        <span className="text-[11px] font-medium text-primary">
+                          {t('selectEndDate')}
+                        </span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
             </div>
-            <div className="flex gap-4">
-              <MiniCalendar
-                year={leftMonth.year}
-                month={leftMonth.month}
-                selected={value}
-                hovered={hovered}
-                onSelect={handleDaySelect}
-                onHover={setHovered}
-                rangeFrom={calRange.from}
-                rangeTo={calRange.to}
-                locale={locale}
-              />
-              <MiniCalendar
-                year={rightMonth.year}
-                month={rightMonth.month}
-                selected={value}
-                hovered={hovered}
-                onSelect={handleDaySelect}
-                onHover={setHovered}
-                rangeFrom={calRange.from}
-                rangeTo={calRange.to}
-                locale={locale}
-              />
-            </div>
-            {selecting && (
-              <p className="mt-2 text-center text-[10px] text-primary animate-pulse">
-                {t('selectEndDate')}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+          </Portal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

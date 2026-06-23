@@ -130,7 +130,7 @@ export function AuditLogsView() {
   };
 
   return (
-    <PageTransition className="flex h-full flex-col">
+    <PageTransition className="flex h-full flex-col gap-lg p-lg">
       <DataGrid<AuditLogResponse>
         gridId="admin-audit-logs"
         columns={columns}

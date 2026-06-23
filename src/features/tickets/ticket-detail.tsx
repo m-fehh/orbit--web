@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
@@ -13,11 +13,12 @@ import {
   FlaskConical, ListChecks, GanttChart, ArrowUpRight, ThumbsUp, ThumbsDown,
   Filter, Layers, Brain, Workflow, PieChart, Sigma, Loader2, RotateCcw
 } from 'lucide-react';
-import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi, resolutionsApi, workItemsApi } from '@/shared/api/endpoints';
+import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi, resolutionsApi, workItemsApi, iterationsApi, tagsApi } from '@/shared/api/endpoints';
 import {
   TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, EvidenceType, HypothesisStatus, RootCauseCategory,
   type TicketStatusValue, type TicketStatusName, type TicketAttachmentResponse,
   type InvestigationResponse, type HypothesisStatusValue, type EvidenceTypeValue, type RootCauseCategoryValue,
+  type IterationResponse, type TagResponse,
 } from '@/shared/api/types';
 import type { Locale } from '@/shared/i18n/config';
 import { useBrandingStore } from '@/features/tenant/branding-store';
@@ -26,6 +27,8 @@ import { LoadingState, ErrorState, EmptyState } from '@/shared/ui/states';
 import { AsyncCombobox, type ComboOption } from '@/shared/ui/async-combobox';
 import { Select } from '@/shared/ui/select';
 import { PriorityBadge, StatusBadge } from './badges';
+import { openTicketTab } from './ticket-actions';
+import { useWindowStore } from '@/features/windows/window-store';
 import { Can } from '@/features/auth/can';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -37,7 +40,7 @@ import { Portal } from '@/shared/ui/portal';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { openIntelligenceModal } from './intelligence-modal';
 
-type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'investigation' | 'rootCauses' | 'resolution' | 'workItems' | 'attachments';
+type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'investigation' | 'workItems' | 'attachments';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
@@ -82,6 +85,7 @@ export function TicketDetail({ id }: { id: number }) {
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const qc = useQueryClient();
   const [sub, setSub] = useState<SubTab>('overview');
+  const [showResolveModal, setShowResolveModal] = useState(false);
 
   const { data: ticket, isLoading, isError, refetch } = useQuery({
     queryKey: ['tickets', 'detail', id],
@@ -115,9 +119,7 @@ export function TicketDetail({ id }: { id: number }) {
     { key: 'conversation', label: tTicket('tabConversation'), icon: MessageSquare, count: ticket.comments.length },
     { key: 'worklogs', label: tTicket('tabWorklogs'), icon: Clock, count: ticket.worklogs.length },
     { key: 'investigation', label: tTicket('tabInvestigation'), icon: FlaskConical, count: ticket.investigations.length },
-    { key: 'rootCauses', label: tTicket('tabRootCauses'), icon: Sigma },
-    { key: 'resolution', label: tTicket('tabResolution'), icon: Zap },
-    { key: 'workItems', label: tTicket('tabWorkItems'), icon: GanttChart },
+    { key: 'workItems', label: tTicket('tabWorkItems'), icon: ListChecks },
     { key: 'attachments', label: tTicket('tabAttachments'), icon: Paperclip },
   ];
 
@@ -145,8 +147,15 @@ export function TicketDetail({ id }: { id: number }) {
               />
             </Can>
             <Can permission="ticket.status">
-              <StatusPicker value={ticket.status} disabled={changeStatus.isPending} onChange={(v) => changeStatus.mutate(v)} />
+              <StatusPicker value={ticket.status} disabled={changeStatus.isPending} onChange={(v) => {
+                if (v === TicketStatus.Resolved) {
+                  setShowResolveModal(true);
+                } else {
+                  changeStatus.mutate(v);
+                }
+              }} />
             </Can>
+            <IterationControl ticketId={id} currentIteration={ticket.iteration ?? null} />
             <Button
               size="sm"
               variant="ghost"
@@ -162,6 +171,15 @@ export function TicketDetail({ id }: { id: number }) {
         <div className="mt-md flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
           <StatusBadge status={ticket.status} />
           <PriorityBadge priority={ticket.priority} />
+          {ticket.iteration && (
+            <>
+              <span className="text-dim">·</span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary font-medium">
+                <Layers className="h-3 w-3" />
+                {ticket.iteration.name}
+              </span>
+            </>
+          )}
           <span className="text-dim">·</span>
           <span className="inline-flex items-center gap-1">
             <Clock className="h-3 w-3" />
@@ -185,6 +203,10 @@ export function TicketDetail({ id }: { id: number }) {
               </span>
             </>
           )}
+        </div>
+
+        <div className="mt-2">
+          <TagsBar ticketId={id} currentTags={ticket.tags ?? []} />
         </div>
       </div>
 
@@ -285,14 +307,22 @@ export function TicketDetail({ id }: { id: number }) {
 
         {sub === 'investigation' && <InvestigationTab ticketId={id} investigations={ticket.investigations} />}
 
-        {sub === 'rootCauses' && <RootCausesTab ticketId={id} />}
-
-        {sub === 'resolution' && <ResolutionTab ticketId={id} ticketTitle={ticket.title} />}
-
         {sub === 'workItems' && <WorkItemsTab ticketId={id} />}
 
         {sub === 'attachments' && <AttachmentsTab ticketId={id} userName={userName} />}
       </div>
+
+      {showResolveModal && (
+        <ResolveModal
+          ticketId={id}
+          ticketTitle={ticket.title}
+          onClose={() => setShowResolveModal(false)}
+          onResolved={() => {
+            setShowResolveModal(false);
+            qc.invalidateQueries({ queryKey: ['tickets'] });
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -425,7 +455,62 @@ function TrackMini({ label, value, accent }: { label: string; value: string; acc
   );
 }
 
+/* ---- Related Tickets Preview (modal content) ---- */
+function RelatedTicketsPreview({ ticketIds }: { ticketIds: number[] }) {
+  const t = useTranslations('intelligence');
+  const queries = useQueries({
+    queries: ticketIds.map((id) => ({
+      queryKey: ['tickets', 'detail', id],
+      queryFn: () => ticketsApi.get(id),
+      retry: false as const,
+    })),
+  });
+  return (
+    <div className="flex flex-col gap-2 p-md overflow-y-auto max-h-[400px]">
+      {queries.map((q, i) => {
+        const tid = ticketIds[i];
+        if (q.isLoading) return <div key={tid} className="animate-pulse rounded-lg bg-panel-2/50 h-16" />;
+        if (q.isError || !q.data) return <div key={tid} className="rounded-lg border border-danger/20 bg-danger/5 p-3 text-xs text-danger">#{tid} — {t('analysisError')}</div>;
+        const tk = q.data;
+        return (
+          <div key={tid} className="flex items-center gap-3 rounded-lg border border-border bg-panel/60 p-3 hover:border-primary/30 transition-colors">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-xs font-bold text-primary">#{tk.number}</span>
+                {tk.status && <StatusBadge status={tk.status} />}
+                {tk.priority && <PriorityBadge priority={tk.priority} />}
+              </div>
+              <p className="text-sm font-medium text-text truncate">{tk.title}</p>
+              {tk.createdAt && <p className="text-[10px] text-dim mt-0.5">{formatDateTime(tk.createdAt, { locale: 'pt-BR' as Locale, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone })}</p>}
+            </div>
+            <Button size="sm" variant="ghost" className="h-7 shrink-0 text-xs gap-1" onClick={() => openTicketTab({ id: tk.id, number: tk.number, title: tk.title })}>
+              <ArrowUpRight className="h-3 w-3" /> {t('openTicket')}
+            </Button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function openRelatedTicketsModal(ticketIds: number[]) {
+  useWindowStore.getState().open({
+    id: `related-tickets-${ticketIds.join('-')}`,
+    title: '',
+    icon: <Layers className="h-4 w-4" />,
+    modal: true,
+    width: 520,
+    height: 420,
+    content: <RelatedTicketsPreview ticketIds={ticketIds} />,
+  });
+}
+
 /* ---- Intelligence Quick View ---- */
+function pct(v: number | null | undefined): string {
+  if (v == null || isNaN(v)) return '—';
+  return `${Math.round(v * 100)}%`;
+}
+
 function IntelligenceQuickView({ ticketId, onExpand }: { ticketId: number; onExpand: () => void }) {
   const t = useTranslations('intelligence');
   const tTicket = useTranslations('ticket');
@@ -441,35 +526,79 @@ function IntelligenceQuickView({ ticketId, onExpand }: { ticketId: number; onExp
 
   const topRootCause = data.rootCauseCandidates[0];
   const topResolution = data.resolutionSuggestions[0];
+  const relatedCount = topRootCause ? topRootCause.supportingTicketIds.length : 0;
 
   return (
     <div className="card-surface p-md bg-primary/5 border border-primary/20">
-      <div className="flex items-start justify-between gap-3 mb-2">
+      <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <p className="text-xs font-semibold uppercase text-primary">Intelligence</p>
+          <Brain className="h-4 w-4 text-primary" />
+          <p className="text-xs font-semibold uppercase text-primary">{t('title')}</p>
+          {topRootCause?.aiEnhanced && <span className="rounded bg-primary/20 px-1 py-0.5 text-[9px] font-bold text-primary">{t('ai')}</span>}
         </div>
         <Button size="sm" variant="ghost" onClick={onExpand} className="h-6 text-xs">
           {t('viewMore')}
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-xs">
+      <div className="flex flex-col gap-3">
         {topRootCause && (
-          <div className="flex items-start gap-2">
-            <span className="shrink-0 rounded bg-primary/20 px-1.5 py-0.5 font-medium text-primary">{Math.round(topRootCause.confidenceScore * 100)}%</span>
-            <div className="min-w-0">
-              <p className="font-medium text-text truncate">{topRootCause.category}</p>
-              <p className="text-dim text-[10px] line-clamp-2">{topRootCause.description}</p>
+          <div className="rounded-lg border border-border bg-panel/60 p-3">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Target className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-dim">{t('probableCause')}</span>
+              {topRootCause.confidenceScore != null && !isNaN(topRootCause.confidenceScore) && (
+                <span className="ml-auto shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">{pct(topRootCause.confidenceScore)}</span>
+              )}
+            </div>
+            <p className="text-sm font-medium text-text">{topRootCause.category}</p>
+            {topRootCause.description && (
+              <div className="mt-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-0.5">{t('whyThisCause')}</p>
+                <p className="text-xs text-muted leading-relaxed">{topRootCause.description}</p>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              {relatedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => openRelatedTicketsModal(topRootCause.supportingTicketIds)}
+                  className="inline-flex items-center gap-1 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                >
+                  <Layers className="h-2.5 w-2.5" /> {relatedCount} {tTicket('relatedTickets')}
+                  <ArrowUpRight className="h-2.5 w-2.5" />
+                </button>
+              )}
+              {(topRootCause.coOccurrencePatterns ?? []).map((p) => (
+                <span key={p} className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">{p}</span>
+              ))}
             </div>
           </div>
         )}
         {topResolution && (
-          <div className="flex items-start gap-2">
-            <span className="shrink-0 rounded bg-success/20 px-1.5 py-0.5 font-medium text-success">{Math.round(topResolution.successRate * 100)}%</span>
-            <div className="min-w-0">
-              <p className="font-medium text-text truncate line-clamp-1">{topResolution.summary}</p>
-              <p className="text-dim text-[10px]">{tTicket('usedCount', { count: topResolution.reusedCount })}</p>
+          <div className="rounded-lg border border-border bg-panel/60 p-3">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Zap className="h-3.5 w-3.5 text-success shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-dim">{t('suggestedSolution')}</span>
+              {topResolution.successRate != null && !isNaN(topResolution.successRate) && (
+                <span className="ml-auto shrink-0 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold text-success">{pct(topResolution.successRate)}</span>
+              )}
+            </div>
+            <p className="text-sm font-medium text-text">{topResolution.summary}</p>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              {topResolution.reusedCount > 0 && (
+                <span className="inline-flex items-center gap-1 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">
+                  {tTicket('usedCount', { count: topResolution.reusedCount })}
+                </span>
+              )}
+              {topResolution.similarityScore != null && !isNaN(topResolution.similarityScore) && (
+                <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">
+                  {pct(topResolution.similarityScore)} {t('similar')}
+                </span>
+              )}
+              {(topResolution.matchedTerms ?? []).slice(0, 4).map((term) => (
+                <span key={term} className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{term}</span>
+              ))}
             </div>
           </div>
         )}
@@ -507,7 +636,7 @@ function RecommendationsPanel({ ticketId, onOpenIntelligence }: { ticketId: numb
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-success/15 text-success"><Lightbulb className="h-4 w-4" /></span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{r.summary}</p>
-                <p className="text-xs text-dim">{Math.round(r.similarityScore * 100)}% {t('similar')} · {Math.round(r.successRate * 100)}% {t('success')} · {r.reusedCount}× {t('reuse')}</p>
+                <p className="text-xs text-dim">{pct(r.similarityScore)} {t('similar')} · {pct(r.successRate)} {t('success')}{r.reusedCount > 0 ? ` · ${r.reusedCount}× ${t('reuse')}` : ''}</p>
               </div>
               {state ? (
                 <span className={cn('shrink-0 rounded px-2 py-0.5 text-xs font-semibold', state === 'accepted' ? 'bg-success/15 text-success' : 'bg-panel-2 text-dim')}>{state === 'accepted' ? t('accepted') : t('ignored')}</span>
@@ -522,6 +651,487 @@ function RecommendationsPanel({ ticketId, onOpenIntelligence }: { ticketId: numb
         })}
       </div>
     </div>
+  );
+}
+
+/* ---- Iteration Control (header dropdown — iteration only) ---- */
+function IterationControl({ ticketId, currentIteration }: { ticketId: number; currentIteration: IterationResponse | null }) {
+  const t = useTranslations('ticket');
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const iterations = useQuery({ queryKey: ['iterations'], queryFn: () => iterationsApi.list(1, 100) });
+
+  const setIteration = useMutation({
+    mutationFn: (iterationId: number | null) => ticketsApi.setIteration(ticketId, iterationId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] }); toast.success(t('iterationUpdated')); },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Error')),
+  });
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors',
+          currentIteration
+            ? 'bg-primary/10 border border-primary/30 text-primary hover:bg-primary/15'
+            : 'border border-dashed border-border bg-panel text-muted hover:border-border-strong hover:text-text'
+        )}
+      >
+        <Layers className="h-4 w-4" />
+        {currentIteration ? (
+          <span className="flex items-center gap-1.5">
+            <span>{currentIteration.name}</span>
+            {currentIteration.startDate && (
+              <span className="text-[10px] font-normal opacity-70">
+                {new Date(currentIteration.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                {currentIteration.endDate && <> – {new Date(currentIteration.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
+              </span>
+            )}
+          </span>
+        ) : (
+          t('setIteration')
+        )}
+        <ChevronDown className="h-3 w-3" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-40 mt-1 w-72 rounded-lg border border-border bg-panel shadow-xl overflow-hidden">
+            <div className="p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-2">{t('iteration')}</p>
+              <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                <button
+                  type="button"
+                  onClick={() => { setIteration.mutate(null); setOpen(false); }}
+                  className={cn('flex items-center gap-2 rounded px-2 py-1.5 text-xs text-left transition-colors hover:bg-bg-subtle', !currentIteration && 'bg-primary/10 text-primary font-medium')}
+                >
+                  <X className="h-3 w-3" /> {t('noIteration')}
+                </button>
+                {(iterations.data ?? []).map((it) => (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => { setIteration.mutate(it.id); setOpen(false); }}
+                    className={cn(
+                      'flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs text-left transition-colors hover:bg-bg-subtle',
+                      currentIteration?.id === it.id && 'bg-primary/10 text-primary font-medium'
+                    )}
+                  >
+                    <span className="truncate">{it.name}</span>
+                    <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                      it.status === 'Active' ? 'bg-success/15 text-success' :
+                      it.status === 'Planning' ? 'bg-blue-100 text-blue-700' :
+                      'bg-panel-2 text-dim'
+                    )}>{it.status}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ---- Tags Bar (inline chips in header, below dropdowns) ---- */
+function TagsBar({ ticketId, currentTags }: { ticketId: number; currentTags: TagResponse[] }) {
+  const t = useTranslations('ticket');
+  const qc = useQueryClient();
+  const [showAdd, setShowAdd] = useState(false);
+  const [tagSearch, setTagSearch] = useState('');
+
+  const allTags = useQuery({ queryKey: ['tags'], queryFn: () => tagsApi.list() });
+
+  const invalidate = () => { qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] }); qc.invalidateQueries({ queryKey: ['tags'] }); };
+
+  const addTag = useMutation({
+    mutationFn: (tagId: number) => tagsApi.addToTicket(ticketId, tagId),
+    onSuccess: () => { invalidate(); setShowAdd(false); setTagSearch(''); },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Error')),
+  });
+
+  const createAndAdd = useMutation({
+    mutationFn: async (name: string) => {
+      const created = await tagsApi.create({ name, color: '#6366f1' });
+      await tagsApi.addToTicket(ticketId, created.id);
+      return created;
+    },
+    onSuccess: () => { invalidate(); setShowAdd(false); setTagSearch(''); },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Error')),
+  });
+
+  const removeTag = useMutation({
+    mutationFn: (tagId: number) => tagsApi.removeFromTicket(ticketId, tagId),
+    onSuccess: invalidate,
+    onError: (err) => toast.error(apiErrorMessage(err, 'Error')),
+  });
+
+  const currentTagIds = new Set(currentTags.map((tg) => tg.id));
+  const availableTags = (allTags.data ?? []).filter((tg) => tg.active && !currentTagIds.has(tg.id) && (!tagSearch || tg.name.toLowerCase().includes(tagSearch.toLowerCase())));
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {currentTags.map((tag) => (
+        <span key={tag.id} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium border" style={{ borderColor: (tag.color ?? '#888') + '40', backgroundColor: (tag.color ?? '#888') + '15', color: tag.color ?? '#888' }}>
+          {tag.name}
+          <button type="button" onClick={() => removeTag.mutate(tag.id)} className="hover:opacity-70"><X className="h-2.5 w-2.5" /></button>
+        </span>
+      ))}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setShowAdd((v) => !v)}
+          className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-[11px] text-dim hover:border-border-strong hover:text-muted transition-colors"
+        >
+          <Plus className="h-3 w-3" /> {t('tags')}
+        </button>
+        {showAdd && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => { setShowAdd(false); setTagSearch(''); }} />
+            <div className="absolute left-0 z-40 mt-1 w-56 rounded-lg border border-border bg-panel shadow-xl overflow-hidden">
+              <div className="p-2">
+                <input
+                  type="text"
+                  value={tagSearch}
+                  onChange={(e) => setTagSearch(e.target.value)}
+                  placeholder={t('searchTags')}
+                  className="w-full rounded border border-border bg-bg-subtle px-2 py-1.5 text-xs text-text outline-none placeholder:text-dim focus:border-primary mb-1.5"
+                  autoFocus
+                />
+                <div className="flex flex-col gap-0.5 max-h-32 overflow-y-auto">
+                  {availableTags.slice(0, 10).map((tag) => (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => addTag.mutate(tag.id)}
+                      className="flex items-center gap-2 rounded px-2 py-1 text-xs text-left hover:bg-bg-subtle transition-colors"
+                    >
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color ?? '#888' }} />
+                      {tag.name}
+                      {tag.group && <span className="text-dim text-[10px]">({tag.group})</span>}
+                    </button>
+                  ))}
+                  {availableTags.length === 0 && !tagSearch.trim() && (
+                    <p className="px-2 py-1.5 text-xs text-dim">{t('noResults')}</p>
+                  )}
+                  {tagSearch.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => createAndAdd.mutate(tagSearch.trim())}
+                      className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-left hover:bg-bg-subtle transition-colors text-primary font-medium w-full border-t border-border mt-1 pt-1.5"
+                    >
+                      <Plus className="h-3 w-3" /> {t('createTag')} &ldquo;{tagSearch.trim()}&rdquo;
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Resolve Modal ---- */
+function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId: number; ticketTitle: string; onClose: () => void; onResolved: () => void }) {
+  const t = useTranslations('resolution');
+  const tIntel = useTranslations('intelligence');
+  const [step, setStep] = useState(0);
+  const [rootCauseTitle, setRootCauseTitle] = useState('');
+  const [rootCauseSummary, setRootCauseSummary] = useState('');
+  const [rootCauseCategory, setRootCauseCategory] = useState<RootCauseCategoryValue>(RootCauseCategory.Bug);
+  const [resolutionSummary, setResolutionSummary] = useState('');
+  const [outcome, setOutcome] = useState('');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [selectedRootCauseId, setSelectedRootCauseId] = useState<number | null>(null);
+
+  const rootCauses = useQuery({ queryKey: ['rootcauses', ticketId], queryFn: () => rootCausesApi.byTicket(ticketId) });
+  const report = useQuery({ queryKey: ['tickets', 'intelligence', ticketId], queryFn: () => intelligenceApi.ticketReport(ticketId), retry: false });
+
+  const resolve = useMutation({
+    mutationFn: () =>
+      ticketsApi.resolve(ticketId, {
+        rootCauseTitle: selectedRootCauseId ? (rootCauses.data?.find(r => r.id === selectedRootCauseId)?.title ?? rootCauseTitle) : rootCauseTitle,
+        rootCauseSummary: selectedRootCauseId ? (rootCauses.data?.find(r => r.id === selectedRootCauseId)?.description ?? rootCauseSummary) : rootCauseSummary,
+        rootCauseCategory,
+        resolutionSummary: resolutionSummary.trim(),
+        outcome: outcome.trim(),
+        actions: [],
+        symptomTagIds: [],
+        isRecurring,
+      }),
+    onSuccess: () => { toast.success(t('resolvedOk')); onResolved(); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('resolveError'))),
+  });
+
+  const aiSuggestions = report.data?.resolutionSuggestions ?? [];
+  const aiRootCauses = report.data?.rootCauseCandidates ?? [];
+
+  const canNext = step === 0 ? (selectedRootCauseId || rootCauseTitle.trim()) : step === 1 ? resolutionSummary.trim() : true;
+
+  const steps = [
+    { label: t('stepRootCause'), icon: Target },
+    { label: t('stepResolution'), icon: Zap },
+    { label: t('stepConfirm'), icon: Check },
+  ];
+
+  return (
+    <Portal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-border bg-panel shadow-2xl">
+          {/* Header */}
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-panel px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-lg bg-success/15">
+                <Zap className="h-5 w-5 text-success" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">{t('resolveTicket')}</h2>
+                <p className="text-xs text-dim">{ticketTitle}</p>
+              </div>
+            </div>
+            <button type="button" onClick={onClose} className="grid h-8 w-8 place-items-center rounded-md hover:bg-bg-subtle"><X className="h-4 w-4" /></button>
+          </div>
+
+          <div className="p-6 flex flex-col gap-5">
+            {/* Wizard stepper */}
+            <div className="flex items-center">
+              {steps.map((s, i) => {
+                const StepIcon = s.icon;
+                const done = i < step;
+                const active = i === step;
+                return (
+                  <div key={i} className="flex items-center flex-1 last:flex-none">
+                    <button
+                      type="button"
+                      onClick={() => done && setStep(i)}
+                      className={cn('flex items-center gap-2', done && 'cursor-pointer')}
+                    >
+                      <span className={cn(
+                        'grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold transition-all',
+                        active ? 'bg-primary text-white shadow-md shadow-primary/30' :
+                        done ? 'bg-success text-white' :
+                        'bg-panel-2 text-dim border border-border'
+                      )}>
+                        {done ? <Check className="h-4 w-4" /> : <StepIcon className="h-4 w-4" />}
+                      </span>
+                      <span className={cn('text-xs font-medium hidden sm:block', active ? 'text-text' : done ? 'text-success' : 'text-dim')}>
+                        {s.label}
+                      </span>
+                    </button>
+                    {i < steps.length - 1 && (
+                      <div className={cn('mx-3 h-px flex-1', done ? 'bg-success' : 'bg-border')} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* AI Root Cause suggestions */}
+            {aiRootCauses.length > 0 && step === 0 && !selectedRootCauseId && (
+              <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Brain className="h-4 w-4 text-primary" />
+                  <p className="text-xs font-semibold uppercase text-primary">{tIntel('title')}</p>
+                  {aiRootCauses.some(rc => rc.aiEnhanced) && <span className="rounded bg-primary/20 px-1 py-0.5 text-[9px] font-bold text-primary">{tIntel('ai')}</span>}
+                </div>
+                <div className="flex flex-col gap-2">
+                  {aiRootCauses.slice(0, 3).map((rc, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => { setRootCauseTitle(rc.category); setRootCauseSummary(rc.description); }}
+                      className={cn(
+                        'flex flex-col gap-2 rounded-lg border p-3 text-left text-xs transition-all hover:border-primary/40',
+                        rootCauseTitle === rc.category ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-panel/60'
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 font-bold text-primary">{pct(rc.confidenceScore)}</span>
+                        <p className="font-semibold text-text flex-1">{rc.category}</p>
+                        {rootCauseTitle === rc.category && <Check className="h-4 w-4 text-primary shrink-0" />}
+                      </div>
+                      <p className="text-muted leading-relaxed">{rc.description}</p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {rc.supportingTicketIds.length > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">
+                            <Layers className="h-2.5 w-2.5" /> {rc.supportingTicketIds.length} tickets {tIntel('relatedKnowledge').toLowerCase().includes('relac') ? 'relacionados' : 'related'}
+                          </span>
+                        )}
+                        {rc.coOccurrencePatterns.map((p) => (
+                          <span key={p} className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">{p}</span>
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* AI Resolution suggestions */}
+            {aiSuggestions.length > 0 && step === 1 && (
+              <div className="rounded-xl border border-success/20 bg-gradient-to-br from-success/5 to-transparent p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="h-4 w-4 text-success" />
+                  <p className="text-xs font-semibold uppercase text-success">{tIntel('smartRecommendations')}</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {aiSuggestions.slice(0, 3).map((s) => (
+                    <button
+                      key={s.resolutionId}
+                      type="button"
+                      onClick={() => setResolutionSummary(s.summary)}
+                      className={cn(
+                        'flex flex-col gap-2 rounded-lg border p-3 text-left text-xs transition-all hover:border-success/40',
+                        resolutionSummary === s.summary ? 'border-success bg-success/5 ring-1 ring-success/20' : 'border-border bg-panel/60'
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Lightbulb className="h-4 w-4 text-success shrink-0" />
+                        <p className="font-semibold text-text flex-1">{s.summary}</p>
+                        {resolutionSummary === s.summary && <Check className="h-4 w-4 text-success shrink-0" />}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold text-success">{pct(s.successRate)} {tIntel('success')}</span>
+                        {s.reusedCount > 0 && <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] text-dim">{s.reusedCount}× {tIntel('reuse')}</span>}
+                        <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] text-dim">{pct(s.similarityScore)} {tIntel('similar')}</span>
+                        {s.matchedTerms.slice(0, 4).map((term) => (
+                          <span key={term} className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{term}</span>
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 0: Root Cause */}
+            {step === 0 && (
+              <div className="flex flex-col gap-md">
+                {(rootCauses.data?.length ?? 0) > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs font-medium text-dim uppercase tracking-wide">{t('existingCauses')}</p>
+                    {rootCauses.data!.map((rc) => (
+                      <button
+                        key={rc.id}
+                        type="button"
+                        onClick={() => { setSelectedRootCauseId(rc.id === selectedRootCauseId ? null : rc.id); setRootCauseTitle(''); }}
+                        className={cn(
+                          'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
+                          selectedRootCauseId === rc.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border hover:border-border-strong'
+                        )}
+                      >
+                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-bold text-primary">{Math.round(rc.confidenceScore * 100)}%</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{rc.title}</p>
+                          <p className="text-xs text-dim truncate">{rc.category} · {rc.description}</p>
+                        </div>
+                        {selectedRootCauseId === rc.id && <Check className="h-4 w-4 text-primary shrink-0" />}
+                      </button>
+                    ))}
+                    <div className="flex items-center gap-2 py-1">
+                      <div className="h-px flex-1 bg-border" />
+                      <span className="text-[10px] uppercase text-dim">{t('orCreateNew')}</span>
+                      <div className="h-px flex-1 bg-border" />
+                    </div>
+                  </div>
+                )}
+                {!selectedRootCauseId && (
+                  <div className="flex flex-col gap-md">
+                    <div className="grid gap-md md:grid-cols-2">
+                      <label className="flex flex-col gap-1.5 text-xs text-muted">
+                        <span className="font-medium">{t('causeTitle')}</span>
+                        <input className={FIELD_MD} value={rootCauseTitle} onChange={(e) => setRootCauseTitle(e.target.value)} placeholder={t('causeTitlePh')} />
+                      </label>
+                      <label className="flex flex-col gap-1.5 text-xs text-muted">
+                        <span className="font-medium">{t('category')}</span>
+                        <Select<RootCauseCategoryValue> value={rootCauseCategory} onChange={setRootCauseCategory} options={Object.entries(RootCauseCategory).map(([k, v]) => ({ value: v as RootCauseCategoryValue, label: k }))} />
+                      </label>
+                    </div>
+                    <label className="flex flex-col gap-1.5 text-xs text-muted">
+                      <span className="font-medium">{t('causeSummary')}</span>
+                      <textarea className={FIELD_BASE + ' h-20 resize-none'} value={rootCauseSummary} onChange={(e) => setRootCauseSummary(e.target.value)} placeholder={t('causeSummaryPh')} />
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 1: Resolution */}
+            {step === 1 && (
+              <div className="flex flex-col gap-md">
+                <label className="flex flex-col gap-1.5 text-xs text-muted">
+                  <span className="font-medium">{t('resolutionSummary')}</span>
+                  <textarea className={FIELD_BASE + ' h-28 resize-none'} value={resolutionSummary} onChange={(e) => setResolutionSummary(e.target.value)} placeholder={t('resolutionSummaryPh')} />
+                </label>
+                <label className="flex flex-col gap-1.5 text-xs text-muted">
+                  <span className="font-medium">{t('outcome')}</span>
+                  <input className={FIELD_MD} value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder={t('outcomePh')} />
+                </label>
+                <Checkbox checked={isRecurring} onChange={(e) => setIsRecurring(e.currentTarget.checked)} label={<span className="flex items-center gap-1.5"><RotateCcw className="h-3.5 w-3.5" />{t('isRecurring')}</span>} size="sm" />
+              </div>
+            )}
+
+            {/* Step 2: Confirm */}
+            {step === 2 && (
+              <div className="rounded-lg border border-border bg-bg-subtle/50 p-4 flex flex-col gap-3 text-sm">
+                <div className="flex items-start gap-2">
+                  <Target className="h-4 w-4 text-dim mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-medium uppercase text-dim">{t('rootCause')}</p>
+                    <p className="font-medium">{selectedRootCauseId ? rootCauses.data?.find(r => r.id === selectedRootCauseId)?.title : rootCauseTitle}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Zap className="h-4 w-4 text-dim mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-medium uppercase text-dim">{t('resolution')}</p>
+                    <p>{resolutionSummary}</p>
+                  </div>
+                </div>
+                {outcome && (
+                  <div className="flex items-start gap-2">
+                    <TrendingUp className="h-4 w-4 text-dim mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[10px] font-medium uppercase text-dim">{t('outcome')}</p>
+                      <p>{outcome}</p>
+                    </div>
+                  </div>
+                )}
+                {isRecurring && (
+                  <div className="rounded bg-warning/10 border border-warning/20 px-3 py-2 text-xs text-warning flex items-center gap-2">
+                    <RotateCcw className="h-3.5 w-3.5" /> {t('markedRecurring')}
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+
+          {/* Footer — sticky outside scrollable content */}
+          <div className="sticky bottom-0 flex items-center justify-between border-t border-border bg-panel px-6 py-4">
+            <Button variant="secondary" disabled={step === 0} onClick={() => setStep(step - 1)}>
+              {t('back')}
+            </Button>
+            {step < 2 ? (
+              <Button disabled={!canNext} onClick={() => setStep(step + 1)}>
+                {t('next')} <ArrowRight className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button onClick={() => resolve.mutate()} loading={resolve.isPending} className="bg-success hover:bg-success/90">
+                <Zap className="h-4 w-4" /> {t('resolveTicket')}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </Portal>
   );
 }
 
@@ -556,7 +1166,7 @@ function WorklogsTab({ ticketId, worklogs, userName, estimateMinutesServer, rema
   const [type, setType] = useState(3);
   const [description, setDescription] = useState('');
   const [timeInput, setTimeInput] = useState('0:00');
-  const [expandedUsers, setExpandedUsers] = useState<Set<number>>(new Set());
+  const [expandedUsers, setExpandedUsers] = useState<Set<number>>(() => new Set(worklogs.map(w => w.userId)));
 
   const totalMin = completedMinutesServer || worklogs.reduce((acc, w) => acc + (w.durationMinutes || 0), 0);
   const estimateMin = Math.max(0, estimateMinutesServer ?? 0);
@@ -1867,97 +2477,333 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
 }
 
 /* ================================================================
-   ENGINEERING WORK ITEMS TAB
+   TASKS TAB (Work Items com subtasks)
    ================================================================ */
+const TASK_STATUSES = ['Open', 'InProgress', 'Done', 'Cancelled'] as const;
+
+function taskStatusColor(s: string) {
+  switch (s) {
+    case 'Open': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+    case 'InProgress': return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
+    case 'Done': return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
+    case 'Cancelled': return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
+    default: return 'bg-gray-500/10 text-gray-600 border-gray-500/20';
+  }
+}
+
+function taskStatusIcon(s: string) {
+  switch (s) {
+    case 'Done': return <Check className="h-3.5 w-3.5 text-emerald-600" />;
+    case 'InProgress': return <Loader2 className="h-3.5 w-3.5 text-amber-600 animate-spin" />;
+    case 'Cancelled': return <X className="h-3.5 w-3.5 text-slate-400" />;
+    default: return <div className="h-3.5 w-3.5 rounded-full border-2 border-blue-400" />;
+  }
+}
+
+function buildTaskTree(items: import('@/shared/api/types').EngineeringWorkItemResponse[]) {
+  const map = new Map<number, import('@/shared/api/types').EngineeringWorkItemResponse & { children: import('@/shared/api/types').EngineeringWorkItemResponse[] }>();
+  const roots: (import('@/shared/api/types').EngineeringWorkItemResponse & { children: import('@/shared/api/types').EngineeringWorkItemResponse[] })[] = [];
+  items.forEach(i => map.set(i.id, { ...i, children: [] }));
+  items.forEach(i => {
+    const node = map.get(i.id)!;
+    if (i.parentId && map.has(i.parentId)) {
+      map.get(i.parentId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  return roots;
+}
+
 function WorkItemsTab({ ticketId }: { ticketId: number }) {
   const t = useTranslations('workItems');
   const qc = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [newTitle, setNewTitle] = useState('');
+  const [addingSubFor, setAddingSubFor] = useState<number | null>(null);
+  const [subTitle, setSubTitle] = useState('');
 
   const list = useQuery({ queryKey: ['workitems', ticketId], queryFn: () => workItemsApi.byTicket(ticketId) });
+  const users = useQuery({ queryKey: ['users', 'options'], queryFn: () => usersApi.list(1, 200) });
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['workitems', ticketId] });
+  const userMap = new Map((users.data?.items ?? []).map(u => [u.id, u.name]));
 
   const create = useMutation({
-    mutationFn: () => workItemsApi.create(ticketId, { title: title.trim(), technicalDescription: description.trim() }),
-    onSuccess: () => {
-      setTitle(''); setDescription('');
-      qc.invalidateQueries({ queryKey: ['workitems', ticketId] });
+    mutationFn: (body: { title: string; technicalDescription: string; parentId?: number | null }) =>
+      workItemsApi.create(ticketId, body),
+    onSuccess: (created) => {
+      invalidate();
       toast.success(t('createdOk'));
+      if (created.parentId) {
+        setAddingSubFor(null);
+        setSubTitle('');
+      } else {
+        setNewTitle('');
+        setSelectedId(created.id);
+      }
     },
     onError: (err) => toast.error(apiErrorMessage(err, t('createError'))),
   });
 
   const updateStatus = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) => workItemsApi.updateStatus(ticketId, id, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['workitems', ticketId] }),
+    mutationFn: ({ id, status }: { id: number; status: string }) => workItemsApi.updateStatus(ticketId, id, status),
+    onSuccess: invalidate,
     onError: (err) => toast.error(apiErrorMessage(err, t('updateError'))),
   });
 
-  const statusColor = (s: string) => {
-    switch (s) {
-      case 'Open': return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'InProgress': return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'Done': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'Cancelled': return 'bg-slate-100 text-slate-500 border-slate-200';
-      default: return 'bg-gray-50 text-gray-700 border-gray-200';
-    }
-  };
+  const updateItem = useMutation({
+    mutationFn: ({ id, ...body }: { id: number; title?: string; technicalDescription?: string; assignedToId?: number | null }) =>
+      workItemsApi.update(ticketId, id, body),
+    onSuccess: invalidate,
+    onError: (err) => toast.error(apiErrorMessage(err, t('updateError'))),
+  });
 
-  const STATUSES = ['Open', 'InProgress', 'Done', 'Cancelled'];
+  const remove = useMutation({
+    mutationFn: (id: number) => workItemsApi.remove(ticketId, id),
+    onSuccess: (_data, removedId) => { invalidate(); if (selectedId === removedId) setSelectedId(null); toast.success(t('removed')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('removeError'))),
+  });
+
+  const tree = buildTaskTree(list.data ?? []);
+  const allItems = list.data ?? [];
+  const doneCount = allItems.filter(i => i.status === 'Done').length;
+  const totalCount = allItems.length;
+  const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  const selected = allItems.find(i => i.id === selectedId) ?? null;
 
   return (
-    <div className="flex flex-col gap-lg">
-      <Can permission="ticket.update">
-        <div className="card-surface p-lg">
-          <div className="flex items-center gap-3 mb-md">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-purple-50">
-              <GanttChart className="h-4 w-4 text-purple-600" />
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold">{t('newWorkItem')}</h4>
-              <p className="text-xs text-dim">{t('newWorkItemHint')}</p>
-            </div>
+    <div className="flex flex-col gap-md">
+      {totalCount > 0 && (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-2 overflow-hidden rounded-full bg-panel-2">
+            <div className={cn('h-full rounded-full transition-all', progress === 100 ? 'bg-emerald-500' : 'bg-primary')} style={{ width: `${progress}%` }} />
           </div>
-          <form onSubmit={(e) => { e.preventDefault(); if (title.trim()) create.mutate(); }} className="flex flex-col gap-md">
-            <input className={FIELD_MD} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('titlePh')} />
-            <textarea className={FIELD_BASE + ' h-20 resize-none'} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('descriptionPh')} />
-            <Button type="submit" disabled={!title.trim()} loading={create.isPending} className="self-start">
-              <Plus className="h-4 w-4" /> {t('create')}
-            </Button>
-          </form>
-        </div>
-      </Can>
-
-      {list.isLoading ? (
-        <LoadingState />
-      ) : !list.data?.length ? (
-        <div className="flex flex-col items-center gap-4 py-16 text-dim">
-          <div className="grid h-16 w-16 place-items-center rounded-full bg-panel-2">
-            <GanttChart className="h-8 w-8" />
-          </div>
-          <p className="text-sm font-medium text-text">{t('empty')}</p>
-          <p className="text-xs">{t('emptyHint')}</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-sm">
-          {list.data.map((wi) => (
-            <div key={wi.id} className="card-surface p-md flex items-start gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-text">{wi.title}</p>
-                {wi.technicalDescription && <p className="text-xs text-dim mt-1">{wi.technicalDescription}</p>}
-                {wi.createdAt && <p className="text-[10px] text-dim mt-1">{new Date(wi.createdAt).toLocaleDateString()}</p>}
-              </div>
-              <select
-                value={wi.status}
-                onChange={(e) => updateStatus.mutate({ id: wi.id, status: e.target.value })}
-                className={cn('shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold outline-none cursor-pointer', statusColor(wi.status))}
-              >
-                {STATUSES.map((s) => <option key={s} value={s}>{t(`status.${s}` as 'status.Open')}</option>)}
-              </select>
-            </div>
-          ))}
+          <span className="text-xs font-bold text-text shrink-0">{doneCount}/{totalCount} ({progress}%)</span>
         </div>
       )}
+
+      <div className="flex gap-0 rounded-lg border border-border overflow-hidden" style={{ minHeight: 400 }}>
+        {/* LEFT: Task list */}
+        <div className={cn('flex flex-col border-r border-border bg-panel/50', selected ? 'w-[320px] shrink-0' : 'flex-1')}>
+          <Can permission="ticket.update">
+            <form onSubmit={(e) => { e.preventDefault(); if (newTitle.trim()) create.mutate({ title: newTitle.trim(), technicalDescription: '' }); }} className="flex items-center gap-1.5 border-b border-border p-2">
+              <input className={FIELD_SM + ' flex-1 !text-xs'} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={t('titlePh')} />
+              <Button type="submit" size="sm" disabled={!newTitle.trim()} loading={create.isPending} className="h-7 shrink-0 text-xs">
+                <Plus className="h-3 w-3" />
+              </Button>
+            </form>
+          </Can>
+
+          <div className="flex-1 overflow-y-auto">
+            {list.isLoading ? (
+              <div className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-dim" /></div>
+            ) : tree.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-12 text-dim px-4">
+                <ListChecks className="h-8 w-8" />
+                <p className="text-xs font-medium text-text">{t('empty')}</p>
+                <p className="text-[10px]">{t('emptyHint')}</p>
+              </div>
+            ) : (
+              tree.map((task) => {
+                const childDone = task.children.filter(c => c.status === 'Done').length;
+                const childTotal = task.children.length;
+                const isSelected = selectedId === task.id;
+
+                return (
+                  <div key={task.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(isSelected ? null : task.id)}
+                      className={cn(
+                        'flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors border-b border-border/50 group',
+                        isSelected ? 'bg-primary/8 border-l-2 border-l-primary' : 'hover:bg-panel-2/40'
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); updateStatus.mutate({ id: task.id, status: task.status === 'Done' ? 'Open' : 'Done' }); }}
+                        className="shrink-0 mt-0.5"
+                      >
+                        {taskStatusIcon(task.status)}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn('text-xs font-medium leading-snug', task.status === 'Done' && 'line-through text-dim')}>
+                          {task.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={cn('rounded border px-1.5 py-px text-[9px] font-semibold', taskStatusColor(task.status))}>
+                            {t(`status.${task.status}` as 'status.Open')}
+                          </span>
+                          {task.assignedToId != null && (
+                            <span className="text-[9px] text-dim truncate">{userMap.get(task.assignedToId) ?? `#${task.assignedToId}`}</span>
+                          )}
+                          {childTotal > 0 && (
+                            <span className="text-[9px] text-dim">{childDone}/{childTotal}</span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+
+                    {task.children.map((sub) => (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => setSelectedId(selectedId === sub.id ? null : sub.id)}
+                        className={cn(
+                          'flex w-full items-center gap-2 pl-9 pr-3 py-2 text-left transition-colors border-b border-border/30',
+                          selectedId === sub.id ? 'bg-primary/8 border-l-2 border-l-primary' : 'hover:bg-panel-2/30'
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); updateStatus.mutate({ id: sub.id, status: sub.status === 'Done' ? 'Open' : 'Done' }); }}
+                          className="shrink-0"
+                        >
+                          {taskStatusIcon(sub.status)}
+                        </button>
+                        <p className={cn('text-[11px] flex-1 truncate', sub.status === 'Done' && 'line-through text-dim')}>{sub.title}</p>
+                        <span className={cn('rounded border px-1 py-px text-[8px] font-semibold shrink-0', taskStatusColor(sub.status))}>
+                          {t(`status.${sub.status}` as 'status.Open')}
+                        </span>
+                      </button>
+                    ))}
+
+                    {addingSubFor === task.id && (
+                      <form onSubmit={(e) => { e.preventDefault(); if (subTitle.trim()) create.mutate({ title: subTitle.trim(), technicalDescription: '', parentId: task.id }); }} className="flex items-center gap-1.5 pl-9 pr-3 py-2 border-b border-border/30 bg-primary/[0.03]">
+                        <input className={FIELD_SM + ' flex-1 !text-[11px]'} value={subTitle} onChange={(e) => setSubTitle(e.target.value)} placeholder={t('subtaskPh')} autoFocus />
+                        <Button type="submit" size="sm" variant="secondary" disabled={!subTitle.trim()} loading={create.isPending} className="h-6 text-[10px] px-2">
+                          {t('add')}
+                        </Button>
+                        <button type="button" onClick={() => { setAddingSubFor(null); setSubTitle(''); }} className="text-dim hover:text-text"><X className="h-3 w-3" /></button>
+                      </form>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT: Task detail panel */}
+        {selected && (
+          <TaskDetailPanel
+            key={selected.id}
+            task={selected}
+            userMap={userMap}
+            userList={(users.data?.items ?? []).map(u => ({ id: u.id, name: u.name }))}
+            onUpdate={(body) => updateItem.mutate({ id: selected.id, ...body })}
+            onStatusChange={(status) => updateStatus.mutate({ id: selected.id, status })}
+            onAddSubtask={() => setAddingSubFor(selected.id)}
+            onRemove={() => remove.mutate(selected.id)}
+            onClose={() => setSelectedId(null)}
+            isPending={updateItem.isPending}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TaskDetailPanel({ task, userMap, userList, onUpdate, onStatusChange, onAddSubtask, onRemove, onClose, isPending }: {
+  task: import('@/shared/api/types').EngineeringWorkItemResponse;
+  userMap: Map<number, string>;
+  userList: { id: number; name: string }[];
+  onUpdate: (body: { title?: string; technicalDescription?: string; assignedToId?: number | null }) => void;
+  onStatusChange: (status: string) => void;
+  onAddSubtask: () => void;
+  onRemove: () => void;
+  onClose: () => void;
+  isPending: boolean;
+}) {
+  const t = useTranslations('workItems');
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [editDesc, setEditDesc] = useState(task.technicalDescription);
+  const [dirty, setDirty] = useState(false);
+
+  const handleSave = () => {
+    onUpdate({ title: editTitle.trim(), technicalDescription: editDesc.trim() });
+    setDirty(false);
+  };
+
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex items-center justify-between border-b border-border px-4 py-2">
+        <div className="flex items-center gap-2">
+          <GanttChart className="h-4 w-4 text-purple-600" />
+          <span className="text-xs font-semibold text-dim uppercase">{t('taskDetail')}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          {dirty && (
+            <Button size="sm" onClick={handleSave} loading={isPending} className="h-7 text-xs gap-1">
+              <Check className="h-3 w-3" /> {t('save')}
+            </Button>
+          )}
+          <button type="button" onClick={onClose} className="rounded p-1 text-dim hover:text-text"><X className="h-4 w-4" /></button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        <div>
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-1 block">{t('titleLabel')}</label>
+          <input
+            className={FIELD_MD}
+            value={editTitle}
+            onChange={(e) => { setEditTitle(e.target.value); setDirty(true); }}
+          />
+        </div>
+
+        <div>
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-1 block">{t('descriptionLabel')}</label>
+          <textarea
+            className={FIELD_BASE + ' min-h-[120px] resize-y text-xs'}
+            value={editDesc}
+            onChange={(e) => { setEditDesc(e.target.value); setDirty(true); }}
+            placeholder={t('descriptionPh')}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-1 block">Status</label>
+            <select
+              value={task.status}
+              onChange={(e) => onStatusChange(e.target.value)}
+              className={cn('w-full rounded-md border px-3 py-2 text-xs font-semibold outline-none cursor-pointer', taskStatusColor(task.status))}
+            >
+              {TASK_STATUSES.map((s) => <option key={s} value={s}>{t(`status.${s}` as 'status.Open')}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-1 block">{t('assignee')}</label>
+            <select
+              value={task.assignedToId ?? ''}
+              onChange={(e) => onUpdate({ assignedToId: e.target.value ? Number(e.target.value) : null })}
+              className="w-full rounded-md border border-border bg-bg-subtle px-3 py-2 text-xs outline-none cursor-pointer"
+            >
+              <option value="">{t('unassigned')}</option>
+              {userList.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {task.createdAt && (
+          <div className="flex items-center gap-2 text-[10px] text-dim">
+            <Calendar className="h-3 w-3" />
+            {t('createdAtLabel')}: {new Date(task.createdAt).toLocaleDateString()} {new Date(task.createdAt).toLocaleTimeString()}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 border-t border-border pt-3 mt-auto">
+          <Can permission="ticket.update">
+            <Button size="sm" variant="secondary" onClick={onAddSubtask} className="h-7 text-xs gap-1">
+              <Plus className="h-3 w-3" /> {t('addSubtask')}
+            </Button>
+          </Can>
+          <button type="button" onClick={onRemove} className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-danger hover:bg-danger/10 transition-colors">
+            <Trash2 className="h-3 w-3" /> {t('remove')}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

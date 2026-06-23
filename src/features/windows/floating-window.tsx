@@ -14,7 +14,8 @@ export function FloatingWindow({ win }: { win: OrbitWindow }) {
     <div className="fixed inset-0" role="dialog" aria-modal="true" aria-label={win.title} style={{ zIndex: win.z }}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => close(win.id)} aria-hidden />
       <aside
-        className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-border bg-panel shadow-lg animate-slide-in"
+        className="absolute right-0 top-0 flex h-full w-full flex-col border-l border-border bg-panel shadow-lg animate-slide-in"
+        style={{ maxWidth: win.width ? `${win.width}px` : '28rem' }}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex h-12 shrink-0 items-center gap-sm border-b border-border px-md">

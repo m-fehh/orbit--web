@@ -14,7 +14,7 @@ import {
   ChevronRight,
   X,
   Repeat,
-  Tags,
+  Brain,
   type LucideIcon,
 } from 'lucide-react';
 import { useUiStore } from '@/features/shell/ui-store';
@@ -22,7 +22,7 @@ import { useTabStore, currentLocation, type TabLocation } from '@/features/works
 import { usePermissions } from '@/features/auth/use-permissions';
 import { cn } from '@/shared/lib/utils';
 
-type NavLabel = 'dashboard' | 'tickets' | 'knowledge' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'tags';
+type NavLabel = 'dashboard' | 'tickets' | 'knowledge' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence';
 
 interface NavItem {
   loc: TabLocation;
@@ -45,12 +45,12 @@ const SECTIONS: NavSection[] = [
 
       { loc: { kind: 'knowledge', params: {}, title: 'Conhecimento', icon: 'knowledge' }, labelKey: 'knowledge', icon: BookOpen, perm: ['knowledge.view'] },
       { loc: { kind: 'iterations', params: {}, title: 'Iterações', icon: 'tickets' }, labelKey: 'iterations', icon: Repeat, perm: ['ticket.view'] },
-      { loc: { kind: 'tags', params: {}, title: 'Tags', icon: 'admin' }, labelKey: 'tags', icon: Tags, perm: ['ticket.view'] },
     ],
   },
   {
     titleKey: 'secInsights',
     items: [
+      { loc: { kind: 'intelligence', params: {}, title: 'Intelligence', icon: 'analytics' }, labelKey: 'intelligence', icon: Brain, perm: ['intelligence.view'] },
       { loc: { kind: 'analytics', params: {}, title: 'Analytics', icon: 'analytics' }, labelKey: 'analytics', icon: BarChart3, perm: ['analytics.dashboard', 'analytics.kpis'] },
     ],
   },

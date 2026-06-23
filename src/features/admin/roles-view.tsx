@@ -80,7 +80,7 @@ export function RolesView() {
   ], [t]);
 
   return (
-    <PageTransition className="flex h-full flex-col">
+    <PageTransition className="flex h-full flex-col gap-lg p-lg">
       <DataGrid<RoleResponse>
         gridId="admin-roles"
         columns={columns}

@@ -24,8 +24,8 @@ export function openNewTicketWindow() {
     title: 'Novo ticket',
     icon: <FilePlus2 className="h-4 w-4" />,
     modal: true,
-    width: 580,
-    height: 600,
+    width: 680,
+    height: 700,
     content: <NewTicketForm windowId={NEW_TICKET_WINDOW} />,
   });
 }

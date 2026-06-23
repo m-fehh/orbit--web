@@ -13,37 +13,45 @@ import { KnowledgeView } from '@/features/knowledge/knowledge-view';
 import { AnalyticsView } from '@/features/analytics/analytics-view';
 import { IterationsView } from '@/features/iterations/iterations-view';
 import { TagsView } from '@/features/tags/tags-view';
+import { IntelligenceDashboard } from '@/features/intelligence/intelligence-dashboard';
 import { EmptyState } from '@/shared/ui/states';
+import { PageTransition } from '@/shared/ui/page-transition';
 import { ICONS } from './icons';
+
+function wrap(el: React.ReactElement) {
+  return <PageTransition key={el.key ?? el.type?.toString()}>{el}</PageTransition>;
+}
 
 /** Resolve a localização de uma aba para o componente de view correspondente. */
 export function renderView(loc: TabLocation) {
   switch (loc.kind) {
     case 'tickets':
-      return <TicketsCentral />;
+      return wrap(<TicketsCentral />);
     case 'ticket':
-      return <TicketDetail id={Number(loc.params.id)} />;
+      return wrap(<TicketDetail id={Number(loc.params.id)} />);
     case 'dashboard':
-      return <DashboardView />;
+      return wrap(<DashboardView />);
     case 'users':
-      return <UsersView />;
+      return wrap(<UsersView />);
     case 'admin':
-      return <ProfileGroupsView />;
+      return wrap(<ProfileGroupsView />);
     case 'audit':
-      return <AuditLogsView />;
+      return wrap(<AuditLogsView />);
     case 'investigations':
-      return <InvestigationsView />;
+      return wrap(<InvestigationsView />);
     case 'knowledge':
     case 'knowledge-article':
-      return <KnowledgeView />;
+      return wrap(<KnowledgeView />);
     case 'analytics':
-      return <AnalyticsView />;
+      return wrap(<AnalyticsView />);
+    case 'intelligence':
+      return wrap(<IntelligenceDashboard />);
     case 'iterations':
-      return <IterationsView />;
+      return wrap(<IterationsView />);
     case 'tags':
-      return <TagsView />;
+      return wrap(<TagsView />);
     default:
-      return (
+      return wrap(
         <div className="grid h-full place-items-center">
           <ComingSoonPlaceholder loc={loc} />
         </div>

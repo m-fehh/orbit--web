@@ -27,7 +27,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import { cn } from '@/shared/lib/utils';
+import { Checkbox } from '@/shared/ui/checkbox';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -238,18 +240,30 @@ function escapeCSV(val: string): string {
 // Skeleton rows
 // ---------------------------------------------------------------------------
 
+const SKELETON_WIDTHS = ['60%', '80%', '45%', '70%', '55%', '40%', '75%', '50%'];
+
 function SkeletonRows({ colCount }: { colCount: number }) {
   return (
     <>
-      {Array.from({ length: 6 }).map((_, r) => (
+      {Array.from({ length: 8 }).map((_, r) => (
         <tr key={r} className="border-b border-border">
           {Array.from({ length: colCount }).map((_, c) => (
             <td key={c} className="px-4 py-3 md:px-3 md:py-2.5">
-              <div className="h-4 rounded bg-bg-subtle animate-pulse" />
+              <div
+                className="h-3.5 rounded-md animate-pulse"
+                style={{
+                  width: SKELETON_WIDTHS[(r + c) % SKELETON_WIDTHS.length],
+                  background: 'linear-gradient(90deg, var(--orbit-color-bg-subtle) 0%, var(--orbit-color-border) 50%, var(--orbit-color-bg-subtle) 100%)',
+                  backgroundSize: '200% 100%',
+                  animation: `shimmer 1.5s ease-in-out infinite`,
+                  animationDelay: `${(r * 0.05) + (c * 0.03)}s`,
+                }}
+              />
             </td>
           ))}
         </tr>
       ))}
+      <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }`}</style>
     </>
   );
 }
@@ -265,6 +279,19 @@ interface FilterPopoverProps {
   onClear: () => void;
   onClose: () => void;
   labels: DataGridLabels;
+  anchorRef?: React.RefObject<HTMLElement>;
+}
+
+function calcFilterPos(anchor: HTMLElement, popH: number, popW: number) {
+  const rect = anchor.getBoundingClientRect();
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+  const gap = 4;
+  const below = rect.bottom + gap;
+  const above = rect.top - popH - gap;
+  const top = (vh - below >= popH) ? below : Math.max(8, above);
+  const left = Math.min(rect.left, vw - popW - 8);
+  return { top, left: Math.max(8, left) };
 }
 
 function FilterPopover({
@@ -274,9 +301,19 @@ function FilterPopover({
   onClear,
   onClose,
   labels,
+  anchorRef,
 }: FilterPopoverProps) {
   const filterType = column.filterType ?? 'text';
   const popoverRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>;
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (anchorRef?.current) {
+      const popW = filterType === 'date' ? 260 : 224;
+      const popH = filterType === 'select' ? 280 : 160;
+      setPos(calcFilterPos(anchorRef.current, popH, popW));
+    }
+  }, [anchorRef, filterType]);
 
   // Close on outside click
   useEffect(() => {
@@ -289,16 +326,28 @@ function FilterPopover({
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
 
+  // Close on Escape
+  useEffect(() => {
+    function handler(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const style: React.CSSProperties = { position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 };
+
+  let body: React.ReactNode;
   if (filterType === 'text') {
-    return <TextFilterBody popoverRef={popoverRef} value={value} onApply={onApply} onClear={onClear} onClose={onClose} labels={labels} />;
+    body = <TextFilterBody popoverRef={popoverRef} value={value} onApply={onApply} onClear={onClear} onClose={onClose} labels={labels} posStyle={style} posCls="" />;
+  } else if (filterType === 'select') {
+    body = <SelectFilterBody popoverRef={popoverRef} column={column} value={value} onApply={onApply} onClear={onClear} onClose={onClose} labels={labels} posStyle={style} posCls="" />;
+  } else if (filterType === 'number') {
+    body = <NumberFilterBody popoverRef={popoverRef} value={value} onApply={onApply} onClear={onClear} onClose={onClose} labels={labels} posStyle={style} posCls="" />;
+  } else {
+    body = <DateFilterBody popoverRef={popoverRef} value={value} onApply={onApply} onClear={onClear} onClose={onClose} labels={labels} posStyle={style} posCls="" />;
   }
-  if (filterType === 'select') {
-    return <SelectFilterBody popoverRef={popoverRef} column={column} value={value} onApply={onApply} onClear={onClear} onClose={onClose} labels={labels} />;
-  }
-  if (filterType === 'number') {
-    return <NumberFilterBody popoverRef={popoverRef} value={value} onApply={onApply} onClear={onClear} onClose={onClose} labels={labels} />;
-  }
-  return <DateFilterBody popoverRef={popoverRef} value={value} onApply={onApply} onClear={onClear} onClose={onClose} labels={labels} />;
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(body, document.body);
 }
 
 // --- Text filter body ---
@@ -309,6 +358,8 @@ function TextFilterBody({
   onClear,
   onClose,
   labels,
+  posStyle,
+  posCls,
 }: {
   popoverRef: React.RefObject<HTMLDivElement>;
   value: FilterValue | undefined;
@@ -316,6 +367,8 @@ function TextFilterBody({
   onClear: () => void;
   onClose: () => void;
   labels: DataGridLabels;
+  posStyle?: React.CSSProperties;
+  posCls?: string;
 }) {
   const current = value?.type === 'text' ? value : null;
   const [op, setOp] = useState<TextFilterOperator>(current?.operator ?? 'contains');
@@ -324,31 +377,36 @@ function TextFilterBody({
   return (
     <div
       ref={popoverRef}
-      className="absolute z-50 top-full left-0 mt-1 w-56 rounded-lg border border-border bg-panel shadow-lg p-3 flex flex-col gap-2"
+      style={posStyle}
+      className={cn(posCls, 'w-56 rounded-lg border border-border bg-panel shadow-lg flex flex-col')}
     >
-      <select
-        value={op}
-        onChange={(e) => setOp(e.target.value as TextFilterOperator)}
-        className="w-full px-2 py-1.5 text-xs rounded border border-border bg-bg-subtle text-text"
-      >
-        <option value="contains">{labels.filterContains}</option>
-        <option value="startsWith">{labels.filterStartsWith}</option>
-        <option value="equals">{labels.filterEquals}</option>
-      </select>
-      <input
-        autoFocus
-        type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && text.trim()) {
-            onApply({ type: 'text', operator: op, value: text.trim() });
-          }
-        }}
-        className="w-full px-2 py-1.5 text-xs rounded border border-border bg-bg-subtle text-text focus:border-primary outline-none"
-        placeholder="..."
-      />
-      <FilterActions onClear={() => { onClear(); onClose(); }} onApply={() => { if (text.trim()) onApply({ type: 'text', operator: op, value: text.trim() }); }} labels={labels} />
+      <div className="p-3 flex flex-col gap-2">
+        <select
+          value={op}
+          onChange={(e) => setOp(e.target.value as TextFilterOperator)}
+          className="w-full px-2 py-1.5 text-xs rounded-md border border-border bg-bg-subtle text-text outline-none cursor-pointer"
+        >
+          <option value="contains">{labels.filterContains}</option>
+          <option value="startsWith">{labels.filterStartsWith}</option>
+          <option value="equals">{labels.filterEquals}</option>
+        </select>
+        <input
+          autoFocus
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && text.trim()) {
+              onApply({ type: 'text', operator: op, value: text.trim() });
+            }
+          }}
+          className="w-full px-2 py-1.5 text-xs rounded-md border border-border bg-bg-subtle text-text focus:border-primary outline-none"
+          placeholder="..."
+        />
+      </div>
+      <div className="border-t border-border px-3 py-2">
+        <FilterActions onClear={() => { onClear(); onClose(); }} onApply={() => { if (text.trim()) onApply({ type: 'text', operator: op, value: text.trim() }); }} labels={labels} />
+      </div>
     </div>
   );
 }
@@ -362,6 +420,8 @@ function SelectFilterBody({
   onClear,
   onClose,
   labels,
+  posStyle,
+  posCls,
 }: {
   popoverRef: React.RefObject<HTMLDivElement>;
   column: ColumnDef<any>;
@@ -370,6 +430,8 @@ function SelectFilterBody({
   onClear: () => void;
   onClose: () => void;
   labels: DataGridLabels;
+  posStyle?: React.CSSProperties;
+  posCls?: string;
 }) {
   const current = value?.type === 'select' ? value : null;
   const [selected, setSelected] = useState<Set<string>>(new Set(current?.values ?? []));
@@ -387,23 +449,22 @@ function SelectFilterBody({
   return (
     <div
       ref={popoverRef}
-      className="absolute z-50 top-full left-0 mt-1 w-56 rounded-lg border border-border bg-panel shadow-lg p-3 flex flex-col gap-2 max-h-64 overflow-y-auto"
+      style={posStyle}
+      className={cn(posCls, 'w-56 rounded-lg border border-border bg-panel shadow-lg flex flex-col')}
     >
-      {options.map((opt) => (
-        <label
-          key={opt.value}
-          className="flex items-center gap-2 text-xs text-text cursor-pointer hover:bg-bg-subtle rounded px-1 py-0.5"
-        >
-          <input
-            type="checkbox"
-            checked={selected.has(opt.value)}
-            onChange={() => toggle(opt.value)}
-            className="rounded border-border"
-          />
-          {opt.label}
-        </label>
-      ))}
-      <div className="pt-1 border-t border-border mt-1">
+      <div className="flex-1 overflow-y-auto px-2 py-2.5 flex flex-col gap-0.5 max-h-52">
+        {options.map((opt) => (
+          <div key={opt.value} className="rounded-md px-2.5 py-1.5 hover:bg-bg-subtle transition-colors">
+            <Checkbox
+              size="sm"
+              checked={selected.has(opt.value)}
+              onChange={() => toggle(opt.value)}
+              label={opt.label}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-border px-3 py-2">
         <FilterActions onClear={() => { onClear(); onClose(); }} onApply={() => { if (selected.size > 0) onApply({ type: 'select', values: Array.from(selected) }); }} labels={labels} />
       </div>
     </div>
@@ -418,6 +479,8 @@ function NumberFilterBody({
   onClear,
   onClose,
   labels,
+  posStyle,
+  posCls,
 }: {
   popoverRef: React.RefObject<HTMLDivElement>;
   value: FilterValue | undefined;
@@ -425,6 +488,8 @@ function NumberFilterBody({
   onClear: () => void;
   onClose: () => void;
   labels: DataGridLabels;
+  posStyle?: React.CSSProperties;
+  posCls?: string;
 }) {
   const current = value?.type === 'number' ? value : null;
   const [op, setOp] = useState<NumberFilterOperator>(current?.operator ?? '=');
@@ -433,30 +498,35 @@ function NumberFilterBody({
   return (
     <div
       ref={popoverRef}
-      className="absolute z-50 top-full left-0 mt-1 w-56 rounded-lg border border-border bg-panel shadow-lg p-3 flex flex-col gap-2"
+      style={posStyle}
+      className={cn(posCls, 'w-56 rounded-lg border border-border bg-panel shadow-lg flex flex-col')}
     >
-      <select
-        value={op}
-        onChange={(e) => setOp(e.target.value as NumberFilterOperator)}
-        className="w-full px-2 py-1.5 text-xs rounded border border-border bg-bg-subtle text-text"
-      >
-        {(['=', '>', '<', '>=', '<='] as const).map((o) => (
-          <option key={o} value={o}>{o}</option>
-        ))}
-      </select>
-      <input
-        autoFocus
-        type="number"
-        value={num}
-        onChange={(e) => setNum(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && num !== '') {
-            onApply({ type: 'number', operator: op, value: parseFloat(num) });
-          }
-        }}
-        className="w-full px-2 py-1.5 text-xs rounded border border-border bg-bg-subtle text-text focus:border-primary outline-none"
-      />
-      <FilterActions onClear={() => { onClear(); onClose(); }} onApply={() => { if (num !== '') onApply({ type: 'number', operator: op, value: parseFloat(num) }); }} labels={labels} />
+      <div className="p-3 flex flex-col gap-2">
+        <select
+          value={op}
+          onChange={(e) => setOp(e.target.value as NumberFilterOperator)}
+          className="w-full px-2 py-1.5 text-xs rounded-md border border-border bg-bg-subtle text-text outline-none cursor-pointer"
+        >
+          {(['=', '>', '<', '>=', '<='] as const).map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+        <input
+          autoFocus
+          type="number"
+          value={num}
+          onChange={(e) => setNum(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && num !== '') {
+              onApply({ type: 'number', operator: op, value: parseFloat(num) });
+            }
+          }}
+          className="w-full px-2 py-1.5 text-xs rounded-md border border-border bg-bg-subtle text-text focus:border-primary outline-none"
+        />
+      </div>
+      <div className="border-t border-border px-3 py-2">
+        <FilterActions onClear={() => { onClear(); onClose(); }} onApply={() => { if (num !== '') onApply({ type: 'number', operator: op, value: parseFloat(num) }); }} labels={labels} />
+      </div>
     </div>
   );
 }
@@ -469,6 +539,8 @@ function DateFilterBody({
   onClear,
   onClose,
   labels,
+  posStyle,
+  posCls,
 }: {
   popoverRef: React.RefObject<HTMLDivElement>;
   value: FilterValue | undefined;
@@ -476,6 +548,8 @@ function DateFilterBody({
   onClear: () => void;
   onClose: () => void;
   labels: DataGridLabels;
+  posStyle?: React.CSSProperties;
+  posCls?: string;
 }) {
   const current = value?.type === 'date' ? value : null;
   const [from, setFrom] = useState(current?.from ?? '');
@@ -484,23 +558,28 @@ function DateFilterBody({
   return (
     <div
       ref={popoverRef}
-      className="absolute z-50 top-full left-0 mt-1 w-64 rounded-lg border border-border bg-panel shadow-lg p-3 flex flex-col gap-2"
+      style={posStyle}
+      className={cn(posCls, 'w-64 rounded-lg border border-border bg-panel shadow-lg flex flex-col')}
     >
-      <label className="text-xs text-muted">{labels.filterFrom}</label>
-      <input
-        type="date"
-        value={from}
-        onChange={(e) => setFrom(e.target.value)}
-        className="w-full px-2 py-1.5 text-xs rounded border border-border bg-bg-subtle text-text focus:border-primary outline-none"
-      />
-      <label className="text-xs text-muted">{labels.filterTo}</label>
-      <input
-        type="date"
-        value={to}
-        onChange={(e) => setTo(e.target.value)}
-        className="w-full px-2 py-1.5 text-xs rounded border border-border bg-bg-subtle text-text focus:border-primary outline-none"
-      />
-      <FilterActions onClear={() => { onClear(); onClose(); }} onApply={() => { if (from || to) onApply({ type: 'date', from: from || null, to: to || null }); }} labels={labels} />
+      <div className="p-3 flex flex-col gap-2">
+        <label className="text-[10px] font-semibold uppercase tracking-wider text-dim">{labels.filterFrom}</label>
+        <input
+          type="date"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          className="w-full px-2 py-1.5 text-xs rounded-md border border-border bg-bg-subtle text-text focus:border-primary outline-none"
+        />
+        <label className="text-[10px] font-semibold uppercase tracking-wider text-dim">{labels.filterTo}</label>
+        <input
+          type="date"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          className="w-full px-2 py-1.5 text-xs rounded-md border border-border bg-bg-subtle text-text focus:border-primary outline-none"
+        />
+      </div>
+      <div className="border-t border-border px-3 py-2">
+        <FilterActions onClear={() => { onClear(); onClose(); }} onApply={() => { if (from || to) onApply({ type: 'date', from: from || null, to: to || null }); }} labels={labels} />
+      </div>
     </div>
   );
 }
@@ -519,13 +598,13 @@ function FilterActions({
     <div className="flex gap-2 justify-end">
       <button
         onClick={onClear}
-        className="px-2 py-1 text-xs rounded border border-border hover:bg-bg-subtle text-muted"
+        className="px-3 py-1.5 text-xs rounded-md border border-border hover:bg-bg-subtle text-muted transition-colors"
       >
         {labels.filterClear}
       </button>
       <button
         onClick={onApply}
-        className="px-2 py-1 text-xs rounded bg-primary text-white hover:opacity-90"
+        className="px-3 py-1.5 text-xs rounded-md bg-primary text-white hover:opacity-90 font-medium transition-colors"
       >
         {labels.filterApply}
       </button>
@@ -597,6 +676,7 @@ export function DataGrid<T extends Record<string, any>>({
   const [filters, setFilters] = useState<Record<string, FilterValue>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
   const [openFilter, setOpenFilter] = useState<string | null>(null);
+  const filterBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   // Persist widths + sorts
   useEffect(() => {
@@ -683,15 +763,70 @@ export function DataGrid<T extends Record<string, any>>({
     [filters],
   );
 
+  // --- Client-side filter + sort ---
+  const displayData = useMemo(() => {
+    let result = data;
+
+    const filterEntries = Object.entries(filters);
+    if (filterEntries.length > 0) {
+      result = result.filter((row) =>
+        filterEntries.every(([field, fv]) => {
+          const val = getNestedValue(row, field);
+          if (fv.type === 'text') {
+            const s = String(val ?? '').toLowerCase();
+            const q = fv.value.toLowerCase();
+            if (fv.operator === 'contains') return s.includes(q);
+            if (fv.operator === 'startsWith') return s.startsWith(q);
+            return s === q;
+          }
+          if (fv.type === 'select') {
+            return fv.values.includes(String(val ?? ''));
+          }
+          if (fv.type === 'number') {
+            const n = Number(val);
+            if (isNaN(n)) return false;
+            const target = fv.value ?? 0;
+            if (fv.operator === '=') return n === target;
+            if (fv.operator === '>') return n > target;
+            if (fv.operator === '<') return n < target;
+            if (fv.operator === '>=') return n >= target;
+            return n <= target;
+          }
+          if (fv.type === 'date') {
+            const d = val ? new Date(val as string).getTime() : 0;
+            if (fv.from && d < new Date(fv.from).getTime()) return false;
+            if (fv.to && d > new Date(fv.to).getTime() + 86400000) return false;
+            return true;
+          }
+          return true;
+        }),
+      );
+    }
+
+    if (sorts.length > 0) {
+      result = [...result].sort((a, b) => {
+        for (const s of sorts) {
+          const av = getNestedValue(a, s.field);
+          const bv = getNestedValue(b, s.field);
+          const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+          if (cmp !== 0) return s.direction === 'asc' ? cmp : -cmp;
+        }
+        return 0;
+      });
+    }
+
+    return result;
+  }, [data, filters, sorts]);
+
   // --- Selection ---
   const allPageIds = useMemo(
-    () => data.map((row) => getNestedValue(row, rowKey) as string | number),
-    [data, rowKey],
+    () => displayData.map((row) => getNestedValue(row, rowKey) as string | number),
+    [displayData, rowKey],
   );
 
   const allSelected = useMemo(
-    () => data.length > 0 && allPageIds.every((id) => selectedIds.has(id)),
-    [allPageIds, selectedIds, data.length],
+    () => displayData.length > 0 && allPageIds.every((id) => selectedIds.has(id)),
+    [allPageIds, selectedIds, displayData.length],
   );
 
   const someSelected = useMemo(
@@ -775,7 +910,7 @@ export function DataGrid<T extends Record<string, any>>({
       return;
     }
     const header = columns.map((c) => escapeCSV(c.header)).join(',');
-    const rows = data.map((row) =>
+    const rows = displayData.map((row) =>
       columns
         .map((c) => escapeCSV(String(getNestedValue(row, c.field) ?? '')))
         .join(','),
@@ -791,7 +926,8 @@ export function DataGrid<T extends Record<string, any>>({
   }, [onExport, columns, data, gridId]);
 
   // --- Pagination ---
-  const total = totalCount ?? data.length;
+  const hasActiveFilters = Object.keys(filters).length > 0;
+  const total = hasActiveFilters ? displayData.length : (totalCount ?? displayData.length);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const startRow = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const endRow = Math.min(page * pageSize, total);
@@ -963,6 +1099,7 @@ export function DataGrid<T extends Record<string, any>>({
 
                       {isFilterable && (
                         <button
+                          ref={(el) => { filterBtnRefs.current[col.field] = el; }}
                           onClick={(e) => {
                             e.stopPropagation();
                             setOpenFilter((prev) => (prev === col.field ? null : col.field));
@@ -988,6 +1125,7 @@ export function DataGrid<T extends Record<string, any>>({
                         onClear={() => handleClearFilter(col.field)}
                         onClose={() => setOpenFilter(null)}
                         labels={labels}
+                        anchorRef={{ current: filterBtnRefs.current[col.field] } as React.RefObject<HTMLElement>}
                       />
                     )}
 
@@ -1038,7 +1176,7 @@ export function DataGrid<T extends Record<string, any>>({
               </tr>
             )}
 
-            {!loading && !error && data.length === 0 && (
+            {!loading && !error && displayData.length === 0 && (
               <tr>
                 <td colSpan={colCount} className="px-4 py-16 text-center">
                   <motion.div
@@ -1149,7 +1287,7 @@ export function DataGrid<T extends Record<string, any>>({
 
             {!loading &&
               !error &&
-              data.map((row, rowIndex) => {
+              displayData.map((row, rowIndex) => {
                 const id = getNestedValue(row, rowKey) as string | number;
                 const isSelected = selectedIds.has(id);
 

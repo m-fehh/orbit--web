@@ -12,6 +12,7 @@ export type ViewKind =
   | 'analytics'
   | 'admin'
   | 'audit'
+  | 'intelligence'
   | 'iterations'
   | 'tags';
 

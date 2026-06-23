@@ -70,7 +70,7 @@ export function TeamsView() {
   ], [t]);
 
   return (
-    <PageTransition className="flex h-full flex-col">
+    <PageTransition className="flex h-full flex-col gap-lg p-lg">
       <DataGrid<TeamResponse>
         gridId="admin-teams"
         columns={columns}

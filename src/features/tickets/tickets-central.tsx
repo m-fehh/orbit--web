@@ -1,9 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Plus, Search, RefreshCw } from 'lucide-react';
-import { ticketsApi } from '@/shared/api/endpoints';
+import { useQuery } from '@tanstack/react-query';
+import { Plus, Search, Layers, ChevronRight, FolderOpen } from 'lucide-react';
+import { ticketsApi, iterationsApi } from '@/shared/api/endpoints';
+import type { IterationResponse } from '@/shared/api/types';
 import type { TicketResponse, TicketStatusName, PriorityName } from '@/shared/api/types';
 import { TicketStatus, Priority } from '@/shared/api/types';
 import type { Locale } from '@/shared/i18n/config';
@@ -63,13 +65,16 @@ export function TicketsCentral() {
   const tStatus = useTranslations('ticketStatus');
   const tPriority = useTranslations('priority');
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
+  const [selectedIteration, setSelectedIteration] = useState<number | null>(null);
+  const iterations = useQuery({ queryKey: ['iterations'], queryFn: () => iterationsApi.list(1, 100) });
 
   // --- DataGrid query ---
   const grid = useDataGridQuery<TicketResponse>({
-    queryKey: ['tickets', 'list'],
-    queryFn: (params) => ticketsApi.list(buildApiParams(params) as any),
+    queryKey: ['tickets', 'list', selectedIteration],
+    queryFn: (params) => ticketsApi.list({ ...buildApiParams(params), iterationId: selectedIteration ?? undefined } as any),
     defaultPageSize: 20,
     defaultSorts: [{ field: 'openedAt', direction: 'desc' }],
+    enabled: !!selectedIteration,
   });
 
   // --- Status filter options (translated) ---
@@ -240,41 +245,101 @@ export function TicketsCentral() {
     </>
   );
 
+  const activeIterations = (iterations.data ?? []).filter((it) => it.status === 'Active' || it.status === 'Planning');
+  const completedIterations = (iterations.data ?? []).filter((it) => it.status === 'Completed');
+  const selectedIterationName = selectedIteration ? (iterations.data ?? []).find((it) => it.id === selectedIteration)?.name : null;
+
   return (
-    <div className="flex h-full flex-col p-md gap-md">
-      <div>
-        <h1 className="text-lg font-bold">
-          {t('center' as any)}
-        </h1>
-        <p className="text-xs text-muted">
-          {grid.totalCount > 0
-            ? `${grid.totalCount} tickets`
-            : grid.isLoading
-              ? '...'
-              : '—'}
-        </p>
+    <div className="flex h-full gap-0">
+      {/* Iteration sidebar */}
+      <div className="hidden md:flex w-56 shrink-0 flex-col border-r border-border bg-bg-subtle/30 overflow-y-auto">
+        <div className="p-3 pb-1">
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-dim">
+            <Layers className="h-3 w-3" /> {t('iteration')}
+          </p>
+        </div>
+        <div className="flex flex-col gap-0.5 px-1.5 pb-2">
+          <div className="px-2.5 py-1.5 text-[10px] text-dim">{t('selectIteration')}</div>
+          {activeIterations.map((it) => (
+            <button
+              key={it.id}
+              type="button"
+              onClick={() => setSelectedIteration(it.id === selectedIteration ? null : it.id)}
+              className={`flex items-center justify-between gap-1 rounded-md px-2.5 py-1.5 text-xs transition-colors ${
+                selectedIteration === it.id ? 'bg-primary/10 text-primary font-semibold' : 'text-muted hover:bg-bg-subtle hover:text-text'
+              }`}
+            >
+              <span className="flex items-center gap-1.5 truncate">
+                <ChevronRight className="h-3 w-3 shrink-0" />
+                {it.name}
+              </span>
+              <span className="shrink-0 rounded-full bg-panel-2 px-1.5 text-[10px] font-medium text-dim">{it.ticketCount}</span>
+            </button>
+          ))}
+          {completedIterations.length > 0 && (
+            <>
+              <div className="mt-2 px-2.5 text-[9px] font-bold uppercase tracking-widest text-dim/50">{t('closedAt') || 'Encerradas'}</div>
+              {completedIterations.slice(0, 5).map((it) => (
+                <button
+                  key={it.id}
+                  type="button"
+                  onClick={() => setSelectedIteration(it.id === selectedIteration ? null : it.id)}
+                  className={`flex items-center justify-between gap-1 rounded-md px-2.5 py-1.5 text-[11px] transition-colors opacity-60 ${
+                    selectedIteration === it.id ? 'bg-primary/10 text-primary font-semibold opacity-100' : 'text-dim hover:bg-bg-subtle hover:text-text hover:opacity-100'
+                  }`}
+                >
+                  <span className="truncate">{it.name}</span>
+                  <span className="shrink-0 text-[10px]">{it.ticketCount}</span>
+                </button>
+              ))}
+            </>
+          )}
+        </div>
       </div>
 
-      <DataGrid<TicketResponse>
-        gridId="tickets-central"
-        columns={columns}
-        data={grid.data}
-        rowKey="id"
-        totalCount={grid.totalCount}
-        page={grid.page}
-        pageSize={grid.pageSize}
-        onPageChange={grid.onPageChange}
-        onPageSizeChange={grid.onPageSizeChange}
-        onSortChange={grid.onSortChange}
-        onFilterChange={grid.onFilterChange}
-        onRefresh={grid.onRefresh}
-        onRowClick={handleRowClick}
-        loading={grid.isLoading}
-        error={grid.error}
-        toolbar={toolbar}
-        labels={labels}
-        className="flex-1 min-h-0"
-      />
+      {/* Main content */}
+      <div className="flex flex-1 flex-col p-md gap-md min-w-0">
+        <div>
+          <h1 className="text-lg font-bold">
+            {selectedIterationName ? `${t('center' as any)} · ${selectedIterationName}` : t('center' as any)}
+          </h1>
+          <p className="text-xs text-muted">
+            {grid.totalCount > 0
+              ? `${grid.data.length} tickets`
+              : grid.isLoading
+                ? '...'
+                : '—'}
+          </p>
+        </div>
+
+        {!selectedIteration ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+            <Layers className="h-10 w-10 text-dim/40" />
+            <p className="text-sm text-muted">{t('selectIteration')}</p>
+          </div>
+        ) : (
+          <DataGrid<TicketResponse>
+            gridId="tickets-central"
+            columns={columns}
+            data={grid.data}
+            rowKey="id"
+            totalCount={grid.data.length}
+            page={grid.page}
+            pageSize={grid.pageSize}
+            onPageChange={grid.onPageChange}
+            onPageSizeChange={grid.onPageSizeChange}
+            onSortChange={grid.onSortChange}
+            onFilterChange={grid.onFilterChange}
+            onRefresh={grid.onRefresh}
+            onRowClick={handleRowClick}
+            loading={grid.isLoading}
+            error={grid.error}
+            toolbar={toolbar}
+            labels={labels}
+            className="flex-1 min-h-0"
+          />
+        )}
+      </div>
     </div>
   );
 }

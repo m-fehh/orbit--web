@@ -213,7 +213,7 @@ export function ConfidenceBar({
   className?: string;
   size?: 'sm' | 'md';
 }) {
-  const pct = Math.round(value * 100);
+  const pct = value != null && !isNaN(value) ? Math.round(value * 100) : 0;
   const color = pct >= 70 ? 'bg-success' : pct >= 40 ? 'bg-warning' : 'bg-danger';
   const h = size === 'sm' ? 'h-1' : 'h-1.5';
   return (

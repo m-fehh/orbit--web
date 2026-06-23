@@ -93,7 +93,7 @@ export function UsersView() {
   ], [t]);
 
   return (
-    <PageTransition className="flex h-full flex-col">
+    <PageTransition className="flex h-full flex-col gap-lg p-lg">
       <DataGrid<UserRow>
         gridId="admin-users"
         columns={columns}

@@ -344,6 +344,7 @@ export interface UpdateTicketRequest {
   title: string;
   description: string;
   priority?: PriorityValue | null;
+  iterationId?: number | null;
 }
 
 /** Branding público do tenant (GET /branding), resolvido pelo subdomínio. */
@@ -603,6 +604,8 @@ export interface EngineeringWorkItemResponse {
   technicalDescription: string;
   status: string;
   assignedToId: number | null;
+  parentId: number | null;
+  children?: EngineeringWorkItemResponse[];
   createdAt: string | null;
   updatedAt: string | null;
 }

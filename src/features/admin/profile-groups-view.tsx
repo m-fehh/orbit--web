@@ -81,7 +81,7 @@ export function ProfileGroupsView() {
               value={sidebarSearch}
               onChange={(e) => setSidebarSearch(e.target.value)}
               placeholder={t('filterPlaceholder')}
-              className="h-8 pl-8 text-xs"
+              className="h-8 text-xs"
             />
           </div>
         </div>

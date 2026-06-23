@@ -6,18 +6,24 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Brain, ThumbsUp, ThumbsDown, Check, Loader2, BookOpen, Target, Lightbulb, Sparkles,
-  TrendingUp, Zap, ExternalLink, ArrowRight, BarChart3, Clock,
+  Brain, ThumbsUp, ThumbsDown, Check, BookOpen, Target, Lightbulb, Sparkles,
+  Zap, ExternalLink, BarChart3, Clock, FileText, ArrowRight,
 } from 'lucide-react';
 import { intelligenceApi, knowledgeApi, ticketsApi } from '@/shared/api/endpoints';
 import { ticketResolutionApi } from '@/shared/api/endpoints';
 import { apiErrorMessage } from '@/shared/api/types';
 import { useWindowStore } from '@/features/windows/window-store';
+import { openTicketTab } from './ticket-actions';
 import { Button } from '@/shared/ui/button';
 import { ConfidenceBar, PulseDot } from '@/shared/ui/motion';
 import { cn } from '@/shared/lib/utils';
 
 const MODAL_ID = 'intelligence-modal';
+
+function pct(v: number | null | undefined): string {
+  if (v == null || isNaN(v)) return '—';
+  return `${Math.round(v * 100)}%`;
+}
 
 export function openIntelligenceModal(ticketId: number, ticketTitle: string) {
   useWindowStore.getState().open({
@@ -25,17 +31,13 @@ export function openIntelligenceModal(ticketId: number, ticketTitle: string) {
     title: '',
     icon: <Brain className="h-4 w-4" />,
     modal: true,
-    width: 520,
-    height: 700,
+    width: 680,
+    height: 750,
     content: <IntelligenceModalContent ticketId={ticketId} ticketTitle={ticketTitle} />,
   });
 }
 
 type FeedbackState = Record<string, 'up' | 'down'>;
-
-// ---------------------------------------------------------------------------
-// Analyzing Animation
-// ---------------------------------------------------------------------------
 
 function AnalyzingState() {
   const t = useTranslations('intelligence');
@@ -102,10 +104,6 @@ function AnalyzingState() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// No Data State
-// ---------------------------------------------------------------------------
-
 function NoDataState() {
   const t = useTranslations('intelligence');
   return (
@@ -130,10 +128,6 @@ function NoDataState() {
     </motion.div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Main Content
-// ---------------------------------------------------------------------------
 
 function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number; ticketTitle: string }) {
   const t = useTranslations('intelligence');
@@ -221,7 +215,6 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {/* Header with pulse */}
       <div className="border-b border-border bg-gradient-to-r from-primary/5 to-transparent px-md py-2">
         <div className="flex items-center gap-2 text-[11px] text-muted">
           <PulseDot color="bg-primary" />
@@ -230,7 +223,6 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
         </div>
       </div>
 
-      {/* Tab navigation */}
       <div className="flex border-b border-border">
         {tabs.map((tab) => (
           <button
@@ -245,7 +237,7 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
             )}
           >
             <tab.icon className={cn('h-3.5 w-3.5', activeTab === tab.key ? tab.color : '')} />
-            <span className="hidden sm:inline">{tab.label}</span>
+            {tab.label}
             {tab.count > 0 && (
               <span className={cn(
                 'rounded-full px-1.5 py-px text-[10px] font-bold',
@@ -258,7 +250,6 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
         ))}
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto">
         <AnimatePresence mode="wait">
           {activeTab === 'causes' && (
@@ -286,10 +277,25 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
                         </span>
                         <p className="text-sm font-medium text-text">{rc.title || rc.category}</p>
                       </div>
-                      <p className="mt-1 text-xs leading-relaxed text-muted line-clamp-3">{rc.reasoning}</p>
+                      {rc.reasoning && (
+                        <div className="mt-1.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-0.5">{t('whyThisCause')}</p>
+                          <p className="text-xs leading-relaxed text-muted">{rc.reasoning}</p>
+                        </div>
+                      )}
                     </div>
+                    <span className="shrink-0 rounded-md bg-primary/10 px-2 py-1 text-xs font-bold tabular-nums text-primary">
+                      {pct(rc.confidence)}
+                    </span>
                   </div>
-                  <ConfidenceBar value={rc.confidence} className="mt-2" size="sm" />
+                  <ConfidenceBar value={rc.confidence ?? 0} className="mt-2" size="sm" />
+                  {rc.category && rc.title && (
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <span className="rounded bg-bg-subtle px-1.5 py-0.5 text-[10px] font-medium text-muted">
+                        {rc.category}
+                      </span>
+                    </div>
+                  )}
                 </motion.div>
               ))}
               {rcData.length === 0 && (
@@ -321,13 +327,34 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <Zap className="h-3.5 w-3.5 text-success" />
+                          <Zap className="h-3.5 w-3.5 shrink-0 text-success" />
                           <p className="text-sm font-medium text-text">{r.summary}</p>
                         </div>
-                        {r.steps && <p className="mt-1 text-xs leading-relaxed text-muted line-clamp-3">{r.steps}</p>}
+                        {r.steps && (
+                          <div className="mt-1.5">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-0.5">{t('analystSteps')}</p>
+                            <p className="text-xs leading-relaxed text-muted whitespace-pre-line">{r.steps}</p>
+                          </div>
+                        )}
                       </div>
+                      <span className="shrink-0 rounded-md bg-success/10 px-2 py-1 text-xs font-bold tabular-nums text-success">
+                        {pct(r.confidence)}
+                      </span>
                     </div>
-                    <ConfidenceBar value={r.confidence} className="mt-2" size="sm" />
+                    <ConfidenceBar value={r.confidence ?? 0} className="mt-2" size="sm" />
+
+                    {r.sourceTicketId != null && (
+                      <button
+                        type="button"
+                        onClick={() => openTicketTab({ id: r.sourceTicketId!, number: String(r.sourceTicketId) })}
+                        className="mt-2 flex items-center gap-1.5 text-[11px] text-primary hover:underline"
+                      >
+                        <FileText className="h-3 w-3" />
+                        {t('sourceTicket')} #{r.sourceTicketId}
+                        <ArrowRight className="h-3 w-3" />
+                      </button>
+                    )}
+
                     <div className="mt-2 flex items-center gap-1.5 border-t border-border/50 pt-2">
                       <Button
                         size="sm"
@@ -411,7 +438,6 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
         </AnimatePresence>
       </div>
 
-      {/* Footer with stats */}
       <div className="flex items-center gap-md border-t border-border px-md py-2 text-[10px] text-dim">
         <span className="flex items-center gap-1">
           <Brain className="h-3 w-3 text-primary" />

@@ -25,6 +25,7 @@ export function AsyncCombobox({
   allowClear = true,
   onCreate,
   createLabel = 'Cadastrar',
+  disabled = false,
 }: {
   options: ComboOption[];
   value: number | null;
@@ -36,6 +37,7 @@ export function AsyncCombobox({
   /** Quando presente, mostra um botão "+" ao lado para abrir o cadastro/listagem. */
   onCreate?: () => void;
   createLabel?: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [term, setTerm] = useState('');
@@ -52,11 +54,16 @@ export function AsyncCombobox({
     <div className="relative">
       <button
         type="button"
+        disabled={disabled}
         onClick={() => {
+          if (disabled) return;
           setOpen((v) => !v);
           setTimeout(() => inputRef.current?.focus(), 0);
         }}
-        className="flex h-10 w-full items-center gap-sm rounded-md border border-border bg-bg-subtle px-md text-sm outline-none transition-all hover:border-border-strong focus:border-primary focus:ring-4 focus:ring-primary/15"
+        className={cn(
+          'flex h-10 w-full items-center gap-sm rounded-md border border-border bg-bg-subtle px-md text-sm outline-none transition-all',
+          disabled ? 'opacity-60 cursor-not-allowed' : 'hover:border-border-strong focus:border-primary focus:ring-4 focus:ring-primary/15',
+        )}
       >
         <span className={cn('flex-1 truncate text-left', !selected && 'text-dim')}>
           {selected ? selected.label : placeholder}
