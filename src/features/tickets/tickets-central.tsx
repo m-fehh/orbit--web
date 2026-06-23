@@ -40,15 +40,15 @@ function buildApiParams(params: DataGridQueryParams) {
     apiParams.sortDirection = params.sort[0].direction;
   }
 
-  // Filters — map select filters to API params
+  // Filters — send single-value select to API; multi-value handled client-side
   const statusFilter = params.filters.status;
-  if (statusFilter?.type === 'select' && statusFilter.values.length > 0) {
-    apiParams.status = statusFilter.values.join(',');
+  if (statusFilter?.type === 'select' && statusFilter.values.length === 1) {
+    apiParams.status = statusFilter.values[0];
   }
 
   const priorityFilter = params.filters.priority;
-  if (priorityFilter?.type === 'select' && priorityFilter.values.length > 0) {
-    apiParams.priority = priorityFilter.values.join(',');
+  if (priorityFilter?.type === 'select' && priorityFilter.values.length === 1) {
+    apiParams.priority = priorityFilter.values[0];
   }
 
   return apiParams;
