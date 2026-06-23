@@ -202,7 +202,6 @@
     "priorityColumn": "Prioridade",
     "searchPlaceholder": "Buscar tickets...",
     "newTicket": "Novo ticket",
-    "center": "Central de Tickets",
     "estimated": "Estimado",
     "completed": "Realizado",
     "remaining": "Restante",
@@ -211,13 +210,17 @@
     "noIteration": "Sem iteração",
     "iteration": "Iteração",
     "iterationUpdated": "Iteração atualizada",
+    "iterStatusActive": "Ativa",
+    "iterStatusPlanning": "Planejamento",
+    "iterStatusClosed": "Encerrada",
     "tags": "Tags",
     "searchTags": "Buscar tags…",
     "noResults": "Nenhuma tag encontrada.",
     "relatedTickets": "tickets relacionados",
     "selectIteration": "Selecione uma iteração",
     "allTickets": "Todos os tickets",
-    "center": "Central de Tickets"
+    "center": "Central de Tickets",
+    "addTag": "Adicionar tag"
   },
   "newTicket": {
     "created": "Ticket {number} criado",
@@ -249,6 +252,7 @@
     "tags": "Tags",
     "noTags": "Nenhuma tag disponível",
     "createTag": "Criar",
+    "tagsPlaceholder": "Digite uma tag e pressione Enter…",
     "suggestedTags": "Sugestões:"
   },
   "knowledge": {
@@ -439,7 +443,17 @@
     "maxSize": "Tamanho máximo: 10MB",
     "supportedFormats": "Formatos suportados: imagens, PDF, documentos, planilhas",
     "attachmentRemoved": "Anexo removido",
-    "attachmentRemoveError": "Erro ao remover anexo"
+    "attachmentRemoveError": "Erro ao remover anexo",
+    "evidenceSection": "Evidências de Investigação",
+    "regularSection": "Anexos Gerais",
+    "eType": {
+      "Screenshot": "Captura de Tela",
+      "Log": "Log",
+      "Video": "Vídeo",
+      "File": "Arquivo",
+      "Observation": "Observação",
+      "Url": "URL"
+    }
   },
   "theme": {
     "toggle": "Alternar tema",

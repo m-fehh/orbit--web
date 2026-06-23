@@ -202,7 +202,6 @@
     "priorityColumn": "Priority",
     "searchPlaceholder": "Search tickets...",
     "newTicket": "New Ticket",
-    "center": "Ticket Center",
     "estimated": "Estimated",
     "completed": "Completed",
     "remaining": "Remaining",
@@ -211,13 +210,17 @@
     "noIteration": "No iteration",
     "iteration": "Iteration",
     "iterationUpdated": "Iteration updated",
+    "iterStatusActive": "Active",
+    "iterStatusPlanning": "Planning",
+    "iterStatusClosed": "Closed",
     "tags": "Tags",
     "searchTags": "Search tags…",
     "noResults": "No tags found.",
     "relatedTickets": "related tickets",
     "selectIteration": "Select an iteration",
     "allTickets": "All tickets",
-    "center": "Ticket Center"
+    "center": "Ticket Center",
+    "addTag": "Add tag"
   },
   "ticketStatus": {
     "New": "New",
@@ -401,7 +404,17 @@
     "maxSize": "Max size: 10MB",
     "supportedFormats": "Supported formats: images, PDF, documents, spreadsheets",
     "attachmentRemoved": "Attachment removed",
-    "attachmentRemoveError": "Error removing attachment"
+    "attachmentRemoveError": "Error removing attachment",
+    "evidenceSection": "Investigation Evidence",
+    "regularSection": "General Attachments",
+    "eType": {
+      "Screenshot": "Screenshot",
+      "Log": "Log",
+      "Video": "Video",
+      "File": "File",
+      "Observation": "Observation",
+      "Url": "URL"
+    }
   },
   "theme": {
     "toggle": "Toggle theme",
@@ -863,6 +876,7 @@
     "tags": "Tags",
     "noTags": "No tags available",
     "createTag": "Create",
+    "tagsPlaceholder": "Type a tag and press Enter…",
     "suggestedTags": "Suggestions:"
   },
   "knowledge": {

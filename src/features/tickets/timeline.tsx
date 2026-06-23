@@ -8,7 +8,7 @@ import {
   ShieldAlert, Sparkles, Tag, Timer, UserPlus, Users, Wrench,
 } from 'lucide-react';
 import type { Locale } from '@/shared/i18n/config';
-import { auditApi, ticketsApi } from '@/shared/api/endpoints';
+import { auditApi, ticketsApi, iterationsApi } from '@/shared/api/endpoints';
 import type { AuditLogResponse, TicketCommentResponse, TicketDetailResponse, WorklogResponse } from '@/shared/api/types';
 import { LoadingState } from '@/shared/ui/states';
 import { useBrandingStore } from '@/features/tenant/branding-store';
@@ -53,6 +53,7 @@ const AUDIT_FIELD_KEY: Record<string, string> = {
   Priority: 'priority',
   AssignedUserId: 'ticket.assignee',
   AssignedTeamId: 'ticket.team',
+  IterationId: 'ticket.iteration',
   EstimateMinutes: 'timeline.estimateMinutes',
   SlaBreachNotifiedAt: 'timeline.slaBreach',
 };
@@ -101,6 +102,7 @@ function fromAudit(
     knownField.fieldName === 'Priority' ? 'priority' :
     knownField.fieldName === 'AssignedUserId' ? 'assignee' :
     knownField.fieldName === 'AssignedTeamId' ? 'team' :
+    knownField.fieldName === 'IterationId' ? 'audit' :
     knownField.fieldName === 'EstimateMinutes' ? 'worklog' :
     knownField.fieldName === 'SlaBreachNotifiedAt' ? 'sla' :
     'audit';
@@ -170,6 +172,15 @@ export function TicketTimeline({
     retry: false,
   });
 
+  const iterations = useQuery({
+    queryKey: ['iterations'],
+    queryFn: () => iterationsApi.list(1, 100),
+  });
+  const iterationName = (id: number | null) => {
+    if (!id) return '—';
+    return (iterations.data ?? []).find((it) => it.id === id)?.name ?? `#${id}`;
+  };
+
   // Parse audit userNames - they might come as IDs, try to get real names from context
   const getActorName = (auditUserName: string | null, auditUserId: number | null): string => {
     if (!auditUserName) return auditUserId ? userName(auditUserId) : 'System';
@@ -227,6 +238,18 @@ export function TicketTimeline({
       const h = Math.floor(mins / 60);
       const m = mins % 60;
       return h > 0 ? `${h}h${m > 0 ? ` ${m}min` : ''}` : `${m}min`;
+    }
+
+    if (fieldName === 'IterationId') {
+      return iterationName(!isNaN(Number(value)) ? Number(value) : null);
+    }
+
+    if (fieldName === 'CustomerId' && !isNaN(Number(value))) {
+      return userName(Number(value));
+    }
+
+    if (fieldName.endsWith('Id') && !isNaN(Number(value))) {
+      return userName(Number(value)) || value;
     }
 
     return value;
@@ -303,7 +326,7 @@ export function TicketTimeline({
     });
 
     return list.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
-  }, [ticket, audit.data, attachments.data, userName, t, locale, timeZone]);
+  }, [ticket, audit.data, attachments.data, iterations.data, userName, t, locale, timeZone]);
 
   // ─── Loading / Vazio ────────────────────────────────
   if (audit.isLoading) return <LoadingState label={t('timeline.loading')} />;

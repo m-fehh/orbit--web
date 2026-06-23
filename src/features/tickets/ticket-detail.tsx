@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -155,7 +155,7 @@ export function TicketDetail({ id }: { id: number }) {
                 }
               }} />
             </Can>
-            <IterationControl ticketId={id} ticketTitle={ticket.title} ticketDescription={ticket.description ?? ''} currentIteration={ticket.iteration ?? null} />
+            <IterationControl ticketId={id} ticketTitle={ticket.title} ticketDescription={ticket.description ?? ''} currentIteration={ticket.iteration ?? null} currentIterationId={ticket.iterationId ?? null} />
             <Button
               size="sm"
               variant="ghost"
@@ -203,9 +203,8 @@ export function TicketDetail({ id }: { id: number }) {
               </span>
             </>
           )}
-        </div>
-
-        <div className="mt-2">
+          {/* Tags moved to the right of "Atualizado em" */}
+          <span className="text-dim">·</span>
           <TagsBar ticketId={id} currentTags={ticket.tags ?? []} />
         </div>
       </div>
@@ -309,7 +308,7 @@ export function TicketDetail({ id }: { id: number }) {
 
         {sub === 'workItems' && <WorkItemsTab ticketId={id} />}
 
-        {sub === 'attachments' && <AttachmentsTab ticketId={id} userName={userName} />}
+        {sub === 'attachments' && <AttachmentsTab ticketId={id} userName={userName} investigations={ticket.investigations} />}
       </div>
 
       {showResolveModal && (
@@ -520,87 +519,126 @@ function IntelligenceQuickView({ ticketId, onExpand }: { ticketId: number; onExp
     retry: false,
   });
 
-  if (isLoading || !data || (data.rootCauseCandidates.length === 0 && data.resolutionSuggestions.length === 0)) {
+  if (isLoading) {
+    return (
+      <div className="card-surface p-md border border-primary/10">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <span className="text-xs text-muted">{t('analyzing')}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data || (data.rootCauseCandidates.length === 0 && data.resolutionSuggestions.length === 0)) {
     return null;
   }
 
-  const topRootCause = data.rootCauseCandidates[0];
-  const topResolution = data.resolutionSuggestions[0];
-  const relatedCount = topRootCause ? topRootCause.supportingTicketIds.length : 0;
+  const causes = data.rootCauseCandidates;
+  const resolutions = data.resolutionSuggestions;
+  const hasMeaningfulData = causes.some(c => c.description) || resolutions.length > 0;
+
+  if (!hasMeaningfulData) return null;
 
   return (
-    <div className="card-surface p-md bg-primary/5 border border-primary/20">
-      <div className="flex items-start justify-between gap-3 mb-3">
+    <div className="card-surface overflow-hidden border border-primary/20">
+      <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-primary/8 to-transparent px-md py-2.5">
         <div className="flex items-center gap-2">
-          <Brain className="h-4 w-4 text-primary" />
-          <p className="text-xs font-semibold uppercase text-primary">{t('title')}</p>
-          {topRootCause?.aiEnhanced && <span className="rounded bg-primary/20 px-1 py-0.5 text-[9px] font-bold text-primary">{t('ai')}</span>}
+          <div className="grid h-6 w-6 place-items-center rounded-md bg-primary/15">
+            <Brain className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <p className="text-xs font-semibold text-primary">{t('title')}</p>
+          {causes.some(c => c.aiEnhanced) && (
+            <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold text-primary">{t('ai')}</span>
+          )}
         </div>
-        <Button size="sm" variant="ghost" onClick={onExpand} className="h-6 text-xs">
-          {t('viewMore')}
+        <Button size="sm" variant="ghost" onClick={onExpand} className="h-6 text-xs gap-1">
+          {t('viewMore')} <ArrowRight className="h-3 w-3" />
         </Button>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {topRootCause && (
-          <div className="rounded-lg border border-border bg-panel/60 p-3">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Target className="h-3.5 w-3.5 text-primary shrink-0" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-dim">{t('probableCause')}</span>
-              {topRootCause.confidenceScore != null && !isNaN(topRootCause.confidenceScore) && (
-                <span className="ml-auto shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">{pct(topRootCause.confidenceScore)}</span>
-              )}
-            </div>
-            <p className="text-sm font-medium text-text">{topRootCause.category}</p>
-            {topRootCause.description && (
-              <div className="mt-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-0.5">{t('whyThisCause')}</p>
-                <p className="text-xs text-muted leading-relaxed">{topRootCause.description}</p>
+      <div className="p-md">
+        <div className="grid gap-3 md:grid-cols-1">
+          {/* Root Causes */}
+          {causes.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1.5">
+                <Target className="h-3 w-3 text-primary" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-dim">{t('rootCauses')}</span>
               </div>
-            )}
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              {relatedCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => openRelatedTicketsModal(topRootCause.supportingTicketIds)}
-                  className="inline-flex items-center gap-1 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors cursor-pointer"
-                >
-                  <Layers className="h-2.5 w-2.5" /> {relatedCount} {tTicket('relatedTickets')}
-                  <ArrowUpRight className="h-2.5 w-2.5" />
-                </button>
-              )}
-              {(topRootCause.coOccurrencePatterns ?? []).map((p) => (
-                <span key={p} className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">{p}</span>
+              {causes.slice(0, 3).map((rc, i) => {
+                const relatedCount = rc.supportingTicketIds.length;
+                const confColor = rc.confidenceScore >= 0.7 ? 'text-emerald-600 bg-emerald-50' : rc.confidenceScore >= 0.4 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
+                return (
+                  <div key={i} className="rounded-lg border border-border bg-panel/60 p-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-[10px] font-semibold text-dim uppercase">{rc.category}</span>
+                          <span className={cn('rounded-full px-1.5 py-0.5 text-[9px] font-bold', confColor)}>
+                            {pct(rc.confidenceScore)}
+                          </span>
+                        </div>
+                        {rc.description && (
+                          <p className="text-xs text-text leading-relaxed line-clamp-2">{rc.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      {relatedCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => openRelatedTicketsModal(rc.supportingTicketIds)}
+                          className="inline-flex items-center gap-1 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                        >
+                          <Layers className="h-2.5 w-2.5" /> {relatedCount} {tTicket('relatedTickets')}
+                        </button>
+                      )}
+                      {(rc.coOccurrencePatterns ?? []).slice(0, 2).map((p) => (
+                        <span key={p} className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">{p}</span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Resolutions */}
+          {resolutions.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1.5">
+                <Zap className="h-3 w-3 text-success" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-dim">{t('resolutions')}</span>
+              </div>
+              {resolutions.slice(0, 3).map((r) => (
+                <div key={r.resolutionId} className="rounded-lg border border-border bg-panel/60 p-2.5">
+                  <p className="text-xs font-medium text-text line-clamp-2 mb-1.5">{r.summary}</p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {r.successRate != null && !isNaN(r.successRate) && (
+                      <span className="rounded-full bg-success/10 px-1.5 py-0.5 text-[9px] font-bold text-success">
+                        {pct(r.successRate)} {t('success')}
+                      </span>
+                    )}
+                    {r.reusedCount > 0 && (
+                      <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[9px] font-medium text-dim">
+                        {r.reusedCount}× {t('reuse')}
+                      </span>
+                    )}
+                    {(r.matchedTerms ?? []).slice(0, 3).map((term) => (
+                      <span key={term} className="rounded bg-primary/8 px-1.5 py-0.5 text-[9px] text-primary">{term}</span>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
-        )}
-        {topResolution && (
-          <div className="rounded-lg border border-border bg-panel/60 p-3">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Zap className="h-3.5 w-3.5 text-success shrink-0" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-dim">{t('suggestedSolution')}</span>
-              {topResolution.successRate != null && !isNaN(topResolution.successRate) && (
-                <span className="ml-auto shrink-0 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold text-success">{pct(topResolution.successRate)}</span>
-              )}
-            </div>
-            <p className="text-sm font-medium text-text">{topResolution.summary}</p>
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              {topResolution.reusedCount > 0 && (
-                <span className="inline-flex items-center gap-1 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">
-                  {tTicket('usedCount', { count: topResolution.reusedCount })}
-                </span>
-              )}
-              {topResolution.similarityScore != null && !isNaN(topResolution.similarityScore) && (
-                <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">
-                  {pct(topResolution.similarityScore)} {t('similar')}
-                </span>
-              )}
-              {(topResolution.matchedTerms ?? []).slice(0, 4).map((term) => (
-                <span key={term} className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{term}</span>
-              ))}
-            </div>
-          </div>
+          )}
+        </div>
+
+        {data.generatedAt && (
+          <p className="mt-3 text-[10px] text-dim text-right">
+            {t('aiDisclaimer')}
+          </p>
         )}
       </div>
     </div>
@@ -655,18 +693,30 @@ function RecommendationsPanel({ ticketId, onOpenIntelligence }: { ticketId: numb
 }
 
 /* ---- Iteration Control (header dropdown — iteration only) ---- */
-function IterationControl({ ticketId, ticketTitle, ticketDescription, currentIteration }: { ticketId: number; ticketTitle: string; ticketDescription: string; currentIteration: IterationResponse | null }) {
+function IterationControl({ ticketId, ticketTitle, ticketDescription, currentIteration, currentIterationId }: { ticketId: number; ticketTitle: string; ticketDescription: string; currentIteration: IterationResponse | null; currentIterationId: number | null }) {
   const t = useTranslations('ticket');
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
 
   const iterations = useQuery({ queryKey: ['iterations'], queryFn: () => iterationsApi.list(1, 100) });
 
+  // Determine current iteration from either the full object or fallback lookup by ID
+  const resolvedIteration = currentIteration ?? (currentIterationId ? (iterations.data ?? []).find(it => it.id === currentIterationId) ?? null : null);
+
   const setIteration = useMutation({
     mutationFn: (iterationId: number | null) => ticketsApi.setIteration(ticketId, ticketTitle, ticketDescription, iterationId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] }); toast.success(t('iterationUpdated')); },
     onError: (err) => toast.error(apiErrorMessage(err, 'Error')),
   });
+
+  const iterationStatusLabel = (status: string) => {
+    switch (status) {
+      case 'Active': return 'Active';
+      case 'Planning': return 'Planning';
+      case 'Closed': return 'Closed';
+      default: return status;
+    }
+  };
 
   return (
     <div className="relative">
@@ -675,24 +725,24 @@ function IterationControl({ ticketId, ticketTitle, ticketDescription, currentIte
         onClick={() => setOpen((v) => !v)}
         className={cn(
           'inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors',
-          currentIteration
+          resolvedIteration
             ? 'bg-primary/10 border border-primary/30 text-primary hover:bg-primary/15'
             : 'border border-dashed border-border bg-panel text-muted hover:border-border-strong hover:text-text'
         )}
       >
         <Layers className="h-4 w-4" />
-        {currentIteration ? (
+        {resolvedIteration ? (
           <span className="flex items-center gap-1.5">
-            <span>{currentIteration.name}</span>
-            {currentIteration.startDate && (
+            <span>{resolvedIteration.name}</span>
+            {resolvedIteration.startDate && (
               <span className="text-[10px] font-normal opacity-70">
-                {new Date(currentIteration.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                {currentIteration.endDate && <> – {new Date(currentIteration.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
+                {new Date(resolvedIteration.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                {resolvedIteration.endDate && <> – {new Date(resolvedIteration.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
               </span>
             )}
           </span>
         ) : (
-          t('setIteration')
+          t('iteration')
         )}
         <ChevronDown className="h-3 w-3" />
       </button>
@@ -706,7 +756,7 @@ function IterationControl({ ticketId, ticketTitle, ticketDescription, currentIte
                 <button
                   type="button"
                   onClick={() => { setIteration.mutate(null); setOpen(false); }}
-                  className={cn('flex items-center gap-2 rounded px-2 py-1.5 text-xs text-left transition-colors hover:bg-bg-subtle', !currentIteration && 'bg-primary/10 text-primary font-medium')}
+                  className={cn('flex items-center gap-2 rounded px-2 py-1.5 text-xs text-left transition-colors hover:bg-bg-subtle', !resolvedIteration && 'bg-primary/10 text-primary font-medium')}
                 >
                   <X className="h-3 w-3" /> {t('noIteration')}
                 </button>
@@ -717,15 +767,18 @@ function IterationControl({ ticketId, ticketTitle, ticketDescription, currentIte
                     onClick={() => { setIteration.mutate(it.id); setOpen(false); }}
                     className={cn(
                       'flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs text-left transition-colors hover:bg-bg-subtle',
-                      currentIteration?.id === it.id && 'bg-primary/10 text-primary font-medium'
+                      resolvedIteration?.id === it.id && 'bg-primary/10 text-primary font-medium'
                     )}
                   >
-                    <span className="truncate">{it.name}</span>
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {resolvedIteration?.id === it.id && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                      <span className="truncate">{it.name}</span>
+                    </div>
                     <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
                       it.status === 'Active' ? 'bg-success/15 text-success' :
                       it.status === 'Planning' ? 'bg-blue-100 text-blue-700' :
                       'bg-panel-2 text-dim'
-                    )}>{it.status}</span>
+                    )}>{iterationStatusLabel(it.status)}</span>
                   </button>
                 ))}
               </div>
@@ -737,30 +790,34 @@ function IterationControl({ ticketId, ticketTitle, ticketDescription, currentIte
   );
 }
 
-/* ---- Tags Bar (inline chips in header, below dropdowns) ---- */
+/* ---- Tags Bar (inline chips in header, to the right of "Atualizado em") ---- */
 function TagsBar({ ticketId, currentTags }: { ticketId: number; currentTags: TagResponse[] }) {
   const t = useTranslations('ticket');
   const qc = useQueryClient();
-  const [showAdd, setShowAdd] = useState(false);
-  const [tagSearch, setTagSearch] = useState('');
+  const MAX_TAGS = 5;
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
 
   const allTags = useQuery({ queryKey: ['tags'], queryFn: () => tagsApi.list() });
-
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] }); qc.invalidateQueries({ queryKey: ['tags'] }); };
 
   const addTag = useMutation({
     mutationFn: (tagId: number) => tagsApi.addToTicket(ticketId, tagId),
-    onSuccess: () => { invalidate(); setShowAdd(false); setTagSearch(''); },
+    onSuccess: () => { invalidate(); setInput(''); },
     onError: (err) => toast.error(apiErrorMessage(err, 'Error')),
   });
 
   const createAndAdd = useMutation({
     mutationFn: async (name: string) => {
-      const created = await tagsApi.create({ name, color: '#6366f1' });
+      const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#14b8a6'];
+      const color = colors[name.length % colors.length];
+      const created = await tagsApi.create({ name, color });
       await tagsApi.addToTicket(ticketId, created.id);
       return created;
     },
-    onSuccess: () => { invalidate(); setShowAdd(false); setTagSearch(''); },
+    onSuccess: () => { invalidate(); setInput(''); setOpen(false); },
     onError: (err) => toast.error(apiErrorMessage(err, 'Error')),
   });
 
@@ -770,70 +827,91 @@ function TagsBar({ ticketId, currentTags }: { ticketId: number; currentTags: Tag
     onError: (err) => toast.error(apiErrorMessage(err, 'Error')),
   });
 
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (popRef.current && !popRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 50); }, [open]);
+
   const currentTagIds = new Set(currentTags.map((tg) => tg.id));
-  const availableTags = (allTags.data ?? []).filter((tg) => tg.active && !currentTagIds.has(tg.id) && (!tagSearch || tg.name.toLowerCase().includes(tagSearch.toLowerCase())));
+  const trimmed = input.trim().toLowerCase();
+  const suggestions = (allTags.data ?? []).filter((tg) => tg.active && !currentTagIds.has(tg.id) && (!trimmed || tg.name.toLowerCase().includes(trimmed))).slice(0, 6);
+  const exactMatch = suggestions.find((tg) => tg.name.toLowerCase() === trimmed);
+
+  const handleSubmit = () => {
+    if (!trimmed) return;
+    if (exactMatch) addTag.mutate(exactMatch.id);
+    else {
+      const existing = (allTags.data ?? []).find((tg) => tg.name.toLowerCase() === trimmed && !currentTagIds.has(tg.id));
+      if (existing) addTag.mutate(existing.id);
+      else createAndAdd.mutate(input.trim());
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); }
+    if (e.key === 'Escape') { setInput(''); setOpen(false); }
+  };
+
+  const atLimit = currentTags.length >= MAX_TAGS;
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <span className="inline-flex items-center gap-1.5">
       {currentTags.map((tag) => (
-        <span key={tag.id} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium border" style={{ borderColor: (tag.color ?? '#888') + '40', backgroundColor: (tag.color ?? '#888') + '15', color: tag.color ?? '#888' }}>
+        <span key={tag.id} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border" style={{ borderColor: (tag.color ?? '#888') + '40', backgroundColor: (tag.color ?? '#888') + '15', color: tag.color ?? '#888' }}>
           {tag.name}
-          <button type="button" onClick={() => removeTag.mutate(tag.id)} className="hover:opacity-70"><X className="h-2.5 w-2.5" /></button>
+          <button type="button" onClick={() => removeTag.mutate(tag.id)} className="hover:opacity-70 rounded-full p-0.5 -mr-1"><X className="h-2.5 w-2.5" /></button>
         </span>
       ))}
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setShowAdd((v) => !v)}
-          className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-[11px] text-dim hover:border-border-strong hover:text-muted transition-colors"
-        >
-          <Plus className="h-3 w-3" /> {t('tags')}
-        </button>
-        {showAdd && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => { setShowAdd(false); setTagSearch(''); }} />
-            <div className="absolute left-0 z-40 mt-1 w-56 rounded-lg border border-border bg-panel shadow-xl overflow-hidden">
-              <div className="p-2">
+      {!atLimit && (
+        <span className="relative inline-flex" ref={popRef}>
+          <button
+            type="button"
+            onClick={() => setOpen(!open)}
+            className="inline-flex items-center gap-1.5 h-7 rounded-md border border-dashed border-dim px-2 text-[11px] font-medium text-dim hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
+          >
+            <Plus className="h-3 w-3" />
+            <span>{t('addTag')}</span>
+          </button>
+          {open && (
+            <div className="absolute left-0 top-full z-50 mt-1.5 w-56 rounded-lg border border-border bg-panel shadow-xl overflow-hidden">
+              <div className="p-2 border-b border-border">
                 <input
+                  ref={inputRef}
                   type="text"
-                  value={tagSearch}
-                  onChange={(e) => setTagSearch(e.target.value)}
-                  placeholder={t('searchTags')}
-                  className="w-full rounded border border-border bg-bg-subtle px-2 py-1.5 text-xs text-text outline-none placeholder:text-dim focus:border-primary mb-1.5"
-                  autoFocus
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={t('tagsPlaceholder')}
+                  className="w-full rounded-md border border-border bg-bg-subtle px-2.5 py-1.5 text-xs text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 placeholder:text-dim"
                 />
-                <div className="flex flex-col gap-0.5 max-h-32 overflow-y-auto">
-                  {availableTags.slice(0, 10).map((tag) => (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      onClick={() => addTag.mutate(tag.id)}
-                      className="flex items-center gap-2 rounded px-2 py-1 text-xs text-left hover:bg-bg-subtle transition-colors"
-                    >
-                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color ?? '#888' }} />
-                      {tag.name}
-                      {tag.group && <span className="text-dim text-[10px]">({tag.group})</span>}
-                    </button>
-                  ))}
-                  {availableTags.length === 0 && !tagSearch.trim() && (
-                    <p className="px-2 py-1.5 text-xs text-dim">{t('noResults')}</p>
-                  )}
-                  {tagSearch.trim() && (
-                    <button
-                      type="button"
-                      onClick={() => createAndAdd.mutate(tagSearch.trim())}
-                      className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-left hover:bg-bg-subtle transition-colors text-primary font-medium w-full border-t border-border mt-1 pt-1.5"
-                    >
-                      <Plus className="h-3 w-3" /> {t('createTag')} &ldquo;{tagSearch.trim()}&rdquo;
-                    </button>
-                  )}
-                </div>
               </div>
+              <div className="max-h-[180px] overflow-y-auto">
+                {suggestions.map((tag) => (
+                  <button key={tag.id} type="button" onClick={() => { addTag.mutate(tag.id); setOpen(false); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-bg-subtle transition-colors">
+                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color ?? '#888' }} />
+                    <span className="truncate">{tag.name}</span>
+                  </button>
+                ))}
+              </div>
+              {trimmed && !exactMatch && (
+                <button type="button" onClick={() => createAndAdd.mutate(input.trim())} className="flex items-center gap-2 w-full border-t border-border px-3 py-2 text-xs text-left text-primary font-medium hover:bg-primary/5 transition-colors">
+                  <Plus className="h-3 w-3" /> {t('createTag')} &ldquo;{input.trim()}&rdquo;
+                </button>
+              )}
+              {(addTag.isPending || createAndAdd.isPending) && (
+                <div className="flex items-center justify-center py-2 border-t border-border"><Loader2 className="h-3.5 w-3.5 animate-spin text-primary" /></div>
+              )}
             </div>
-          </>
-        )}
-      </div>
-    </div>
+          )}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -1329,7 +1407,7 @@ function WorklogsTab({ ticketId, worklogs, userName, estimateMinutesServer, rema
 }
 
 /* ---- Attachments Tab ---- */
-function AttachmentsTab({ ticketId, userName }: { ticketId: number; userName: (uid: number | null) => string }) {
+function AttachmentsTab({ ticketId, userName, investigations }: { ticketId: number; userName: (uid: number | null) => string; investigations: InvestigationResponse[] }) {
   const t = useTranslations('attachments');
   const locale = useLocale() as Locale;
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
@@ -1469,6 +1547,11 @@ function AttachmentsTab({ ticketId, userName }: { ticketId: number; userName: (u
     }
   };
 
+  // Extract evidence attachments from investigations
+  const allEvidences = investigations.flatMap(inv => inv.evidences.filter(ev => ev.filePath));
+  const hasEvidences = allEvidences.length > 0;
+  const hasRegularAttachments = data && data.length > 0;
+
   return (
     <div className="flex flex-col gap-lg">
       <Can permission="ticket.attach.add">
@@ -1505,13 +1588,57 @@ function AttachmentsTab({ ticketId, userName }: { ticketId: number; userName: (u
         </div>
       </Can>
 
+      {/* EVIDENCE ATTACHMENTS SECTION - Separated */}
+      {hasEvidences && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <FlaskConical className="h-4 w-4 text-purple-600" />
+            <h3 className="text-xs font-semibold text-text">{t('evidenceSection')}</h3>
+            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">{allEvidences.length}</span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {allEvidences.map((ev) => (
+              <div key={ev.id} className="card-surface flex items-center gap-2.5 px-3 py-2 border-l-2 border-l-purple-400">
+                <div className="shrink-0 grid h-7 w-7 place-items-center rounded-md bg-purple-50">
+                  <FileText className="h-3.5 w-3.5 text-purple-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium truncate">{ev.notes || `Evidence ${ev.type}`}</p>
+                  <p className="text-[9px] text-dim">{ev.fileSize > 0 ? fmtSize(ev.fileSize) : ''} {ev.createdAt ? formatDateTime(ev.createdAt, { locale, timeZone }) : ''}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* REGULAR ATTACHMENTS SECTION - Separated with divider when evidences exist */}
+      {hasEvidences && hasRegularAttachments && (
+        <div className="flex items-center gap-3 py-2">
+          <div className="h-px flex-1 bg-border" />
+          <div className="flex items-center gap-2">
+            <Paperclip className="h-3.5 w-3.5 text-dim" />
+            <span className="text-[10px] font-medium uppercase text-dim">{t('regularSection')}</span>
+          </div>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+      )}
+
+      {!hasEvidences && hasRegularAttachments && (
+        <div className="flex items-center gap-2">
+          <Paperclip className="h-4 w-4 text-dim" />
+          <h3 className="text-xs font-semibold text-text">{t('regularSection')}</h3>
+          <span className="rounded-full bg-panel-2 px-2 py-0.5 text-[10px] font-medium text-dim">{data!.length}</span>
+        </div>
+      )}
+
       {isLoading ? (
         <LoadingState label={t('loading')} />
-      ) : !data || data.length === 0 ? (
+      ) : !hasRegularAttachments ? (
         <p className="text-sm text-dim">{t('empty')}</p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {data.map((a) => {
+          {data!.map((a) => {
             const isImg = isImage(a.contentType);
             const thumbUrl = thumbnailUrls[a.id];
             const isLoadingThumb = loadingThumbnails.has(a.id);
@@ -1611,77 +1738,143 @@ function useEvidenceHints(): Record<EvidenceTypeValue, { ph: string; suggestions
   };
 }
 
-function InvestigationTab({ ticketId, investigations }: { ticketId: number; investigations: InvestigationResponse[] }) {
+function EvidenceFileUpload({ investigationId, ticketId, evType, onDone }: { investigationId: number; ticketId: number; evType: EvidenceTypeValue; onDone: () => void }) {
   const t = useTranslations('investigation');
   const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file: File) => {
+    if (file.size > MAX_FILE_SIZE) { toast.error(`Max ${fmtSize(MAX_FILE_SIZE)}`); return; }
+    setUploading(true);
+    try {
+      await Promise.all([
+        investigationsApi.uploadEvidence(investigationId, file, String(evType)),
+        ticketsApi.uploadAttachment(ticketId, file),
+      ]);
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+      qc.invalidateQueries({ queryKey: ['tickets', 'attachments', ticketId] });
+      onDone();
+      toast.success(t('evidenceAdded'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('saveError')));
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  return (
+    <>
+      <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+      <Button type="button" size="sm" variant="ghost" onClick={() => fileRef.current?.click()} disabled={uploading} className="h-7 text-xs gap-1 text-primary">
+        {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
+        {t('upload')}
+      </Button>
+    </>
+  );
+}
+
+function InvestigationTab({ ticketId, investigations }: { ticketId: number; investigations: InvestigationResponse[] }) {
+  const t = useTranslations('investigation');
+  const tIntel = useTranslations('intelligence');
+  const qc = useQueryClient();
   const [summary, setSummary] = useState('');
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+  const [expandedId, setExpandedId] = useState<number | null>(investigations.find(inv => !inv.finishedAt)?.id ?? null);
+  const invalidate = () => { qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] }); qc.invalidateQueries({ queryKey: ['investigations'] }); };
+
+  const report = useQuery({
+    queryKey: ['tickets', 'intelligence', ticketId],
+    queryFn: () => intelligenceApi.ticketReport(ticketId),
+    retry: false,
+  });
 
   const create = useMutation({
     mutationFn: () => investigationsApi.create(ticketId, { summary: summary.trim() }),
-    onSuccess: () => { setSummary(''); invalidate(); toast.success(t('create')); },
+    onSuccess: (data) => { setSummary(''); invalidate(); setExpandedId(data.id); toast.success(t('create')); },
     onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
   });
 
-  // Estatísticas
   const totalHypotheses = investigations.reduce((acc, inv) => acc + inv.hypotheses.length, 0);
   const totalFindings = investigations.reduce((acc, inv) => acc + inv.findingItems.length, 0);
   const totalEvidences = investigations.reduce((acc, inv) => acc + inv.evidences.length, 0);
-  const activeInvestigations = investigations.filter(inv => !inv.finishedAt).length;
+
+  const aiCauses = report.data?.rootCauseCandidates ?? [];
 
   return (
     <div className="flex flex-col gap-lg">
-      {/* Cabeçalho com métricas */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-sm">
-        <div className="card-surface p-md text-center">
-          <FlaskConical className="h-5 w-5 text-primary mx-auto mb-1.5" />
-          <p className="text-2xl font-bold text-text">{investigations.length}</p>
-          <p className="text-[10px] uppercase tracking-wide text-dim">{t('investigations')}</p>
+      {/* AI Insights Banner */}
+      {aiCauses.length > 0 && (
+        <div className="rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 p-md">
+          <div className="flex items-center gap-2 mb-2">
+            <Brain className="h-4 w-4 text-primary" />
+            <span className="text-xs font-semibold text-primary">{tIntel('title')}</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {aiCauses.slice(0, 3).map((rc, i) => (
+              <div key={i} className="flex-1 min-w-[180px] rounded-lg border border-border bg-panel/80 p-2.5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Target className="h-3 w-3 text-primary shrink-0" />
+                  <span className="text-[10px] font-semibold text-dim uppercase">{rc.category}</span>
+                  <span className={cn(
+                    'ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-bold',
+                    rc.confidenceScore >= 0.7 ? 'bg-emerald-50 text-emerald-700' : rc.confidenceScore >= 0.4 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
+                  )}>{pct(rc.confidenceScore)}</span>
+                </div>
+                {rc.description && <p className="text-xs text-muted line-clamp-2">{rc.description}</p>}
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="card-surface p-md text-center">
-          <HelpCircle className="h-5 w-5 text-amber-600 mx-auto mb-1.5" />
-          <p className="text-2xl font-bold text-text">{totalHypotheses}</p>
-          <p className="text-[10px] uppercase tracking-wide text-dim">{t('hypotheses')}</p>
+      )}
+
+      {/* Stats bar */}
+      <div className="flex items-center gap-4 rounded-lg border border-border bg-panel/50 px-md py-2.5">
+        <div className="flex items-center gap-1.5 text-xs">
+          <FlaskConical className="h-3.5 w-3.5 text-primary" />
+          <span className="font-bold text-text">{investigations.length}</span>
+          <span className="text-dim">{t('investigations')}</span>
         </div>
-        <div className="card-surface p-md text-center">
-          <ListChecks className="h-5 w-5 text-blue-600 mx-auto mb-1.5" />
-          <p className="text-2xl font-bold text-text">{totalFindings}</p>
-          <p className="text-[10px] uppercase tracking-wide text-dim">{t('findings')}</p>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-1.5 text-xs">
+          <HelpCircle className="h-3.5 w-3.5 text-amber-600" />
+          <span className="font-bold text-text">{totalHypotheses}</span>
+          <span className="text-dim">{t('hypotheses')}</span>
         </div>
-        <div className="card-surface p-md text-center">
-          <Link2 className="h-5 w-5 text-purple-600 mx-auto mb-1.5" />
-          <p className="text-2xl font-bold text-text">{totalEvidences}</p>
-          <p className="text-[10px] uppercase tracking-wide text-dim">{t('evidences')}</p>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-1.5 text-xs">
+          <ListChecks className="h-3.5 w-3.5 text-blue-600" />
+          <span className="font-bold text-text">{totalFindings}</span>
+          <span className="text-dim">{t('findings')}</span>
+        </div>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-1.5 text-xs">
+          <Link2 className="h-3.5 w-3.5 text-purple-600" />
+          <span className="font-bold text-text">{totalEvidences}</span>
+          <span className="text-dim">{t('evidences')}</span>
         </div>
       </div>
 
-      {/* Nova investigação */}
-      <Can permission="investigation.create">
-        <div className="card-surface p-lg">
-          <div className="flex items-center gap-3 mb-md">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10">
-              <Search className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-text">{t('newInvestigation')}</h4>
-              <p className="text-xs text-dim">{t('newInvestigationHint')}</p>
-            </div>
-          </div>
-          <form onSubmit={(e) => { e.preventDefault(); if (summary.trim()) create.mutate(); }} className="flex items-center gap-sm">
-            <input 
-              className={FIELD_MD + ' flex-1'} 
-              value={summary} 
-              onChange={(e) => setSummary(e.target.value)} 
-              placeholder={t('newPh')} 
-            />
-            <Button type="submit" disabled={!summary.trim()} loading={create.isPending}>
-              <Plus className="h-4 w-4" /> {t('start')}
-            </Button>
-          </form>
+      {/* New investigation */}
+      <form
+        onSubmit={(e) => { e.preventDefault(); if (summary.trim()) create.mutate(); }}
+        className="flex items-center gap-sm"
+      >
+        <div className="relative flex-1">
+          <FlaskConical className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" />
+          <input
+            className={FIELD_MD + ' flex-1 pl-9'}
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            placeholder={t('newPh')}
+          />
         </div>
-      </Can>
+        <Button type="submit" disabled={!summary.trim()} loading={create.isPending}>
+          <Plus className="h-4 w-4" /> {t('start')}
+        </Button>
+      </form>
 
-      {/* Lista de investigações */}
+      {/* List */}
       {investigations.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-16 text-dim">
           <div className="grid h-16 w-16 place-items-center rounded-full bg-panel-2">
@@ -1693,9 +1886,15 @@ function InvestigationTab({ ticketId, investigations }: { ticketId: number; inve
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-md">
+        <div className="flex flex-col gap-sm">
           {investigations.map((inv) => (
-            <InvestigationCard key={inv.id} inv={inv} onChanged={invalidate} />
+            <InvestigationCard
+              key={inv.id}
+              ticketId={ticketId}
+              inv={inv}
+              expanded={expandedId === inv.id}
+              onToggle={() => setExpandedId(expandedId === inv.id ? null : inv.id)}
+            />
           ))}
         </div>
       )}
@@ -1703,275 +1902,236 @@ function InvestigationTab({ ticketId, investigations }: { ticketId: number; inve
   );
 }
 
-function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onChanged: () => void }) {
+function InvestigationCard({ ticketId, inv, expanded, onToggle }: { ticketId: number; inv: InvestigationResponse; expanded: boolean; onToggle: () => void }) {
   const t = useTranslations('investigation');
+  const qc = useQueryClient();
   const finished = !!inv.finishedAt;
   const [hyp, setHyp] = useState('');
   const [finding, setFinding] = useState('');
   const [evType, setEvType] = useState<EvidenceTypeValue>(EvidenceType.Observation);
   const [evNotes, setEvNotes] = useState('');
   const [evUrl, setEvUrl] = useState('');
+  const [activeSection, setActiveSection] = useState<'hypotheses' | 'findings' | 'evidences'>('hypotheses');
 
-  const run = (p: Promise<unknown>, ok?: () => void) =>
-    p.then(() => { onChanged(); ok?.(); }).catch((e) => toast.error(apiErrorMessage(e, t('saveError'))));
+  const invalidate = () => { qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] }); };
+
+  const addHypothesis = useMutation({
+    mutationFn: () => investigationsApi.addHypothesis(inv.id, { description: hyp.trim() }),
+    onSuccess: () => { setHyp(''); invalidate(); toast.success(t('hypothesisAdded')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
+  });
+
+  const addFinding = useMutation({
+    mutationFn: () => investigationsApi.addFinding(inv.id, { description: finding.trim() }),
+    onSuccess: () => { setFinding(''); invalidate(); toast.success(t('findingAdded')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
+  });
+
+  const addEvidence = useMutation({
+    mutationFn: () => investigationsApi.addEvidence(inv.id, {
+      type: evType,
+      notes: evNotes.trim() || null,
+      url: evUrl.trim() || null,
+    }),
+    onSuccess: () => { setEvNotes(''); setEvUrl(''); invalidate(); toast.success(t('evidenceAdded')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
+  });
+
+  const finishInv = useMutation({
+    mutationFn: () => investigationsApi.finish(inv.id),
+    onSuccess: () => { invalidate(); toast.success(t('finished')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
+  });
+
+  const updateHypStatus = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: HypothesisStatusValue }) => investigationsApi.updateHypothesisStatus(id, status),
+    onSuccess: invalidate,
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
+  });
 
   const evidenceHints = useEvidenceHints();
   const evHint = evidenceHints[evType];
   const datalistId = `inv-${inv.id}-ev-suggestions`;
 
-  const hypothesisStatusStyle = (status: string) => {
-    switch(status) {
-      case 'Confirmed': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'Discarded': return 'bg-slate-100 text-slate-500 border-slate-200 line-through';
-      default: return 'bg-amber-50 text-amber-700 border-amber-200';
-    }
-  };
-
   const confirmedCount = inv.hypotheses.filter(h => h.status === 'Confirmed').length;
-  const progressPercent = inv.hypotheses.length > 0 
-    ? Math.round((confirmedCount / inv.hypotheses.length) * 100) 
+  const discardedCount = inv.hypotheses.filter(h => h.status === 'Discarded').length;
+  const openCount = inv.hypotheses.length - confirmedCount - discardedCount;
+  const resolvedPercent = inv.hypotheses.length > 0
+    ? Math.round(((confirmedCount + discardedCount) / inv.hypotheses.length) * 100)
     : 0;
 
-  return (
-    <div className={cn(
-      'card-surface overflow-hidden transition-all',
-      finished ? 'opacity-75' : 'ring-1 ring-primary/20'
-    )}>
-      {/* Cabeçalho do card */}
-      <div className="bg-panel-2/30 border-b border-border p-lg">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className={cn(
-              'grid h-10 w-10 shrink-0 place-items-center rounded-lg',
-              finished ? 'bg-emerald-50' : 'bg-primary/10'
-            )}>
-              <FlaskConical className={cn('h-5 w-5', finished ? 'text-emerald-600' : 'text-primary')} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h4 className="text-sm font-semibold text-text truncate">{inv.summary}</h4>
-                <span className={cn(
-                  'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase border',
-                  finished 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                    : 'bg-blue-50 text-blue-700 border-blue-200'
-                )}>
-                  {finished ? t('finished') : t('inProgress')}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 text-[10px] text-dim">
-                <span className="inline-flex items-center gap-1">
-                  <HelpCircle className="h-3 w-3" />
-                  {inv.hypotheses.length} {t('hypotheses')}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <ListChecks className="h-3 w-3" />
-                  {inv.findingItems.length} {t('findings')}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Link2 className="h-3 w-3" />
-                  {inv.evidences.length} {t('evidences')}
-                </span>
-              </div>
-            </div>
-          </div>
-          {!finished && (
-            <Can permission="investigation.finish">
-              <Button size="sm" variant="secondary" onClick={() => run(investigationsApi.finish(inv.id))}>
-                <Check className="h-3.5 w-3.5" /> {t('finish')}
-              </Button>
-            </Can>
-          )}
-        </div>
+  const sections = [
+    { key: 'hypotheses' as const, label: t('hypotheses'), icon: HelpCircle, count: inv.hypotheses.length, color: 'text-amber-600' },
+    { key: 'findings' as const, label: t('findings'), icon: ListChecks, count: inv.findingItems.length, color: 'text-blue-600' },
+    { key: 'evidences' as const, label: t('evidences'), icon: Link2, count: inv.evidences.length, color: 'text-purple-600' },
+  ];
 
-        {/* Barra de progresso da investigação */}
+  return (
+    <div className={cn('card-surface overflow-hidden transition-all', finished && 'opacity-70')}>
+      <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 px-md py-3 text-left hover:bg-bg-subtle/50 transition-colors">
+        <div className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg', finished ? 'bg-emerald-50' : 'bg-primary/10')}>
+          <FlaskConical className={cn('h-4 w-4', finished ? 'text-emerald-600' : 'text-primary')} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-semibold text-text truncate">{inv.summary}</h4>
+            <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase', finished ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700')}>
+              {finished ? t('finished') : t('inProgress')}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-[10px] text-dim mt-0.5">
+            <span>{inv.hypotheses.length} {t('hypotheses')}</span>
+            <span>·</span>
+            <span>{inv.findingItems.length} {t('findings')}</span>
+            <span>·</span>
+            <span>{inv.evidences.length} {t('evidences')}</span>
+          </div>
+        </div>
         {inv.hypotheses.length > 0 && (
-          <div className="mt-md">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] text-dim">{t('analysisProgress')}</span>
-              <span className="text-[10px] font-medium text-text">{progressPercent}%</span>
+          <div className="hidden sm:flex items-center gap-2 shrink-0">
+            <div className="w-20 h-1.5 rounded-full bg-panel-2 overflow-hidden">
+              <div className={cn('h-full rounded-full transition-all', resolvedPercent === 100 ? 'bg-emerald-500' : 'bg-primary')} style={{ width: `${resolvedPercent}%` }} />
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-panel-2">
-              <div 
-                className={cn(
-                  'h-full rounded-full transition-all',
-                  progressPercent === 100 ? 'bg-emerald-500' : 'bg-primary'
-                )}
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
+            <span className="text-[10px] text-dim w-8">{resolvedPercent}%</span>
           </div>
         )}
-      </div>
+        <ChevronRight className={cn('h-4 w-4 text-dim transition-transform shrink-0', expanded && 'rotate-90')} />
+      </button>
 
-      {/* Corpo do card - Grid de 3 colunas */}
-      <div className="grid gap-0 md:grid-cols-3 divide-x divide-border">
-        {/* Coluna de Hipóteses */}
-        <div className="p-lg">
-          <div className="flex items-center gap-2 mb-md">
-            <div className="grid h-7 w-7 place-items-center rounded-md bg-amber-50">
-              <HelpCircle className="h-3.5 w-3.5 text-amber-600" />
-            </div>
-            <h5 className="text-xs font-semibold uppercase tracking-wide text-dim">{t('hypotheses')}</h5>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {inv.hypotheses.length === 0 ? (
-              <p className="text-xs text-dim italic py-2">{t('noHypotheses')}</p>
-            ) : (
-              inv.hypotheses.map((h) => (
-                <div key={h.id} className={cn(
-                  'rounded-lg border p-2.5 text-xs',
-                  hypothesisStatusStyle(h.status)
+      {expanded && (
+        <div className="border-t border-border">
+          <div className="flex items-center justify-between gap-2 px-md py-2 bg-panel-2/30 border-b border-border">
+            <div className="flex gap-0.5">
+              {sections.map((s) => (
+                <button key={s.key} type="button" onClick={() => setActiveSection(s.key)} className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                  activeSection === s.key ? 'bg-panel text-text shadow-sm border border-border' : 'text-dim hover:text-muted hover:bg-bg-subtle'
                 )}>
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <p className="flex-1">{h.description}</p>
-                    <Can permission="investigation.hypothesis.update" fallback={
-                      <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold bg-white/50">
-                        {t(`hStatus.${h.status}` as 'hStatus.Open')}
-                      </span>
-                    }>
-                      <select 
-                        value={HypothesisStatus[h.status as keyof typeof HypothesisStatus] ?? HypothesisStatus.Open}
-                        onChange={(e) => run(investigationsApi.updateHypothesisStatus(h.id, Number(e.target.value) as HypothesisStatusValue))}
-                        className="shrink-0 rounded border-0 bg-white/50 px-1.5 py-0.5 text-[9px] font-semibold outline-none cursor-pointer"
-                      >
-                        {Object.entries(HypothesisStatus).map(([k, v]) => (
-                          <option key={k} value={v}>{t(`hStatus.${k}` as 'hStatus.Open')}</option>
-                        ))}
-                      </select>
-                    </Can>
-                  </div>
-                </div>
-              ))
+                  <s.icon className={cn('h-3.5 w-3.5', activeSection === s.key ? s.color : '')} />
+                  {s.label}
+                  {s.count > 0 && <span className="rounded-full bg-panel-2 px-1.5 text-[10px]">{s.count}</span>}
+                </button>
+              ))}
+            </div>
+            {!finished && (
+              <Button size="sm" variant="secondary" onClick={() => finishInv.mutate()} loading={finishInv.isPending} className="h-7 text-xs">
+                <Check className="h-3 w-3" /> {t('finish')}
+              </Button>
             )}
           </div>
 
-          {!finished && (
-            <Can permission="investigation.hypothesis.add">
-              <form onSubmit={(e) => { e.preventDefault(); if (hyp.trim()) run(investigationsApi.addHypothesis(inv.id, { description: hyp.trim() }), () => setHyp('')); }} className="mt-3">
-                <input 
-                  className={FIELD_SM} 
-                  value={hyp} 
-                  onChange={(e) => setHyp(e.target.value)} 
-                  placeholder={t('addHypothesis')} 
-                />
-              </form>
-            </Can>
-          )}
-        </div>
+          <div className="p-md">
+            {activeSection === 'hypotheses' && (
+              <div className="flex flex-col gap-2">
+                {inv.hypotheses.length > 0 && (
+                  <div className="flex items-center gap-3 mb-1 text-[10px] text-dim">
+                    {confirmedCount > 0 && <span className="text-emerald-600">✓ {confirmedCount} {t('hStatus.Confirmed')}</span>}
+                    {openCount > 0 && <span className="text-amber-600">● {openCount} {t('hStatus.Open')}</span>}
+                    {discardedCount > 0 && <span className="text-slate-400">✗ {discardedCount} {t('hStatus.Discarded')}</span>}
+                  </div>
+                )}
+                {inv.hypotheses.length === 0 && <p className="text-xs text-dim italic py-4 text-center">{t('noHypotheses')}</p>}
+                {inv.hypotheses.map((h) => (
+                  <div key={h.id} className={cn(
+                    'flex items-center gap-3 rounded-lg border p-2.5 text-xs transition-colors',
+                    h.status === 'Confirmed' ? 'border-emerald-200 bg-emerald-50/50' :
+                    h.status === 'Discarded' ? 'border-slate-200 bg-slate-50/50 opacity-60' :
+                    'border-amber-200 bg-amber-50/50'
+                  )}>
+                    <div className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold',
+                      h.status === 'Confirmed' ? 'bg-emerald-200 text-emerald-800' :
+                      h.status === 'Discarded' ? 'bg-slate-200 text-slate-500' : 'bg-amber-200 text-amber-800'
+                    )}>
+                      {h.status === 'Confirmed' ? '✓' : h.status === 'Discarded' ? '✗' : '?'}
+                    </div>
+                    <p className={cn('flex-1', h.status === 'Discarded' && 'line-through')}>{h.description}</p>
+                    <select
+                      value={HypothesisStatus[h.status as keyof typeof HypothesisStatus] ?? HypothesisStatus.Open}
+                      onChange={(e) => updateHypStatus.mutate({ id: h.id, status: Number(e.target.value) as HypothesisStatusValue })}
+                      className="shrink-0 rounded-md border border-border bg-panel px-2 py-1 text-[10px] font-medium outline-none cursor-pointer"
+                    >
+                      {Object.entries(HypothesisStatus).map(([k, v]) => (
+                        <option key={k} value={v}>{t(`hStatus.${k}` as 'hStatus.Open')}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+                {!finished && (
+                  <form onSubmit={(e) => { e.preventDefault(); if (hyp.trim()) addHypothesis.mutate(); }} className="mt-1 flex gap-1.5">
+                    <input className={FIELD_SM + ' flex-1'} value={hyp} onChange={(e) => setHyp(e.target.value)} placeholder={t('addHypothesis')} />
+                    <Button type="submit" size="sm" variant="secondary" disabled={!hyp.trim()} loading={addHypothesis.isPending} className="h-8 shrink-0 text-xs">
+                      <Plus className="h-3 w-3" /> {t('add')}
+                    </Button>
+                  </form>
+                )}
+              </div>
+            )}
 
-        {/* Coluna de Achados */}
-        <div className="p-lg">
-          <div className="flex items-center gap-2 mb-md">
-            <div className="grid h-7 w-7 place-items-center rounded-md bg-blue-50">
-              <ListChecks className="h-3.5 w-3.5 text-blue-600" />
-            </div>
-            <h5 className="text-xs font-semibold uppercase tracking-wide text-dim">{t('findings')}</h5>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {inv.findingItems.length === 0 ? (
-              <p className="text-xs text-dim italic py-2">{t('noFindings')}</p>
-            ) : (
-              inv.findingItems.map((f) => (
-                <div key={f.id} className="rounded-lg border border-blue-100 bg-blue-50/50 p-2.5 text-xs">
-                  <div className="flex items-start gap-2">
-                    <div className="shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full bg-blue-500" />
+            {activeSection === 'findings' && (
+              <div className="flex flex-col gap-2">
+                {inv.findingItems.length === 0 && <p className="text-xs text-dim italic py-4 text-center">{t('noFindings')}</p>}
+                {inv.findingItems.map((f) => (
+                  <div key={f.id} className="flex items-start gap-2.5 rounded-lg border border-blue-100 bg-blue-50/30 p-2.5 text-xs">
+                    <div className="shrink-0 mt-1 w-1.5 h-1.5 rounded-full bg-blue-500" />
                     <p className="flex-1 text-text">{f.description}</p>
                   </div>
-                </div>
-              ))
+                ))}
+                {!finished && (
+                  <form onSubmit={(e) => { e.preventDefault(); if (finding.trim()) addFinding.mutate(); }} className="mt-1 flex gap-1.5">
+                    <input className={FIELD_SM + ' flex-1'} value={finding} onChange={(e) => setFinding(e.target.value)} placeholder={t('addFinding')} />
+                    <Button type="submit" size="sm" variant="secondary" disabled={!finding.trim()} loading={addFinding.isPending} className="h-8 shrink-0 text-xs">
+                      <Plus className="h-3 w-3" /> {t('add')}
+                    </Button>
+                  </form>
+                )}
+              </div>
             )}
-          </div>
 
-          {!finished && (
-            <Can permission="investigation.finding.add">
-              <form onSubmit={(e) => { e.preventDefault(); if (finding.trim()) run(investigationsApi.addFinding(inv.id, { description: finding.trim() }), () => setFinding('')); }} className="mt-3">
-                <input 
-                  className={FIELD_SM} 
-                  value={finding} 
-                  onChange={(e) => setFinding(e.target.value)} 
-                  placeholder={t('addFinding')} 
-                />
-              </form>
-            </Can>
-          )}
-        </div>
-
-        {/* Coluna de Evidências */}
-        <div className="p-lg">
-          <div className="flex items-center gap-2 mb-md">
-            <div className="grid h-7 w-7 place-items-center rounded-md bg-purple-50">
-              <Link2 className="h-3.5 w-3.5 text-purple-600" />
-            </div>
-            <h5 className="text-xs font-semibold uppercase tracking-wide text-dim">{t('evidences')}</h5>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {inv.evidences.length === 0 ? (
-              <p className="text-xs text-dim italic py-2">{t('noEvidences')}</p>
-            ) : (
-              inv.evidences.map((ev) => (
-                <div key={ev.id} className="rounded-lg border border-purple-100 bg-purple-50/50 p-2.5 text-xs">
-                  <div className="flex items-start gap-2">
-                    <div className="shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full bg-purple-500" />
+            {activeSection === 'evidences' && (
+              <div className="flex flex-col gap-2">
+                {inv.evidences.length === 0 && <p className="text-xs text-dim italic py-4 text-center">{t('noEvidences')}</p>}
+                {inv.evidences.map((ev) => (
+                  <div key={ev.id} className="flex items-start gap-2.5 rounded-lg border border-purple-100 bg-purple-50/30 p-2.5 text-xs">
+                    <div className="shrink-0 mt-1 w-1.5 h-1.5 rounded-full bg-purple-500" />
                     <div className="flex-1 min-w-0">
                       <span className="font-semibold text-purple-800">{t(`eType.${ev.type}` as 'eType.Log')}</span>
-                      {ev.notes && <p className="text-dim mt-0.5">{ev.notes}</p>}
+                      {ev.notes && <p className="text-muted mt-0.5">{ev.notes}</p>}
                       {ev.url && (
                         <a href={ev.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline mt-1">
-                          <ExternalLink className="h-3 w-3" />
-                          <span className="truncate">{ev.url}</span>
+                          <ExternalLink className="h-3 w-3" /> <span className="truncate max-w-[250px]">{ev.url}</span>
                         </a>
                       )}
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+                {!finished && (
+                  <div className="mt-1 flex flex-col gap-2">
+                    <form onSubmit={(e) => { e.preventDefault(); addEvidence.mutate(); }} className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <Select<EvidenceTypeValue>
+                          value={evType}
+                          onChange={(v) => { setEvType(v); setEvNotes(''); setEvUrl(''); }}
+                          options={Object.entries(EvidenceType).map(([k, v]) => ({ value: v as EvidenceTypeValue, label: t(`eType.${k}` as 'eType.Log') }))}
+                          className="text-xs w-36 shrink-0"
+                        />
+                        <input list={datalistId} className={FIELD_SM + ' flex-1'} value={evNotes} onChange={(e) => setEvNotes(e.target.value)} placeholder={evHint.ph} />
+                        <datalist id={datalistId}>{evHint.suggestions.map((s) => <option key={s} value={s} />)}</datalist>
+                      </div>
+                      {evHint.needsUrl && <input type="url" className={FIELD_SM} value={evUrl} onChange={(e) => setEvUrl(e.target.value)} placeholder={t('url')} />}
+                      <div className="flex items-center gap-2">
+                        <Button type="submit" size="sm" variant="secondary" loading={addEvidence.isPending}>
+                          <Plus className="h-3.5 w-3.5" /> {t('add')}
+                        </Button>
+                        <EvidenceFileUpload investigationId={inv.id} ticketId={inv.ticketId} evType={evType} onDone={invalidate} />
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </div>
             )}
           </div>
-
-          {!finished && (
-            <Can permission="investigation.evidence.add">
-              <form onSubmit={(e) => { 
-                e.preventDefault(); 
-                run(investigationsApi.addEvidence(inv.id, { 
-                  type: evType, 
-                  notes: evNotes.trim() || null, 
-                  url: evHint.needsUrl ? (evUrl.trim() || null) : null 
-                }), () => { setEvNotes(''); setEvUrl(''); }); 
-              }} className="mt-3 flex flex-col gap-2">
-                <Select<EvidenceTypeValue> 
-                  value={evType} 
-                  onChange={(v) => { setEvType(v); setEvNotes(''); setEvUrl(''); }} 
-                  options={Object.entries(EvidenceType).map(([k, v]) => ({ 
-                    value: v as EvidenceTypeValue, 
-                    label: t(`eType.${k}` as 'eType.Log') 
-                  }))} 
-                  className="text-xs"
-                />
-                <input 
-                  list={datalistId} 
-                  className={FIELD_SM} 
-                  value={evNotes} 
-                  onChange={(e) => setEvNotes(e.target.value)} 
-                  placeholder={evHint.ph} 
-                />
-                <datalist id={datalistId}>
-                  {evHint.suggestions.map((s) => <option key={s} value={s} />)}
-                </datalist>
-                {evHint.needsUrl && (
-                  <input type="url" className={FIELD_SM} value={evUrl} onChange={(e) => setEvUrl(e.target.value)} placeholder={t('url')} />
-                )}
-                <Button type="submit" size="sm" variant="secondary" className="self-start">
-                  <Plus className="h-3.5 w-3.5" /> {t('add')}
-                </Button>
-              </form>
-            </Can>
-          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -2505,28 +2665,11 @@ function taskStatusIcon(s: string) {
   }
 }
 
-function buildTaskTree(items: import('@/shared/api/types').EngineeringWorkItemResponse[]) {
-  const map = new Map<number, import('@/shared/api/types').EngineeringWorkItemResponse & { children: import('@/shared/api/types').EngineeringWorkItemResponse[] }>();
-  const roots: (import('@/shared/api/types').EngineeringWorkItemResponse & { children: import('@/shared/api/types').EngineeringWorkItemResponse[] })[] = [];
-  items.forEach(i => map.set(i.id, { ...i, children: [] }));
-  items.forEach(i => {
-    const node = map.get(i.id)!;
-    if (i.parentId && map.has(i.parentId)) {
-      map.get(i.parentId)!.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  });
-  return roots;
-}
-
 function WorkItemsTab({ ticketId }: { ticketId: number }) {
   const t = useTranslations('workItems');
   const qc = useQueryClient();
-  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [newTitle, setNewTitle] = useState('');
-  const [addingSubFor, setAddingSubFor] = useState<number | null>(null);
-  const [subTitle, setSubTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
 
   const list = useQuery({ queryKey: ['workitems', ticketId], queryFn: () => workItemsApi.byTicket(ticketId) });
   const users = useQuery({ queryKey: ['users', 'options'], queryFn: () => usersApi.list(1, 200) });
@@ -2534,19 +2677,8 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
   const userMap = new Map((users.data?.items ?? []).map(u => [u.id, u.name]));
 
   const create = useMutation({
-    mutationFn: (body: { title: string; technicalDescription: string; parentId?: number | null }) =>
-      workItemsApi.create(ticketId, body),
-    onSuccess: (created) => {
-      invalidate();
-      toast.success(t('createdOk'));
-      if (created.parentId) {
-        setAddingSubFor(null);
-        setSubTitle('');
-      } else {
-        setNewTitle('');
-        setSelectedId(created.id);
-      }
-    },
+    mutationFn: () => workItemsApi.create(ticketId, { title: newTitle.trim(), technicalDescription: newDesc.trim() }),
+    onSuccess: () => { invalidate(); setNewTitle(''); setNewDesc(''); toast.success(t('createdOk')); },
     onError: (err) => toast.error(apiErrorMessage(err, t('createError'))),
   });
 
@@ -2556,25 +2688,10 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
     onError: (err) => toast.error(apiErrorMessage(err, t('updateError'))),
   });
 
-  const updateItem = useMutation({
-    mutationFn: ({ id, ...body }: { id: number; title?: string; technicalDescription?: string; assignedToId?: number | null }) =>
-      workItemsApi.update(ticketId, id, body),
-    onSuccess: invalidate,
-    onError: (err) => toast.error(apiErrorMessage(err, t('updateError'))),
-  });
-
-  const remove = useMutation({
-    mutationFn: (id: number) => workItemsApi.remove(ticketId, id),
-    onSuccess: (_data, removedId) => { invalidate(); if (selectedId === removedId) setSelectedId(null); toast.success(t('removed')); },
-    onError: (err) => toast.error(apiErrorMessage(err, t('removeError'))),
-  });
-
-  const tree = buildTaskTree(list.data ?? []);
   const allItems = list.data ?? [];
   const doneCount = allItems.filter(i => i.status === 'Done').length;
   const totalCount = allItems.length;
   const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
-  const selected = allItems.find(i => i.id === selectedId) ?? null;
 
   return (
     <div className="flex flex-col gap-md">
@@ -2587,228 +2704,68 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
         </div>
       )}
 
-      <div className="flex gap-0 rounded-lg border border-border overflow-hidden" style={{ minHeight: 400 }}>
-        {/* LEFT: Task list */}
-        <div className={cn('flex flex-col border-r border-border bg-panel/50', selected ? 'w-[320px] shrink-0' : 'flex-1')}>
-          <Can permission="ticket.update">
-            <form onSubmit={(e) => { e.preventDefault(); if (newTitle.trim()) create.mutate({ title: newTitle.trim(), technicalDescription: '' }); }} className="flex items-center gap-1.5 border-b border-border p-2">
-              <input className={FIELD_SM + ' flex-1 !text-xs'} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={t('titlePh')} />
-              <Button type="submit" size="sm" disabled={!newTitle.trim()} loading={create.isPending} className="h-7 shrink-0 text-xs">
-                <Plus className="h-3 w-3" />
-              </Button>
-            </form>
-          </Can>
-
-          <div className="flex-1 overflow-y-auto">
-            {list.isLoading ? (
-              <div className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-dim" /></div>
-            ) : tree.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 py-12 text-dim px-4">
-                <ListChecks className="h-8 w-8" />
-                <p className="text-xs font-medium text-text">{t('empty')}</p>
-                <p className="text-[10px]">{t('emptyHint')}</p>
-              </div>
-            ) : (
-              tree.map((task) => {
-                const childDone = task.children.filter(c => c.status === 'Done').length;
-                const childTotal = task.children.length;
-                const isSelected = selectedId === task.id;
-
-                return (
-                  <div key={task.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(isSelected ? null : task.id)}
-                      className={cn(
-                        'flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors border-b border-border/50 group',
-                        isSelected ? 'bg-primary/8 border-l-2 border-l-primary' : 'hover:bg-panel-2/40'
-                      )}
-                    >
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); updateStatus.mutate({ id: task.id, status: task.status === 'Done' ? 'Open' : 'Done' }); }}
-                        className="shrink-0 mt-0.5"
-                      >
-                        {taskStatusIcon(task.status)}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <p className={cn('text-xs font-medium leading-snug', task.status === 'Done' && 'line-through text-dim')}>
-                          {task.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={cn('rounded border px-1.5 py-px text-[9px] font-semibold', taskStatusColor(task.status))}>
-                            {t(`status.${task.status}` as 'status.Open')}
-                          </span>
-                          {task.assignedToId != null && (
-                            <span className="text-[9px] text-dim truncate">{userMap.get(task.assignedToId) ?? `#${task.assignedToId}`}</span>
-                          )}
-                          {childTotal > 0 && (
-                            <span className="text-[9px] text-dim">{childDone}/{childTotal}</span>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-
-                    {task.children.map((sub) => (
-                      <button
-                        key={sub.id}
-                        type="button"
-                        onClick={() => setSelectedId(selectedId === sub.id ? null : sub.id)}
-                        className={cn(
-                          'flex w-full items-center gap-2 pl-9 pr-3 py-2 text-left transition-colors border-b border-border/30',
-                          selectedId === sub.id ? 'bg-primary/8 border-l-2 border-l-primary' : 'hover:bg-panel-2/30'
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); updateStatus.mutate({ id: sub.id, status: sub.status === 'Done' ? 'Open' : 'Done' }); }}
-                          className="shrink-0"
-                        >
-                          {taskStatusIcon(sub.status)}
-                        </button>
-                        <p className={cn('text-[11px] flex-1 truncate', sub.status === 'Done' && 'line-through text-dim')}>{sub.title}</p>
-                        <span className={cn('rounded border px-1 py-px text-[8px] font-semibold shrink-0', taskStatusColor(sub.status))}>
-                          {t(`status.${sub.status}` as 'status.Open')}
-                        </span>
-                      </button>
-                    ))}
-
-                    {addingSubFor === task.id && (
-                      <form onSubmit={(e) => { e.preventDefault(); if (subTitle.trim()) create.mutate({ title: subTitle.trim(), technicalDescription: '', parentId: task.id }); }} className="flex items-center gap-1.5 pl-9 pr-3 py-2 border-b border-border/30 bg-primary/[0.03]">
-                        <input className={FIELD_SM + ' flex-1 !text-[11px]'} value={subTitle} onChange={(e) => setSubTitle(e.target.value)} placeholder={t('subtaskPh')} autoFocus />
-                        <Button type="submit" size="sm" variant="secondary" disabled={!subTitle.trim()} loading={create.isPending} className="h-6 text-[10px] px-2">
-                          {t('add')}
-                        </Button>
-                        <button type="button" onClick={() => { setAddingSubFor(null); setSubTitle(''); }} className="text-dim hover:text-text"><X className="h-3 w-3" /></button>
-                      </form>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* RIGHT: Task detail panel */}
-        {selected && (
-          <TaskDetailPanel
-            key={selected.id}
-            task={selected}
-            userMap={userMap}
-            userList={(users.data?.items ?? []).map(u => ({ id: u.id, name: u.name }))}
-            onUpdate={(body) => updateItem.mutate({ id: selected.id, ...body })}
-            onStatusChange={(status) => updateStatus.mutate({ id: selected.id, status })}
-            onAddSubtask={() => setAddingSubFor(selected.id)}
-            onRemove={() => remove.mutate(selected.id)}
-            onClose={() => setSelectedId(null)}
-            isPending={updateItem.isPending}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TaskDetailPanel({ task, userMap, userList, onUpdate, onStatusChange, onAddSubtask, onRemove, onClose, isPending }: {
-  task: import('@/shared/api/types').EngineeringWorkItemResponse;
-  userMap: Map<number, string>;
-  userList: { id: number; name: string }[];
-  onUpdate: (body: { title?: string; technicalDescription?: string; assignedToId?: number | null }) => void;
-  onStatusChange: (status: string) => void;
-  onAddSubtask: () => void;
-  onRemove: () => void;
-  onClose: () => void;
-  isPending: boolean;
-}) {
-  const t = useTranslations('workItems');
-  const [editTitle, setEditTitle] = useState(task.title);
-  const [editDesc, setEditDesc] = useState(task.technicalDescription);
-  const [dirty, setDirty] = useState(false);
-
-  const handleSave = () => {
-    onUpdate({ title: editTitle.trim(), technicalDescription: editDesc.trim() });
-    setDirty(false);
-  };
-
-  return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2">
-        <div className="flex items-center gap-2">
-          <GanttChart className="h-4 w-4 text-purple-600" />
-          <span className="text-xs font-semibold text-dim uppercase">{t('taskDetail')}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          {dirty && (
-            <Button size="sm" onClick={handleSave} loading={isPending} className="h-7 text-xs gap-1">
-              <Check className="h-3 w-3" /> {t('save')}
+      {/* Create form */}
+      <Can permission="ticket.update">
+        <form onSubmit={(e) => { e.preventDefault(); if (newTitle.trim()) create.mutate(); }} className="card-surface p-md flex flex-col gap-sm">
+          <div className="flex items-center gap-sm">
+            <input className={FIELD_SM + ' flex-1'} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={t('titlePh')} />
+            <Button type="submit" size="sm" disabled={!newTitle.trim()} loading={create.isPending} className="h-8 shrink-0 text-xs">
+              <Plus className="h-3 w-3" /> {t('add')}
             </Button>
+          </div>
+          {newTitle.trim() && (
+            <textarea
+              className={FIELD_BASE + ' text-xs min-h-[60px] resize-y'}
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
+              placeholder={t('descriptionPh')}
+            />
           )}
-          <button type="button" onClick={onClose} className="rounded p-1 text-dim hover:text-text"><X className="h-4 w-4" /></button>
-        </div>
-      </div>
+        </form>
+      </Can>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-        <div>
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-1 block">{t('titleLabel')}</label>
-          <input
-            className={FIELD_MD}
-            value={editTitle}
-            onChange={(e) => { setEditTitle(e.target.value); setDirty(true); }}
-          />
+      {/* List */}
+      {list.isLoading ? (
+        <div className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-dim" /></div>
+      ) : allItems.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-12 text-dim">
+          <ListChecks className="h-8 w-8" />
+          <p className="text-xs font-medium text-text">{t('empty')}</p>
+          <p className="text-[10px]">{t('emptyHint')}</p>
         </div>
-
-        <div>
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-1 block">{t('descriptionLabel')}</label>
-          <textarea
-            className={FIELD_BASE + ' min-h-[120px] resize-y text-xs'}
-            value={editDesc}
-            onChange={(e) => { setEditDesc(e.target.value); setDirty(true); }}
-            placeholder={t('descriptionPh')}
-          />
+      ) : (
+        <div className="flex flex-col gap-1">
+          {allItems.map((task) => (
+            <div key={task.id} className="card-surface flex items-center gap-3 px-md py-2.5">
+              <button
+                type="button"
+                onClick={() => updateStatus.mutate({ id: task.id, status: task.status === 'Done' ? 'Open' : 'Done' })}
+                className="shrink-0"
+              >
+                {taskStatusIcon(task.status)}
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className={cn('text-xs font-medium', task.status === 'Done' && 'line-through text-dim')}>{task.title}</p>
+                {task.technicalDescription && (
+                  <p className="text-[10px] text-dim mt-0.5 line-clamp-1">{task.technicalDescription}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {task.assignedToId != null && (
+                  <span className="text-[10px] text-dim">{userMap.get(task.assignedToId) ?? `#${task.assignedToId}`}</span>
+                )}
+                <select
+                  value={task.status}
+                  onChange={(e) => updateStatus.mutate({ id: task.id, status: e.target.value })}
+                  className={cn('rounded-md border px-2 py-1 text-[10px] font-semibold outline-none cursor-pointer', taskStatusColor(task.status))}
+                >
+                  {TASK_STATUSES.map((s) => <option key={s} value={s}>{t(`status.${s}` as 'status.Open')}</option>)}
+                </select>
+              </div>
+            </div>
+          ))}
         </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-1 block">Status</label>
-            <select
-              value={task.status}
-              onChange={(e) => onStatusChange(e.target.value)}
-              className={cn('w-full rounded-md border px-3 py-2 text-xs font-semibold outline-none cursor-pointer', taskStatusColor(task.status))}
-            >
-              {TASK_STATUSES.map((s) => <option key={s} value={s}>{t(`status.${s}` as 'status.Open')}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-1 block">{t('assignee')}</label>
-            <select
-              value={task.assignedToId ?? ''}
-              onChange={(e) => onUpdate({ assignedToId: e.target.value ? Number(e.target.value) : null })}
-              className="w-full rounded-md border border-border bg-bg-subtle px-3 py-2 text-xs outline-none cursor-pointer"
-            >
-              <option value="">{t('unassigned')}</option>
-              {userList.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {task.createdAt && (
-          <div className="flex items-center gap-2 text-[10px] text-dim">
-            <Calendar className="h-3 w-3" />
-            {t('createdAtLabel')}: {new Date(task.createdAt).toLocaleDateString()} {new Date(task.createdAt).toLocaleTimeString()}
-          </div>
-        )}
-
-        <div className="flex items-center gap-2 border-t border-border pt-3 mt-auto">
-          <Can permission="ticket.update">
-            <Button size="sm" variant="secondary" onClick={onAddSubtask} className="h-7 text-xs gap-1">
-              <Plus className="h-3 w-3" /> {t('addSubtask')}
-            </Button>
-          </Can>
-          <button type="button" onClick={onRemove} className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-danger hover:bg-danger/10 transition-colors">
-            <Trash2 className="h-3 w-3" /> {t('remove')}
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

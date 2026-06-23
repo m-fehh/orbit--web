@@ -270,15 +270,11 @@ export const resolutionPatternsApi = {
 export const WorkItemStatusMap: Record<string, number> = { Open: 0, InProgress: 1, Done: 2, Cancelled: 3 };
 
 export const workItemsApi = {
-  create: (ticketId: number, body: { title: string; technicalDescription: string; parentId?: number | null; assignedToId?: number | null }) =>
+  create: (ticketId: number, body: { title: string; technicalDescription: string; assignedToId?: number | null }) =>
     api.post<EngineeringWorkItemResponse>(`/tickets/${ticketId}/workitems`, body),
   byTicket: (ticketId: number) => api.get<EngineeringWorkItemResponse[]>(`/tickets/${ticketId}/workitems`),
-  update: (ticketId: number, id: number, body: { title?: string; technicalDescription?: string; assignedToId?: number | null; status?: number }) =>
-    api.patch<EngineeringWorkItemResponse>(`/tickets/${ticketId}/workitems/${id}`, body),
   updateStatus: (ticketId: number, id: number, status: string) =>
-    api.patch<EngineeringWorkItemResponse>(`/tickets/${ticketId}/workitems/${id}`, { status: WorkItemStatusMap[status] ?? 0 }),
-  remove: (ticketId: number, id: number) =>
-    api.delete<void>(`/tickets/${ticketId}/workitems/${id}`),
+    api.patch<EngineeringWorkItemResponse>(`/tickets/${ticketId}/workitems/${id}/status`, { status: WorkItemStatusMap[status] ?? 0 }),
 };
 
 /** Inteligência / IA */
