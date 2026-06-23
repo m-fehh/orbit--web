@@ -155,7 +155,7 @@ export function TicketDetail({ id }: { id: number }) {
                 }
               }} />
             </Can>
-            <IterationControl ticketId={id} currentIteration={ticket.iteration ?? null} />
+            <IterationControl ticketId={id} ticketTitle={ticket.title} ticketDescription={ticket.description ?? ''} currentIteration={ticket.iteration ?? null} />
             <Button
               size="sm"
               variant="ghost"
@@ -642,8 +642,8 @@ function RecommendationsPanel({ ticketId, onOpenIntelligence }: { ticketId: numb
                 <span className={cn('shrink-0 rounded px-2 py-0.5 text-xs font-semibold', state === 'accepted' ? 'bg-success/15 text-success' : 'bg-panel-2 text-dim')}>{state === 'accepted' ? t('accepted') : t('ignored')}</span>
               ) : (
                 <div className="flex shrink-0 gap-1">
-                  <button type="button" onClick={() => feedback.mutate({ resolutionId: r.resolutionId, accepted: true })} disabled={feedback.isPending} className="grid h-7 w-7 place-items-center rounded-md text-success hover:bg-success/10" aria-label="Aceitar"><Check className="h-4 w-4" /></button>
-                  <button type="button" onClick={() => feedback.mutate({ resolutionId: r.resolutionId, accepted: false })} disabled={feedback.isPending} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-panel-2" aria-label="Ignorar"><X className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => feedback.mutate({ resolutionId: r.resolutionId, accepted: true })} disabled={feedback.isPending} className="grid h-7 w-7 place-items-center rounded-md text-success hover:bg-success/10" aria-label={t('accepted')}><Check className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => feedback.mutate({ resolutionId: r.resolutionId, accepted: false })} disabled={feedback.isPending} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-panel-2" aria-label={t('ignored')}><X className="h-4 w-4" /></button>
                 </div>
               )}
             </div>
@@ -655,7 +655,7 @@ function RecommendationsPanel({ ticketId, onOpenIntelligence }: { ticketId: numb
 }
 
 /* ---- Iteration Control (header dropdown — iteration only) ---- */
-function IterationControl({ ticketId, currentIteration }: { ticketId: number; currentIteration: IterationResponse | null }) {
+function IterationControl({ ticketId, ticketTitle, ticketDescription, currentIteration }: { ticketId: number; ticketTitle: string; ticketDescription: string; currentIteration: IterationResponse | null }) {
   const t = useTranslations('ticket');
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -663,7 +663,7 @@ function IterationControl({ ticketId, currentIteration }: { ticketId: number; cu
   const iterations = useQuery({ queryKey: ['iterations'], queryFn: () => iterationsApi.list(1, 100) });
 
   const setIteration = useMutation({
-    mutationFn: (iterationId: number | null) => ticketsApi.setIteration(ticketId, iterationId),
+    mutationFn: (iterationId: number | null) => ticketsApi.setIteration(ticketId, ticketTitle, ticketDescription, iterationId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] }); toast.success(t('iterationUpdated')); },
     onError: (err) => toast.error(apiErrorMessage(err, 'Error')),
   });
@@ -841,6 +841,7 @@ function TagsBar({ ticketId, currentTags }: { ticketId: number; currentTags: Tag
 function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId: number; ticketTitle: string; onClose: () => void; onResolved: () => void }) {
   const t = useTranslations('resolution');
   const tIntel = useTranslations('intelligence');
+  const tTicket = useTranslations('ticket');
   const [step, setStep] = useState(0);
   const [rootCauseTitle, setRootCauseTitle] = useState('');
   const [rootCauseSummary, setRootCauseSummary] = useState('');
@@ -961,7 +962,7 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
                       <div className="flex flex-wrap items-center gap-1.5">
                         {rc.supportingTicketIds.length > 0 && (
                           <span className="inline-flex items-center gap-1 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">
-                            <Layers className="h-2.5 w-2.5" /> {rc.supportingTicketIds.length} tickets {tIntel('relatedKnowledge').toLowerCase().includes('relac') ? 'relacionados' : 'related'}
+                            <Layers className="h-2.5 w-2.5" /> {rc.supportingTicketIds.length} {tTicket('relatedTickets')}
                           </span>
                         )}
                         {rc.coOccurrencePatterns.map((p) => (
@@ -1598,14 +1599,17 @@ function AttachmentsTab({ ticketId, userName }: { ticketId: number; userName: (u
 /* ================================================================
    INVESTIGATION TAB - Painel de Análise Profissional
    ================================================================ */
-const EVIDENCE_HINTS: Record<EvidenceTypeValue, { ph: string; suggestions: string[]; needsUrl: boolean }> = {
-  [EvidenceType.Screenshot]: { ph: 'O que aparece na captura?', suggestions: ['Tela de erro 500', 'Modal de pagamento', 'Console do navegador'], needsUrl: false },
-  [EvidenceType.Log]: { ph: 'Trecho relevante do log…', suggestions: ['Stack trace', 'Linha de exceção', 'Resposta da API'], needsUrl: false },
-  [EvidenceType.Video]: { ph: 'Descreva o que o vídeo demonstra', suggestions: ['Passos para reproduzir', 'Comportamento esperado vs real'], needsUrl: true },
-  [EvidenceType.File]: { ph: 'Descrição do arquivo anexo', suggestions: ['Dump de banco', 'Configuração exportada'], needsUrl: false },
-  [EvidenceType.Observation]: { ph: 'O que foi observado?', suggestions: ['Reproduz somente em produção', 'Ocorre após login', 'Intermitente'], needsUrl: false },
-  [EvidenceType.Url]: { ph: 'Por que esta URL é relevante?', suggestions: ['Issue relacionada', 'Documento de referência', 'Endpoint afetado'], needsUrl: true },
-};
+function useEvidenceHints(): Record<EvidenceTypeValue, { ph: string; suggestions: string[]; needsUrl: boolean }> {
+  const t = useTranslations('investigation');
+  return {
+    [EvidenceType.Screenshot]: { ph: t('evHint.screenshotPh'), suggestions: [t('evHint.screenshotS1'), t('evHint.screenshotS2'), t('evHint.screenshotS3')], needsUrl: false },
+    [EvidenceType.Log]: { ph: t('evHint.logPh'), suggestions: [t('evHint.logS1'), t('evHint.logS2'), t('evHint.logS3')], needsUrl: false },
+    [EvidenceType.Video]: { ph: t('evHint.videoPh'), suggestions: [t('evHint.videoS1'), t('evHint.videoS2')], needsUrl: true },
+    [EvidenceType.File]: { ph: t('evHint.filePh'), suggestions: [t('evHint.fileS1'), t('evHint.fileS2')], needsUrl: false },
+    [EvidenceType.Observation]: { ph: t('evHint.obsPh'), suggestions: [t('evHint.obsS1'), t('evHint.obsS2'), t('evHint.obsS3')], needsUrl: false },
+    [EvidenceType.Url]: { ph: t('evHint.urlPh'), suggestions: [t('evHint.urlS1'), t('evHint.urlS2'), t('evHint.urlS3')], needsUrl: true },
+  };
+}
 
 function InvestigationTab({ ticketId, investigations }: { ticketId: number; investigations: InvestigationResponse[] }) {
   const t = useTranslations('investigation');
@@ -1711,7 +1715,8 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
   const run = (p: Promise<unknown>, ok?: () => void) =>
     p.then(() => { onChanged(); ok?.(); }).catch((e) => toast.error(apiErrorMessage(e, t('saveError'))));
 
-  const evHint = EVIDENCE_HINTS[evType];
+  const evidenceHints = useEvidenceHints();
+  const evHint = evidenceHints[evType];
   const datalistId = `inv-${inv.id}-ev-suggestions`;
 
   const hypothesisStatusStyle = (status: string) => {

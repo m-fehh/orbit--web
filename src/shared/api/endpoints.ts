@@ -151,8 +151,8 @@ export const ticketsApi = {
     api.patch<TicketResponse>(`/tickets/${id}/assign`, { userId, teamId: teamId ?? null }),
   changeStatus: (id: number, status: TicketStatusValue) =>
     api.patch<TicketResponse>(`/tickets/${id}/status`, { status }),
-  setIteration: (id: number, iterationId: number | null) =>
-    api.patch<TicketResponse>(`/tickets/${id}/iteration`, { iterationId }),
+  setIteration: (id: number, title: string, description: string, iterationId: number | null) =>
+    api.put<TicketResponse>(`/tickets/${id}`, { title, description, iterationId }),
   resolve: (id: number, body: ResolveTicketRequest) => api.post<ResolveTicketResponse>(`/tickets/${id}/resolve`, body),
   recommendationFeedback: (id: number, body: RecommendationFeedbackRequest) =>
     api.post<void>(`/tickets/${id}/recommendation-feedback`, body),
@@ -445,9 +445,9 @@ export const tagsApi = {
   ticketTags: (ticketId: number) =>
     api.get<TagResponse[]>(`/tags/ticket/${ticketId}`),
   addToTicket: (ticketId: number, tagId: number) =>
-    api.post<void>(`/tags/ticket/${ticketId}/tag/${tagId}`),
+    api.post<void>(`/tags/ticket/${ticketId}`, { tagId }),
   removeFromTicket: (ticketId: number, tagId: number) =>
-    api.delete(`/tags/ticket/${ticketId}/tag/${tagId}`),
+    api.delete(`/tags/ticket/${ticketId}/${tagId}`),
   ticketsByTag: (tagId: number, page = 1, pageSize = 20) =>
     api.get<any>(`/tags/${tagId}/tickets`, { params: { page, pageSize } }),
 };
