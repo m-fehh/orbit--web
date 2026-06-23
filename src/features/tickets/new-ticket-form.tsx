@@ -22,6 +22,7 @@ import { Select } from '@/shared/ui/select';
 import { CreatableCombobox, type CreatableOption } from '@/shared/ui/creatable-combobox';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
+import { RichEditor } from '@/shared/ui/rich-editor';
 
 function suggestTagIds(description: string, tags: TagResponse[]): number[] {
   if (!description || description.length < 10 || tags.length === 0) return [];
@@ -201,12 +202,11 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
 
         <div className="flex flex-col gap-1.5 text-sm font-medium">
           <span>{t('description')} <span className="text-danger">*</span></span>
-          <textarea
-            rows={4}
+          <RichEditor
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full rounded-lg border border-border bg-bg-subtle px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/10 resize-none transition-all"
+            onChange={setDescription}
             placeholder={t('descriptionPlaceholder')}
+            minHeight="120px"
           />
         </div>
 

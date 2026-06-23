@@ -218,6 +218,7 @@ export const resolutionsApi = {
   create: (ticketId: number, body: { rootCauseId: number; summary: string; resolutionSteps: string; outcome: string }) =>
     api.post<ResolutionResponse>(`/resolutions/ticket/${ticketId}`, body),
   get: (id: number) => api.get<ResolutionResponse>(`/resolutions/${id}`),
+  byTicket: (ticketId: number) => api.get<ResolutionResponse>(`/resolutions/ticket/${ticketId}`),
   validate: (id: number, body: { isValidated: boolean; notes?: string }) =>
     api.patch<ResolutionResponse>(`/resolutions/${id}/validate`, body),
   addLearning: (id: number, body: { description: string; impact: string }) =>
@@ -325,6 +326,7 @@ export const slaPoliciesApi = {
 /** Catálogo de sintomas (vocabulário controlado). */
 export const symptomsApi = {
   list: () => api.get<SymptomTagResponse[]>('/symptoms'),
+  create: (body: { name: string; code?: string; group?: string }) => api.post<SymptomTagResponse>('/symptoms', body),
 };
 
 /** Symptoms do ticket. */

@@ -16,6 +16,7 @@ import type {
 } from '@/shared/api/types';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
+import { RichEditor } from '@/shared/ui/rich-editor';
 import { useTabStore } from '@/features/workspace/tab-store';
 import { cn } from '@/shared/lib/utils';
 
@@ -257,14 +258,12 @@ export function KnowledgeEditor({ id }: KnowledgeEditorProps) {
             <label htmlFor="content" className="text-xs font-medium text-muted">
               {t('content')}
             </label>
-            <textarea
-              id="content"
-              {...register('content')}
+            <RichEditor
+              value={watch('content') ?? ''}
+              onChange={(html) => setValue('content', html, { shouldDirty: true })}
               placeholder={t('contentPlaceholder')}
-              className={cn(
-                'flex-1 min-h-[300px] resize-none rounded-md border border-border bg-panel px-3 py-2 font-mono text-sm text-text placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary',
-                errors.content && 'border-red-500',
-              )}
+              minHeight="300px"
+              className={cn(errors.content && 'border-red-500')}
             />
             {errors.content && (
               <p className="text-xs text-red-500">{errors.content.message}</p>

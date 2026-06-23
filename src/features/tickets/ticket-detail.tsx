@@ -13,12 +13,12 @@ import {
   FlaskConical, ListChecks, GanttChart, ArrowUpRight, ThumbsUp, ThumbsDown,
   Filter, Layers, Brain, Workflow, PieChart, Sigma, Loader2, RotateCcw
 } from 'lucide-react';
-import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi, resolutionsApi, workItemsApi, iterationsApi, tagsApi } from '@/shared/api/endpoints';
+import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi, resolutionsApi, workItemsApi, iterationsApi, tagsApi, symptomsApi, ticketSymptomsApi } from '@/shared/api/endpoints';
 import {
-  TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, EvidenceType, HypothesisStatus, RootCauseCategory,
+  TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, ApiError, EvidenceType, HypothesisStatus, RootCauseCategory,
   type TicketStatusValue, type TicketStatusName, type TicketAttachmentResponse,
   type InvestigationResponse, type HypothesisStatusValue, type EvidenceTypeValue, type RootCauseCategoryValue,
-  type IterationResponse, type TagResponse,
+  type IterationResponse, type TagResponse, type SymptomTagResponse,
 } from '@/shared/api/types';
 import type { Locale } from '@/shared/i18n/config';
 import { useBrandingStore } from '@/features/tenant/branding-store';
@@ -38,6 +38,7 @@ import { TicketTimeline } from './timeline';
 import { tokenStore } from '@/shared/api/token-store';
 import { Portal } from '@/shared/ui/portal';
 import { Checkbox } from '@/shared/ui/checkbox';
+import { RichContent, RichEditor } from '@/shared/ui/rich-editor';
 import { openIntelligenceModal } from './intelligence-modal';
 
 type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'investigation' | 'workItems' | 'attachments';
@@ -109,6 +110,28 @@ export function TicketDetail({ id }: { id: number }) {
     onError: (err) => toast.error(apiErrorMessage(err, tTicket('statusError'))),
   });
 
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [editDesc, setEditDesc] = useState('');
+
+  const updateTicket = useMutation({
+    mutationFn: (body: { title: string; description: string }) => ticketsApi.update(id, body),
+    onSuccess: () => {
+      toast.success(tTicket('updated'));
+      qc.invalidateQueries({ queryKey: ['tickets'] });
+      setEditingTitle(false);
+      setEditingDesc(false);
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, tTicket('updateError'))),
+  });
+
+  const uploadImage = useCallback(async (file: File): Promise<string> => {
+    const att = await ticketsApi.uploadAttachment(id, file);
+    qc.invalidateQueries({ queryKey: ['tickets', 'detail', id] });
+    return ticketsApi.downloadAttachmentUrl(att.id);
+  }, [id, qc]);
+
   if (isLoading) return <LoadingState label={tTicket('loading')} />;
   if (isError || !ticket)
     return <ErrorState title={tTicket('loadError')} onRetry={() => refetch()} retryLabel={tTicket('retry')} />;
@@ -133,7 +156,30 @@ export function TicketDetail({ id }: { id: number }) {
                 {ticket.number}
               </span>
             </div>
-            <h1 className="mt-1 truncate text-2xl font-bold leading-tight">{ticket.title}</h1>
+            {editingTitle ? (
+              <div className="mt-1 flex items-center gap-2">
+                <input
+                  autoFocus
+                  className="flex-1 rounded-md border border-primary bg-bg-subtle px-2 py-1 text-2xl font-bold leading-tight outline-none ring-2 ring-primary/15"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && editTitle.trim()) updateTicket.mutate({ title: editTitle.trim(), description: ticket.description });
+                    if (e.key === 'Escape') setEditingTitle(false);
+                  }}
+                />
+                <button type="button" onClick={() => { if (editTitle.trim()) updateTicket.mutate({ title: editTitle.trim(), description: ticket.description }); }} disabled={updateTicket.isPending} className="grid h-7 w-7 place-items-center rounded bg-success/15 text-success hover:bg-success/25"><Check className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setEditingTitle(false)} className="grid h-7 w-7 place-items-center rounded bg-panel-2 text-dim hover:text-text"><X className="h-4 w-4" /></button>
+              </div>
+            ) : (
+              <h1
+                className="mt-1 truncate text-2xl font-bold leading-tight cursor-pointer hover:text-primary/80 transition-colors"
+                onClick={() => { setEditTitle(ticket.title); setEditingTitle(true); }}
+                title={tTicket('clickToEdit')}
+              >
+                {ticket.title}
+              </h1>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-sm">
             <Can permission="ticket.assign">
@@ -156,15 +202,17 @@ export function TicketDetail({ id }: { id: number }) {
               }} />
             </Can>
             <IterationControl ticketId={id} ticketTitle={ticket.title} ticketDescription={ticket.description ?? ''} currentIteration={ticket.iteration ?? null} currentIterationId={ticket.iterationId ?? null} />
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1.5 text-primary hover:bg-primary/10"
-              onClick={() => openIntelligenceModal(id, ticket.title)}
-            >
-              <Brain className="h-4 w-4" />
-              {tTicket('assistantButton')}
-            </Button>
+            {ticket.status !== 'Resolved' && ticket.status !== 'Closed' && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-1.5 text-primary hover:bg-primary/10"
+                onClick={() => openIntelligenceModal(id, ticket.title)}
+              >
+                <Brain className="h-4 w-4" />
+                {tTicket('assistantButton')}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -233,15 +281,41 @@ export function TicketDetail({ id }: { id: number }) {
           <div className="grid items-start gap-lg lg:grid-cols-3">
             <div className="flex flex-col gap-lg lg:col-span-2">
               <div>
-                <p className="mb-sm h-5 text-xs font-semibold uppercase tracking-wide text-dim">{tTicket('description')}</p>
-                <div className="card-surface min-h-[140px] whitespace-pre-wrap p-lg text-sm leading-relaxed text-text">
-                  {ticket.description || '—'}
+                <div className="mb-sm flex items-center justify-between">
+                  <p className="h-5 text-xs font-semibold uppercase tracking-wide text-dim">{tTicket('description')}</p>
+                  {!editingDesc && (
+                    <button type="button" onClick={() => { setEditDesc(ticket.description); setEditingDesc(true); }} className="text-[10px] text-primary hover:underline">{tTicket('edit')}</button>
+                  )}
                 </div>
+                {editingDesc ? (
+                  <div className="flex flex-col gap-2">
+                    <RichEditor
+                      value={editDesc}
+                      onChange={setEditDesc}
+                      placeholder={tTicket('descriptionPh')}
+                      minHeight="140px"
+                      onImagePaste={uploadImage}
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <button type="button" onClick={() => setEditingDesc(false)} className="rounded-md border border-border px-3 py-1.5 text-xs text-dim hover:text-text">{tTicket('cancel')}</button>
+                      <button type="button" onClick={() => updateTicket.mutate({ title: ticket.title, description: editDesc })} disabled={updateTicket.isPending} className="rounded-md bg-primary px-3 py-1.5 text-xs text-white hover:bg-primary/90 disabled:opacity-50">{tTicket('save')}</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card-surface min-h-[140px] p-lg text-sm leading-relaxed text-text cursor-pointer hover:border-primary/30 transition-colors" onClick={() => { setEditDesc(ticket.description); setEditingDesc(true); }}>
+                    {ticket.description ? <RichContent html={ticket.description} /> : <span className="text-dim">—</span>}
+                  </div>
+                )}
               </div>
 
-              <IntelligenceQuickView ticketId={id} onExpand={() => openIntelligenceModal(id, ticket.title)} />
-
-              <RecommendationsPanel ticketId={id} onOpenIntelligence={() => openIntelligenceModal(id, ticket.title)} />
+              {(ticket.status === 'Resolved' || ticket.status === 'Closed') ? (
+                <ResolutionSummaryPanel ticketId={id} />
+              ) : (
+                <>
+                  <IntelligenceQuickView ticketId={id} onExpand={() => openIntelligenceModal(id, ticket.title)} />
+                  <RecommendationsPanel ticketId={id} onOpenIntelligence={() => openIntelligenceModal(id, ticket.title)} />
+                </>
+              )}
             </div>
             <aside className="flex flex-col gap-lg">
               <div>
@@ -291,7 +365,7 @@ export function TicketDetail({ id }: { id: number }) {
 
         {sub === 'timeline' && <TicketTimeline ticket={ticket} userName={userName} teamName={teamName} />}
 
-        {sub === 'conversation' && <Conversation ticketId={id} comments={ticket.comments} userName={userName} locale={locale} timeZone={timeZone} />}
+        {sub === 'conversation' && <Conversation ticketId={id} comments={ticket.comments} userName={userName} locale={locale} timeZone={timeZone} onImagePaste={uploadImage} />}
 
         {sub === 'worklogs' && (
           <WorklogsTab
@@ -315,6 +389,7 @@ export function TicketDetail({ id }: { id: number }) {
         <ResolveModal
           ticketId={id}
           ticketTitle={ticket.title}
+          ticketSymptoms={ticket.symptoms ?? []}
           onClose={() => setShowResolveModal(false)}
           onResolved={() => {
             setShowResolveModal(false);
@@ -504,6 +579,110 @@ function openRelatedTicketsModal(ticketIds: number[]) {
   });
 }
 
+/* ---- Resolution Summary (resolved tickets) ---- */
+function ResolutionSummaryPanel({ ticketId }: { ticketId: number }) {
+  const t = useTranslations('resolution');
+  const tTicket = useTranslations('ticket');
+  const locale = useLocale() as Locale;
+  const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
+  const resolution = useQuery({
+    queryKey: ['resolutions', 'byTicket', ticketId],
+    queryFn: () => resolutionsApi.byTicket(ticketId),
+    retry: false,
+  });
+  const rootCauses = useQuery({
+    queryKey: ['rootcauses', 'byTicket', ticketId],
+    queryFn: () => rootCausesApi.byTicket(ticketId),
+    retry: false,
+  });
+
+  if (resolution.isLoading) {
+    return (
+      <div className="card-surface p-md">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-success" />
+          <span className="text-xs text-muted">{tTicket('loading')}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const res = resolution.data;
+  const rc = rootCauses.data?.[0];
+
+  if (!res) return null;
+
+  return (
+    <div className="card-surface overflow-hidden border border-success/20">
+      <div className="flex items-center gap-3 bg-gradient-to-r from-success/8 to-transparent px-md py-2.5">
+        <div className="grid h-6 w-6 place-items-center rounded-md bg-success/15">
+          <Check className="h-3.5 w-3.5 text-success" />
+        </div>
+        <p className="text-xs font-semibold text-success">{t('resolvedSummaryTitle')}</p>
+      </div>
+      <div className="flex flex-col gap-3 p-md text-sm">
+        {rc && (
+          <div className="flex items-start gap-2">
+            <Target className="h-4 w-4 text-dim mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[10px] font-medium uppercase text-dim">{t('rootCause')}</p>
+              <p className="font-medium">{rc.title}</p>
+              {rc.description && <p className="text-xs text-muted mt-0.5">{rc.description}</p>}
+              <span className="mt-1 inline-block rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
+            </div>
+          </div>
+        )}
+        <div className="flex items-start gap-2">
+          <Zap className="h-4 w-4 text-dim mt-0.5 shrink-0" />
+          <div>
+            <p className="text-[10px] font-medium uppercase text-dim">{t('resolution')}</p>
+            <p>{res.summary}</p>
+          </div>
+        </div>
+        {res.resolutionSteps && (
+          <div className="flex items-start gap-2">
+            <ListChecks className="h-4 w-4 text-dim mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[10px] font-medium uppercase text-dim">{t('actions')}</p>
+              <p className="text-xs text-muted whitespace-pre-wrap">{res.resolutionSteps}</p>
+            </div>
+          </div>
+        )}
+        {res.outcome && (
+          <div className="flex items-start gap-2">
+            <TrendingUp className="h-4 w-4 text-dim mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[10px] font-medium uppercase text-dim">{t('outcome')}</p>
+              <p>{res.outcome}</p>
+            </div>
+          </div>
+        )}
+        {res.learnings.length > 0 && (
+          <div className="flex items-start gap-2">
+            <BookOpen className="h-4 w-4 text-dim mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[10px] font-medium uppercase text-dim">{t('learnings')}</p>
+              <ul className="text-xs text-muted space-y-1 mt-1">
+                {res.learnings.map(l => (
+                  <li key={l.id} className="flex items-start gap-1.5">
+                    <span className="mt-1.5 h-1 w-1 rounded-full bg-success shrink-0" />
+                    <span>{l.description}{l.impact && <span className="text-dim"> — {l.impact}</span>}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+        {res.resolvedAt && (
+          <p className="text-[10px] text-dim text-right mt-1">
+            {formatDateTime(res.resolvedAt, { locale, timeZone })}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ---- Intelligence Quick View ---- */
 function pct(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return '—';
@@ -559,45 +738,39 @@ function IntelligenceQuickView({ ticketId, onExpand }: { ticketId: number; onExp
 
       <div className="p-md">
         <div className="grid gap-3 md:grid-cols-1">
-          {/* Root Causes */}
+          {/* Pattern Analysis — contextual data, NOT root cause */}
           {causes.length > 0 && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-1.5">
-                <Target className="h-3 w-3 text-primary" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-dim">{t('rootCauses')}</span>
+                <Layers className="h-3 w-3 text-primary" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-dim">{t('patternContext')}</span>
               </div>
               {causes.slice(0, 3).map((rc, i) => {
                 const relatedCount = rc.supportingTicketIds.length;
-                const confColor = rc.confidenceScore >= 0.7 ? 'text-emerald-600 bg-emerald-50' : rc.confidenceScore >= 0.4 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
                 return (
                   <div key={i} className="rounded-lg border border-border bg-panel/60 p-2.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="text-[10px] font-semibold text-dim uppercase">{rc.category}</span>
-                          <span className={cn('rounded-full px-1.5 py-0.5 text-[9px] font-bold', confColor)}>
-                            {pct(rc.confidenceScore)}
-                          </span>
-                        </div>
-                        {rc.description && (
-                          <p className="text-xs text-text leading-relaxed line-clamp-2">{rc.description}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
                       {relatedCount > 0 && (
                         <button
                           type="button"
                           onClick={() => openRelatedTicketsModal(rc.supportingTicketIds)}
-                          className="inline-flex items-center gap-1 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/15 transition-colors cursor-pointer"
                         >
                           <Layers className="h-2.5 w-2.5" /> {relatedCount} {tTicket('relatedTickets')}
                         </button>
                       )}
-                      {(rc.coOccurrencePatterns ?? []).slice(0, 2).map((p) => (
-                        <span key={p} className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">{p}</span>
-                      ))}
                     </div>
+                    {rc.description && (
+                      <p className="text-xs text-muted leading-relaxed line-clamp-2">{rc.description}</p>
+                    )}
+                    {(rc.coOccurrencePatterns ?? []).length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                        {(rc.coOccurrencePatterns ?? []).slice(0, 3).map((p) => (
+                          <span key={p} className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">{p}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -806,7 +979,10 @@ function TagsBar({ ticketId, currentTags }: { ticketId: number; currentTags: Tag
   const addTag = useMutation({
     mutationFn: (tagId: number) => tagsApi.addToTicket(ticketId, tagId),
     onSuccess: () => { invalidate(); setInput(''); },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Error')),
+    onError: (err) => {
+      const msg = (err instanceof ApiError && err.message?.toLowerCase().includes('already')) ? t('tagAlreadyAssigned') : apiErrorMessage(err, t('tagAddError'));
+      toast.error(msg);
+    },
   });
 
   const createAndAdd = useMutation({
@@ -915,11 +1091,193 @@ function TagsBar({ ticketId, currentTags }: { ticketId: number; currentTags: Tag
   );
 }
 
-/* ---- Resolve Modal ---- */
-function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId: number; ticketTitle: string; onClose: () => void; onResolved: () => void }) {
+/* ---- Symptoms Bar ---- */
+function SymptomsBar({ ticketId, currentSymptoms }: { ticketId: number; currentSymptoms: SymptomTagResponse[] }) {
+  const t = useTranslations('ticket');
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState('');
+  const popRef = useRef<HTMLDivElement>(null);
+
+  const catalog = useQuery({ queryKey: ['symptoms'], queryFn: () => symptomsApi.list() });
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+
+  const add = useMutation({
+    mutationFn: (symptomTagId: number) => ticketSymptomsApi.add(ticketId, { symptomTagId }),
+    onSuccess: () => { invalidate(); toast.success(t('symptomAdded')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('symptomError'))),
+  });
+
+  const remove = useMutation({
+    mutationFn: (symptomTagId: number) => ticketSymptomsApi.remove(ticketId, symptomTagId),
+    onSuccess: () => { invalidate(); toast.success(t('symptomRemoved')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('symptomError'))),
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (popRef.current && !popRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const currentIds = new Set(currentSymptoms.map(s => s.id));
+  const trimmed = filter.trim().toLowerCase();
+  const available = (catalog.data ?? []).filter(s => !currentIds.has(s.id) && (!trimmed || s.name.toLowerCase().includes(trimmed) || s.code.toLowerCase().includes(trimmed)));
+  const groups = [...new Set(available.map(s => s.group))].sort();
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {currentSymptoms.map((s) => (
+        <span key={s.id} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border border-warning/30 bg-warning/10 text-warning">
+          {s.name}
+          <button type="button" onClick={() => remove.mutate(s.id)} className="hover:opacity-70 rounded-full p-0.5 -mr-1"><X className="h-2.5 w-2.5" /></button>
+        </span>
+      ))}
+      <div className="relative" ref={popRef}>
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="inline-flex items-center gap-1.5 h-7 rounded-md border border-dashed border-dim px-2 text-[11px] font-medium text-dim hover:border-warning hover:text-warning hover:bg-warning/5 transition-colors"
+        >
+          <Plus className="h-3 w-3" />
+          <span>{t('addSymptom')}</span>
+        </button>
+        {open && (
+          <div className="absolute left-0 top-full z-50 mt-1.5 w-64 rounded-lg border border-border bg-panel shadow-xl overflow-hidden">
+            <div className="p-2 border-b border-border">
+              <input
+                type="text"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder={t('addSymptom')}
+                autoFocus
+                className="w-full rounded-md border border-border bg-bg-subtle px-2.5 py-1.5 text-xs text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 placeholder:text-dim"
+              />
+            </div>
+            <div className="max-h-[220px] overflow-y-auto">
+              {available.length === 0 ? (
+                <p className="px-3 py-4 text-xs text-dim text-center">{t('noResults' as 'addSymptom')}</p>
+              ) : (
+                groups.map(group => (
+                  <div key={group}>
+                    {groups.length > 1 && <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase text-dim">{group}</p>}
+                    {available.filter(s => s.group === group).map(s => (
+                      <button key={s.id} type="button" onClick={() => { add.mutate(s.id); setOpen(false); }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-bg-subtle transition-colors">
+                        <span className="h-2 w-2 rounded-full bg-warning/60 shrink-0" />
+                        <span className="flex-1 truncate">{s.name}</span>
+                        <span className="text-[10px] text-dim">{s.code}</span>
+                      </button>
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Resolve Modal (4 steps: Root Cause → Symptoms → Resolution + Actions → Confirm) ---- */
+const ACTION_TYPES = [
+  { value: 1, key: 'fix' },
+  { value: 2, key: 'workaround' },
+  { value: 3, key: 'configuration' },
+  { value: 4, key: 'restart' },
+  { value: 5, key: 'escalation' },
+  { value: 6, key: 'documentation' },
+  { value: 7, key: 'other' },
+] as const;
+
+function SymptomsStep({ symptomCatalog, selectedIds, onToggle, onCreated, symptomName, t }: {
+  symptomCatalog: SymptomTagResponse[];
+  selectedIds: number[];
+  onToggle: (id: number) => void;
+  onCreated: (s: SymptomTagResponse) => void;
+  symptomName: (id: number) => string;
+  t: ReturnType<typeof useTranslations<'resolution'>>;
+}) {
+  const [search, setSearch] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const createSymptom = useMutation({
+    mutationFn: (name: string) => symptomsApi.create({ name, code: name.toUpperCase().replace(/\s+/g, '_').slice(0, 30), group: 'General' }),
+    onSuccess: (data) => { onCreated(data); setSearch(''); setCreating(false); toast.success(t('symptomCreated')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('symptomCreateError'))),
+  });
+
+  const query = search.trim().toLowerCase();
+  const filtered = query ? symptomCatalog.filter(s =>
+    s.name.toLowerCase().includes(query) || s.code.toLowerCase().includes(query)
+  ).slice(0, 8) : [];
+  const exactMatch = symptomCatalog.some(s => s.name.toLowerCase() === query);
+
+  return (
+    <div className="flex flex-col gap-md">
+      <p className="text-xs text-muted">{t('selectSymptomsHint')}</p>
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedIds.map(id => (
+            <span key={id} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium border border-warning/30 bg-warning/10 text-warning">
+              {symptomName(id)}
+              <button type="button" onClick={() => onToggle(id)} className="hover:opacity-70 rounded-full p-0.5 -mr-1"><X className="h-2.5 w-2.5" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-dim" />
+        <input
+          className="w-full rounded-lg border border-border bg-bg-subtle py-2 pl-8 pr-3 text-xs outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+          placeholder={t('searchOrCreate')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && query && !exactMatch) { e.preventDefault(); createSymptom.mutate(search.trim()); } }}
+        />
+      </div>
+      {!query && (
+        <p className="text-xs text-dim text-center py-4">{t('typeToSearch')}</p>
+      )}
+      {query && (
+        <div className="max-h-[220px] overflow-y-auto rounded-lg border border-border">
+          {filtered.map(s => {
+            const selected = selectedIds.includes(s.id);
+            return (
+              <button key={s.id} type="button" onClick={() => { onToggle(s.id); setSearch(''); }}
+                className={cn('flex items-center gap-3 w-full px-3 py-2.5 text-xs text-left border-b border-border last:border-0 transition-colors',
+                  selected ? 'bg-warning/5' : 'hover:bg-bg-subtle')}>
+                <div className={cn('grid h-5 w-5 shrink-0 place-items-center rounded border transition-colors',
+                  selected ? 'bg-warning border-warning text-white' : 'border-border')}>
+                  {selected && <Check className="h-3 w-3" />}
+                </div>
+                <span className="flex-1">{s.name}</span>
+                <span className="text-[10px] text-dim">{s.code}</span>
+              </button>
+            );
+          })}
+          {!exactMatch && (
+            <button type="button" onClick={() => createSymptom.mutate(search.trim())} disabled={createSymptom.isPending}
+              className="flex items-center gap-2 w-full px-3 py-2.5 text-xs text-left border-t border-border hover:bg-bg-subtle transition-colors">
+              <Plus className="h-3.5 w-3.5 text-primary" />
+              <span className="text-primary font-medium">{t('createSymptom', { name: search.trim() })}</span>
+              {createSymptom.isPending && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolved }: { ticketId: number; ticketTitle: string; ticketSymptoms: SymptomTagResponse[]; onClose: () => void; onResolved: () => void }) {
   const t = useTranslations('resolution');
   const tIntel = useTranslations('intelligence');
   const tTicket = useTranslations('ticket');
+  const qc = useQueryClient();
   const [step, setStep] = useState(0);
   const [rootCauseTitle, setRootCauseTitle] = useState('');
   const [rootCauseSummary, setRootCauseSummary] = useState('');
@@ -928,7 +1286,10 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
   const [outcome, setOutcome] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [selectedRootCauseId, setSelectedRootCauseId] = useState<number | null>(null);
+  const [selectedSymptomIds, setSelectedSymptomIds] = useState<number[]>(ticketSymptoms.map(s => s.id));
+  const [actions, setActions] = useState<{ actionType: number; detail: string }[]>([]);
 
+  const symptomCatalog = useQuery({ queryKey: ['symptoms'], queryFn: () => symptomsApi.list() });
   const rootCauses = useQuery({ queryKey: ['rootcauses', ticketId], queryFn: () => rootCausesApi.byTicket(ticketId) });
   const report = useQuery({ queryKey: ['tickets', 'intelligence', ticketId], queryFn: () => intelligenceApi.ticketReport(ticketId), retry: false });
 
@@ -940,8 +1301,8 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
         rootCauseCategory,
         resolutionSummary: resolutionSummary.trim(),
         outcome: outcome.trim(),
-        actions: [],
-        symptomTagIds: [],
+        actions: actions.map((a, i) => ({ order: i + 1, actionType: a.actionType, detail: a.detail.trim() || null })),
+        symptomTagIds: selectedSymptomIds,
         isRecurring,
       }),
     onSuccess: () => { toast.success(t('resolvedOk')); onResolved(); },
@@ -951,13 +1312,34 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
   const aiSuggestions = report.data?.resolutionSuggestions ?? [];
   const aiRootCauses = report.data?.rootCauseCandidates ?? [];
 
-  const canNext = step === 0 ? (selectedRootCauseId || rootCauseTitle.trim()) : step === 1 ? resolutionSummary.trim() : true;
+  const toggleSymptom = (id: number) => {
+    setSelectedSymptomIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
 
+  const addAction = () => setActions(prev => [...prev, { actionType: 1, detail: '' }]);
+  const removeAction = (idx: number) => setActions(prev => prev.filter((_, i) => i !== idx));
+  const updateAction = (idx: number, field: 'actionType' | 'detail', val: number | string) => {
+    setActions(prev => prev.map((a, i) => i === idx ? { ...a, [field]: val } : a));
+  };
+
+  const canNext =
+    step === 0 ? (selectedRootCauseId || rootCauseTitle.trim()) :
+    step === 1 ? true :
+    step === 2 ? resolutionSummary.trim() :
+    true;
+
+  const LAST_STEP = 3;
   const steps = [
     { label: t('stepRootCause'), icon: Target },
+    { label: t('stepSymptoms'), icon: AlertTriangle },
     { label: t('stepResolution'), icon: Zap },
     { label: t('stepConfirm'), icon: Check },
   ];
+
+  const symptomName = (id: number) => {
+    const found = (symptomCatalog.data ?? []).find(s => s.id === id) ?? ticketSymptoms.find(s => s.id === id);
+    return found?.name ?? `#${id}`;
+  };
 
   return (
     <Portal>
@@ -987,11 +1369,7 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
                 const active = i === step;
                 return (
                   <div key={i} className="flex items-center flex-1 last:flex-none">
-                    <button
-                      type="button"
-                      onClick={() => done && setStep(i)}
-                      className={cn('flex items-center gap-2', done && 'cursor-pointer')}
-                    >
+                    <button type="button" onClick={() => done && setStep(i)} className={cn('flex items-center gap-2', done && 'cursor-pointer')}>
                       <span className={cn(
                         'grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold transition-all',
                         active ? 'bg-primary text-white shadow-md shadow-primary/30' :
@@ -1000,61 +1378,37 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
                       )}>
                         {done ? <Check className="h-4 w-4" /> : <StepIcon className="h-4 w-4" />}
                       </span>
-                      <span className={cn('text-xs font-medium hidden sm:block', active ? 'text-text' : done ? 'text-success' : 'text-dim')}>
-                        {s.label}
-                      </span>
+                      <span className={cn('text-xs font-medium hidden sm:block', active ? 'text-text' : done ? 'text-success' : 'text-dim')}>{s.label}</span>
                     </button>
-                    {i < steps.length - 1 && (
-                      <div className={cn('mx-3 h-px flex-1', done ? 'bg-success' : 'bg-border')} />
-                    )}
+                    {i < steps.length - 1 && <div className={cn('mx-3 h-px flex-1', done ? 'bg-success' : 'bg-border')} />}
                   </div>
                 );
               })}
             </div>
 
-            {/* AI Root Cause suggestions */}
-            {aiRootCauses.length > 0 && step === 0 && !selectedRootCauseId && (
-              <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Brain className="h-4 w-4 text-primary" />
-                  <p className="text-xs font-semibold uppercase text-primary">{tIntel('title')}</p>
-                  {aiRootCauses.some(rc => rc.aiEnhanced) && <span className="rounded bg-primary/20 px-1 py-0.5 text-[9px] font-bold text-primary">{tIntel('ai')}</span>}
+            {/* AI context — read-only pattern analysis (NOT root cause suggestions) */}
+            {aiRootCauses.length > 0 && step === 0 && (
+              <div className="rounded-lg border border-border bg-panel-2/30 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Brain className="h-3.5 w-3.5 text-dim" />
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-dim">{tIntel('patternContext')}</p>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1.5">
                   {aiRootCauses.slice(0, 3).map((rc, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => { setRootCauseTitle(rc.category); setRootCauseSummary(rc.description); }}
-                      className={cn(
-                        'flex flex-col gap-2 rounded-lg border p-3 text-left text-xs transition-all hover:border-primary/40',
-                        rootCauseTitle === rc.category ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-panel/60'
+                    <div key={i} className="flex items-start gap-2 text-xs text-muted">
+                      <span className="shrink-0 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
+                      <p className="leading-relaxed">{rc.description}</p>
+                      {rc.supportingTicketIds.length > 0 && (
+                        <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{rc.supportingTicketIds.length} similar</span>
                       )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 font-bold text-primary">{pct(rc.confidenceScore)}</span>
-                        <p className="font-semibold text-text flex-1">{rc.category}</p>
-                        {rootCauseTitle === rc.category && <Check className="h-4 w-4 text-primary shrink-0" />}
-                      </div>
-                      <p className="text-muted leading-relaxed">{rc.description}</p>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {rc.supportingTicketIds.length > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">
-                            <Layers className="h-2.5 w-2.5" /> {rc.supportingTicketIds.length} {tTicket('relatedTickets')}
-                          </span>
-                        )}
-                        {rc.coOccurrencePatterns.map((p) => (
-                          <span key={p} className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">{p}</span>
-                        ))}
-                      </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
             )}
 
             {/* AI Resolution suggestions */}
-            {aiSuggestions.length > 0 && step === 1 && (
+            {aiSuggestions.length > 0 && step === 2 && (
               <div className="rounded-xl border border-success/20 bg-gradient-to-br from-success/5 to-transparent p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Sparkles className="h-4 w-4 text-success" />
@@ -1062,15 +1416,9 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
                 </div>
                 <div className="flex flex-col gap-2">
                   {aiSuggestions.slice(0, 3).map((s) => (
-                    <button
-                      key={s.resolutionId}
-                      type="button"
-                      onClick={() => setResolutionSummary(s.summary)}
-                      className={cn(
-                        'flex flex-col gap-2 rounded-lg border p-3 text-left text-xs transition-all hover:border-success/40',
-                        resolutionSummary === s.summary ? 'border-success bg-success/5 ring-1 ring-success/20' : 'border-border bg-panel/60'
-                      )}
-                    >
+                    <button key={s.resolutionId} type="button" onClick={() => setResolutionSummary(s.summary)}
+                      className={cn('flex flex-col gap-2 rounded-lg border p-3 text-left text-xs transition-all hover:border-success/40',
+                        resolutionSummary === s.summary ? 'border-success bg-success/5 ring-1 ring-success/20' : 'border-border bg-panel/60')}>
                       <div className="flex items-center gap-2">
                         <Lightbulb className="h-4 w-4 text-success shrink-0" />
                         <p className="font-semibold text-text flex-1">{s.summary}</p>
@@ -1079,10 +1427,6 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold text-success">{pct(s.successRate)} {tIntel('success')}</span>
                         {s.reusedCount > 0 && <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] text-dim">{s.reusedCount}× {tIntel('reuse')}</span>}
-                        <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] text-dim">{pct(s.similarityScore)} {tIntel('similar')}</span>
-                        {s.matchedTerms.slice(0, 4).map((term) => (
-                          <span key={term} className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{term}</span>
-                        ))}
                       </div>
                     </button>
                   ))}
@@ -1097,15 +1441,9 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
                   <div className="flex flex-col gap-2">
                     <p className="text-xs font-medium text-dim uppercase tracking-wide">{t('existingCauses')}</p>
                     {rootCauses.data!.map((rc) => (
-                      <button
-                        key={rc.id}
-                        type="button"
-                        onClick={() => { setSelectedRootCauseId(rc.id === selectedRootCauseId ? null : rc.id); setRootCauseTitle(''); }}
-                        className={cn(
-                          'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
-                          selectedRootCauseId === rc.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border hover:border-border-strong'
-                        )}
-                      >
+                      <button key={rc.id} type="button" onClick={() => { setSelectedRootCauseId(rc.id === selectedRootCauseId ? null : rc.id); setRootCauseTitle(''); }}
+                        className={cn('flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
+                          selectedRootCauseId === rc.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border hover:border-border-strong')}>
                         <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-bold text-primary">{Math.round(rc.confidenceScore * 100)}%</span>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium truncate">{rc.title}</p>
@@ -1142,8 +1480,20 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
               </div>
             )}
 
-            {/* Step 1: Resolution */}
+            {/* Step 1: Symptoms */}
             {step === 1 && (
+              <SymptomsStep
+                symptomCatalog={symptomCatalog.data ?? []}
+                selectedIds={selectedSymptomIds}
+                onToggle={toggleSymptom}
+                onCreated={(s) => { qc.invalidateQueries({ queryKey: ['symptoms'] }); setSelectedSymptomIds(prev => [...prev, s.id]); }}
+                symptomName={symptomName}
+                t={t}
+              />
+            )}
+
+            {/* Step 2: Resolution + Actions */}
+            {step === 2 && (
               <div className="flex flex-col gap-md">
                 <label className="flex flex-col gap-1.5 text-xs text-muted">
                   <span className="font-medium">{t('resolutionSummary')}</span>
@@ -1154,11 +1504,32 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
                   <input className={FIELD_MD} value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder={t('outcomePh')} />
                 </label>
                 <Checkbox checked={isRecurring} onChange={(e) => setIsRecurring(e.currentTarget.checked)} label={<span className="flex items-center gap-1.5"><RotateCcw className="h-3.5 w-3.5" />{t('isRecurring')}</span>} size="sm" />
+
+                {/* Actions */}
+                <div className="flex flex-col gap-2 mt-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium">{t('actions')}</p>
+                    <Button type="button" size="sm" variant="secondary" onClick={addAction} className="h-7 text-xs">
+                      <Plus className="h-3 w-3" /> {t('addAction')}
+                    </Button>
+                  </div>
+                  {actions.length === 0 && <p className="text-xs text-dim italic">{t('noActions')}</p>}
+                  {actions.map((a, idx) => (
+                    <div key={idx} className="flex items-start gap-2 rounded-lg border border-border p-2.5">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-panel-2 text-[10px] font-bold text-dim mt-0.5">{idx + 1}</span>
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        <Select<number> value={a.actionType} onChange={(v) => updateAction(idx, 'actionType', v)} options={ACTION_TYPES.map(at => ({ value: at.value, label: t(`actionTypes.${at.key}` as 'actionType') }))} />
+                        <input className={FIELD_SM} value={a.detail} onChange={(e) => updateAction(idx, 'detail', e.target.value)} placeholder={t('actionDetailPh')} />
+                      </div>
+                      <button type="button" onClick={() => removeAction(idx)} className="shrink-0 rounded p-1 text-dim hover:text-danger hover:bg-danger/10 mt-0.5"><X className="h-3.5 w-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Step 2: Confirm */}
-            {step === 2 && (
+            {/* Step 3: Confirm */}
+            {step === 3 && (
               <div className="rounded-lg border border-border bg-bg-subtle/50 p-4 flex flex-col gap-3 text-sm">
                 <div className="flex items-start gap-2">
                   <Target className="h-4 w-4 text-dim mt-0.5 shrink-0" />
@@ -1167,6 +1538,19 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
                     <p className="font-medium">{selectedRootCauseId ? rootCauses.data?.find(r => r.id === selectedRootCauseId)?.title : rootCauseTitle}</p>
                   </div>
                 </div>
+                {selectedSymptomIds.length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-dim mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[10px] font-medium uppercase text-dim">{t('stepSymptoms')}</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedSymptomIds.map(id => (
+                          <span key={id} className="rounded-full bg-warning/10 border border-warning/20 px-2 py-0.5 text-[11px] text-warning">{symptomName(id)}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start gap-2">
                   <Zap className="h-4 w-4 text-dim mt-0.5 shrink-0" />
                   <div>
@@ -1183,6 +1567,19 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
                     </div>
                   </div>
                 )}
+                {actions.length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <ListChecks className="h-4 w-4 text-dim mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[10px] font-medium uppercase text-dim">{t('actions')}</p>
+                      <ol className="mt-1 list-decimal list-inside text-xs text-muted space-y-0.5">
+                        {actions.map((a, i) => (
+                          <li key={i}><span className="font-medium text-text">{ACTION_TYPES.find(at => at.value === a.actionType)?.key}</span>{a.detail && ` — ${a.detail}`}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  </div>
+                )}
                 {isRecurring && (
                   <div className="rounded bg-warning/10 border border-warning/20 px-3 py-2 text-xs text-warning flex items-center gap-2">
                     <RotateCcw className="h-3.5 w-3.5" /> {t('markedRecurring')}
@@ -1193,12 +1590,12 @@ function ResolveModal({ ticketId, ticketTitle, onClose, onResolved }: { ticketId
 
           </div>
 
-          {/* Footer — sticky outside scrollable content */}
+          {/* Footer */}
           <div className="sticky bottom-0 flex items-center justify-between border-t border-border bg-panel px-6 py-4">
             <Button variant="secondary" disabled={step === 0} onClick={() => setStep(step - 1)}>
               {t('back')}
             </Button>
-            {step < 2 ? (
+            {step < LAST_STEP ? (
               <Button disabled={!canNext} onClick={() => setStep(step + 1)}>
                 {t('next')} <ArrowRight className="h-4 w-4" />
               </Button>
@@ -1406,6 +1803,65 @@ function WorklogsTab({ ticketId, worklogs, userName, estimateMinutesServer, rema
   );
 }
 
+/* ---- Attachment Grid (reusable) ---- */
+function AttachmentGrid({ attachments, thumbnailUrls, loadingThumbnails, failedThumbnails, onPreview, onDownload, onDelete, deleting, locale, timeZone, t }: {
+  attachments: TicketAttachmentResponse[];
+  thumbnailUrls: Record<number, string>;
+  loadingThumbnails: Set<number>;
+  failedThumbnails: Set<number>;
+  onPreview: (a: TicketAttachmentResponse) => void;
+  onDownload: (a: TicketAttachmentResponse) => void;
+  onDelete: (id: number) => void;
+  deleting: boolean;
+  locale: Locale;
+  timeZone: string;
+  t: ReturnType<typeof useTranslations<'attachments'>>;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {attachments.map((a) => {
+        const isImg = isImage(a.contentType);
+        const thumbUrl = thumbnailUrls[a.id];
+        const isLoadingThumb = loadingThumbnails.has(a.id);
+        const hasFailed = failedThumbnails.has(a.id);
+        return (
+          <div key={a.id} className="card-surface overflow-hidden group">
+            <div className="relative bg-panel-2 flex items-center justify-center cursor-pointer h-28" onClick={() => isImg ? onPreview(a) : onDownload(a)}>
+              {isImg && thumbUrl ? (
+                <>
+                  <img src={thumbUrl} alt={a.fileName} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                    <Eye className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </>
+              ) : isImg && isLoadingThumb ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              ) : isImg && hasFailed ? (
+                <FileText className="h-6 w-6 text-dim" />
+              ) : isPdf(a.contentType) ? (
+                <div className="flex flex-col items-center gap-1 text-dim"><FileText className="h-6 w-6" /><span className="text-[9px]">PDF</span></div>
+              ) : (
+                <div className="flex flex-col items-center gap-1 text-dim"><FileText className="h-6 w-6" /><span className="text-[9px] uppercase">{a.contentType.split('/')[1]?.slice(0, 4) || 'FILE'}</span></div>
+              )}
+            </div>
+            <div className="px-2.5 py-2 flex items-start gap-1.5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-medium leading-tight" title={a.fileName}>{a.fileName}</p>
+                <p className="text-[9px] text-dim">{fmtSize(a.fileSize)}</p>
+                {a.createdAt && <p className="text-[9px] text-dim">{formatDateTime(a.createdAt, { locale, timeZone })}</p>}
+              </div>
+              <div className="flex shrink-0 gap-0.5">
+                <button type="button" onClick={() => onDownload(a)} className="rounded p-0.5 text-muted hover:bg-panel-2 hover:text-text" title={t('download')}><Download className="h-3 w-3" /></button>
+                <button type="button" onClick={() => onDelete(a.id)} disabled={deleting} className="rounded p-0.5 text-muted hover:bg-danger/10 hover:text-danger disabled:opacity-50" title={t('delete')}><Trash2 className="h-3 w-3" /></button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ---- Attachments Tab ---- */
 function AttachmentsTab({ ticketId, userName, investigations }: { ticketId: number; userName: (uid: number | null) => string; investigations: InvestigationResponse[] }) {
   const t = useTranslations('attachments');
@@ -1588,18 +2044,51 @@ function AttachmentsTab({ ticketId, userName, investigations }: { ticketId: numb
         </div>
       </Can>
 
-      {/* EVIDENCE ATTACHMENTS SECTION - Separated */}
-      {hasEvidences && (
+      {/* Two-column layout when both evidence and regular attachments exist */}
+      {hasEvidences && hasRegularAttachments ? (
+        <div className="grid gap-lg lg:grid-cols-2">
+          {/* Evidence column */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="h-4 w-4 text-purple-600" />
+              <h3 className="text-xs font-semibold text-text">{t('evidenceSection')}</h3>
+              <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">{allEvidences.length}</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {allEvidences.map((ev) => (
+                <div key={ev.id} className="card-surface flex items-center gap-2.5 px-3 py-2 border-l-2 border-l-purple-400">
+                  <div className="shrink-0 grid h-7 w-7 place-items-center rounded-md bg-purple-50 dark:bg-purple-900/30">
+                    <FileText className="h-3.5 w-3.5 text-purple-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-medium truncate">{ev.notes || `Evidence ${ev.type}`}</p>
+                    <p className="text-[9px] text-dim">{ev.fileSize > 0 ? fmtSize(ev.fileSize) : ''} {ev.createdAt ? formatDateTime(ev.createdAt, { locale, timeZone }) : ''}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Regular column */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Paperclip className="h-4 w-4 text-dim" />
+              <h3 className="text-xs font-semibold text-text">{t('regularSection')}</h3>
+              <span className="rounded-full bg-panel-2 px-2 py-0.5 text-[10px] font-medium text-dim">{data!.length}</span>
+            </div>
+            <AttachmentGrid attachments={data!} thumbnailUrls={thumbnailUrls} loadingThumbnails={loadingThumbnails} failedThumbnails={failedThumbnails} onPreview={openPreview} onDownload={downloadOne} onDelete={(id) => deleteAttachment.mutate(id)} deleting={deleteAttachment.isPending} locale={locale} timeZone={timeZone} t={t} />
+          </div>
+        </div>
+      ) : hasEvidences ? (
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <FlaskConical className="h-4 w-4 text-purple-600" />
             <h3 className="text-xs font-semibold text-text">{t('evidenceSection')}</h3>
-            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">{allEvidences.length}</span>
+            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">{allEvidences.length}</span>
           </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {allEvidences.map((ev) => (
               <div key={ev.id} className="card-surface flex items-center gap-2.5 px-3 py-2 border-l-2 border-l-purple-400">
-                <div className="shrink-0 grid h-7 w-7 place-items-center rounded-md bg-purple-50">
+                <div className="shrink-0 grid h-7 w-7 place-items-center rounded-md bg-purple-50 dark:bg-purple-900/30">
                   <FileText className="h-3.5 w-3.5 text-purple-600" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1610,19 +2099,7 @@ function AttachmentsTab({ ticketId, userName, investigations }: { ticketId: numb
             ))}
           </div>
         </div>
-      )}
-
-      {/* REGULAR ATTACHMENTS SECTION - Separated with divider when evidences exist */}
-      {hasEvidences && hasRegularAttachments && (
-        <div className="flex items-center gap-3 py-2">
-          <div className="h-px flex-1 bg-border" />
-          <div className="flex items-center gap-2">
-            <Paperclip className="h-3.5 w-3.5 text-dim" />
-            <span className="text-[10px] font-medium uppercase text-dim">{t('regularSection')}</span>
-          </div>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-      )}
+      ) : null}
 
       {!hasEvidences && hasRegularAttachments && (
         <div className="flex items-center gap-2">
@@ -1634,68 +2111,11 @@ function AttachmentsTab({ ticketId, userName, investigations }: { ticketId: numb
 
       {isLoading ? (
         <LoadingState label={t('loading')} />
-      ) : !hasRegularAttachments ? (
+      ) : !hasRegularAttachments && !hasEvidences ? (
         <p className="text-sm text-dim">{t('empty')}</p>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {data!.map((a) => {
-            const isImg = isImage(a.contentType);
-            const thumbUrl = thumbnailUrls[a.id];
-            const isLoadingThumb = loadingThumbnails.has(a.id);
-            const hasFailed = failedThumbnails.has(a.id);
-            
-            return (
-              <div key={a.id} className="card-surface overflow-hidden group">
-                <div
-                  className={cn(
-                    'relative bg-panel-2 flex items-center justify-center cursor-pointer h-28',
-                  )}
-                  onClick={() => isImg ? openPreview(a) : downloadOne(a)}
-                >
-                  {isImg && thumbUrl ? (
-                    <>
-                      <img src={thumbUrl} alt={a.fileName} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                        <Eye className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </>
-                  ) : isImg && isLoadingThumb ? (
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  ) : isImg && hasFailed ? (
-                    <FileText className="h-6 w-6 text-dim" />
-                  ) : isPdf(a.contentType) ? (
-                    <div className="flex flex-col items-center gap-1 text-dim">
-                      <FileText className="h-6 w-6" />
-                      <span className="text-[9px]">PDF</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-1 text-dim">
-                      <FileText className="h-6 w-6" />
-                      <span className="text-[9px] uppercase">{a.contentType.split('/')[1]?.slice(0, 4) || 'FILE'}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="px-2.5 py-2 flex items-start gap-1.5">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[11px] font-medium leading-tight" title={a.fileName}>{a.fileName}</p>
-                    <p className="text-[9px] text-dim">{fmtSize(a.fileSize)}</p>
-                    {a.createdAt && <p className="text-[9px] text-dim">{formatDateTime(a.createdAt, { locale, timeZone })}</p>}
-                  </div>
-                  <div className="flex shrink-0 gap-0.5">
-                    <button type="button" onClick={() => downloadOne(a)} className="rounded p-0.5 text-muted hover:bg-panel-2 hover:text-text" title={t('download')}>
-                      <Download className="h-3 w-3" />
-                    </button>
-                    <button type="button" onClick={() => deleteAttachment.mutate(a.id)} disabled={deleteAttachment.isPending} className="rounded p-0.5 text-muted hover:bg-danger/10 hover:text-danger disabled:opacity-50" title={t('delete')}>
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      ) : !hasEvidences && hasRegularAttachments ? (
+        <AttachmentGrid attachments={data!} thumbnailUrls={thumbnailUrls} loadingThumbnails={loadingThumbnails} failedThumbnails={failedThumbnails} onPreview={openPreview} onDownload={downloadOne} onDelete={(id) => deleteAttachment.mutate(id)} deleting={deleteAttachment.isPending} locale={locale} timeZone={timeZone} t={t} />
+      ) : null}
 
       {preview && (
         <Portal>
@@ -1803,23 +2223,21 @@ function InvestigationTab({ ticketId, investigations }: { ticketId: number; inve
 
   return (
     <div className="flex flex-col gap-lg">
-      {/* AI Insights Banner */}
+      {/* Pattern context banner — informational, NOT root cause */}
       {aiCauses.length > 0 && (
-        <div className="rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 p-md">
+        <div className="rounded-lg border border-border bg-panel-2/30 p-md">
           <div className="flex items-center gap-2 mb-2">
-            <Brain className="h-4 w-4 text-primary" />
-            <span className="text-xs font-semibold text-primary">{tIntel('title')}</span>
+            <Layers className="h-3.5 w-3.5 text-dim" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-dim">{tIntel('patternContext')}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {aiCauses.slice(0, 3).map((rc, i) => (
               <div key={i} className="flex-1 min-w-[180px] rounded-lg border border-border bg-panel/80 p-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <Target className="h-3 w-3 text-primary shrink-0" />
-                  <span className="text-[10px] font-semibold text-dim uppercase">{rc.category}</span>
-                  <span className={cn(
-                    'ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-bold',
-                    rc.confidenceScore >= 0.7 ? 'bg-emerald-50 text-emerald-700' : rc.confidenceScore >= 0.4 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
-                  )}>{pct(rc.confidenceScore)}</span>
+                  <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
+                  {rc.supportingTicketIds.length > 0 && (
+                    <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{rc.supportingTicketIds.length} similar</span>
+                  )}
                 </div>
                 {rc.description && <p className="text-xs text-muted line-clamp-2">{rc.description}</p>}
               </div>
@@ -2671,7 +3089,7 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
 
-  const list = useQuery({ queryKey: ['workitems', ticketId], queryFn: () => workItemsApi.byTicket(ticketId) });
+  const list = useQuery({ queryKey: ['workitems', ticketId], queryFn: () => workItemsApi.byTicket(ticketId), retry: false });
   const users = useQuery({ queryKey: ['users', 'options'], queryFn: () => usersApi.list(1, 200) });
   const invalidate = () => qc.invalidateQueries({ queryKey: ['workitems', ticketId] });
   const userMap = new Map((users.data?.items ?? []).map(u => [u.id, u.name]));
@@ -2727,6 +3145,12 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
       {/* List */}
       {list.isLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-dim" /></div>
+      ) : list.isError ? (
+        <div className="flex flex-col items-center gap-3 py-12 text-dim">
+          <ListChecks className="h-8 w-8" />
+          <p className="text-xs font-medium text-text">{t('empty')}</p>
+          <p className="text-[10px]">{t('emptyHint')}</p>
+        </div>
       ) : allItems.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-dim">
           <ListChecks className="h-8 w-8" />
@@ -2772,7 +3196,7 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
 
 type CommentFilter = 'all' | 'public' | 'internal';
 
-function Conversation({ ticketId, comments, userName, locale, timeZone }: { ticketId: number; comments: { id: number; userId: number; message: string; isInternal: boolean; createdAt: string | null }[]; userName: (id: number | null) => string; locale: Locale; timeZone: string }) {
+function Conversation({ ticketId, comments, userName, locale, timeZone, onImagePaste }: { ticketId: number; comments: { id: number; userId: number; message: string; isInternal: boolean; createdAt: string | null }[]; userName: (id: number | null) => string; locale: Locale; timeZone: string; onImagePaste?: (file: File) => Promise<string> }) {
   const t = useTranslations('comments');
   const qc = useQueryClient();
   const [text, setText] = useState('');
@@ -2803,8 +3227,8 @@ function Conversation({ ticketId, comments, userName, locale, timeZone }: { tick
           <p className="text-sm text-dim">{t('empty')}</p>
         ) : (
           filtered.map((c) => (
-            <div key={c.id} className={cn('card-surface p-md', c.isInternal ? 'border-warning/40 bg-warning/5' : 'border-l-2 border-l-primary/40')}>
-              <div className="mb-1 flex items-center gap-sm text-xs text-muted">
+            <div key={c.id} className={cn('card-surface', c.isInternal ? 'border-warning/40 bg-warning/5' : 'border-l-2 border-l-primary/40')}>
+              <div className="p-md pb-0 mb-1 flex items-center gap-sm text-xs text-muted">
                 <span className="font-medium text-text">{userName(c.userId)}</span>
                 {c.isInternal ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-warning/20 px-1.5 py-0.5 text-warning"><Lock className="h-3 w-3" /> {t('internal')}</span>
@@ -2813,16 +3237,25 @@ function Conversation({ ticketId, comments, userName, locale, timeZone }: { tick
                 )}
                 {c.createdAt && <span className="text-dim">{formatDateTime(c.createdAt, { locale, timeZone })}</span>}
               </div>
-              <p className="whitespace-pre-wrap text-sm">{c.message}</p>
+              <div className="px-md pb-md">
+                <RichContent html={c.message} />
+              </div>
             </div>
           ))
         )}
       </div>
 
       <Can permission="ticket.comment.add">
-        <div className={cn('card-surface p-md', internal && 'border-warning/40 bg-warning/5')}>
-          <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder={internal ? t('placeholderInternal') : t('placeholderPublic')} className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-dim" />
-          <div className="mt-sm flex items-center justify-between">
+        <div className={cn('card-surface overflow-hidden', internal && 'border-warning/40 bg-warning/5')}>
+          <RichEditor
+            value={text}
+            onChange={setText}
+            placeholder={internal ? t('placeholderInternal') : t('placeholderPublic')}
+            minHeight="80px"
+            compact
+            onImagePaste={onImagePaste}
+          />
+          <div className="px-md pb-md flex items-center justify-between">
             <Checkbox
               checked={internal}
               onChange={(e) => setInternal(e.currentTarget.checked)}
