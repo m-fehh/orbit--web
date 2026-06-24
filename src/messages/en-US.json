@@ -265,6 +265,7 @@
     "entriesTitle": "Entries",
     "timeTracking": "Time Tracking",
     "estimate": "Estimated",
+    "setEstimate": "Set estimate",
     "completed": "Completed",
     "remaining": "Remaining",
     "trackingUpdated": "Tracking updated",
@@ -277,7 +278,8 @@
     "yesterday": "Yesterday",
     "worklogRemoved": "Record removed",
     "worklogRemoveError": "Error removing record",
-    "time": "Time"
+    "time": "Time",
+    "addLog": "Log time"
   },
   "worklogType": {
     "Investigation": "Investigation",
@@ -382,6 +384,7 @@
   "comments": {
     "addError": "Could not post comment",
     "empty": "No comments yet.",
+    "emptyHint": "Use the composer below to start the conversation.",
     "internal": "internal",
     "public": "public",
     "filter": {
@@ -1134,14 +1137,23 @@
     "attachments": "Attachments",
     "dropFiles": "Drop files here or click to upload",
     "noAttachments": "No attachments",
+    "uploading": "Uploading...",
+    "attachUploaded": "File uploaded",
+    "attachError": "Failed to upload file",
     "saved": "Changes saved",
     "saveError": "Failed to save changes",
+    "logTime": "Log time",
+    "logDescPh": "Work description (optional)...",
+    "timeLogged": "Time logged",
+    "logError": "Failed to log time",
+    "log": "Log",
+    "close": "Close",
     "totalEstimated": "Total Estimated",
     "totalSpent": "Total Spent",
     "tasksSummary": "{done} of {total} completed",
     "apiUnavailable": "Feature in preparation",
     "status": {
-      "Open": "Open",
+      "Backlog": "Backlog",
       "InProgress": "In Progress",
       "Done": "Done",
       "Cancelled": "Cancelled"

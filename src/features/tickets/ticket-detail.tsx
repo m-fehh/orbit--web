@@ -18,7 +18,7 @@ import {
   TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, ApiError, EvidenceType, HypothesisStatus, RootCauseCategory,
   type TicketStatusValue, type TicketStatusName, type TicketAttachmentResponse,
   type InvestigationResponse, type HypothesisStatusValue, type EvidenceTypeValue, type RootCauseCategoryValue,
-  type IterationResponse, type TagResponse, type SymptomTagResponse,
+  type IterationResponse, type TagResponse, type SymptomTagResponse, type EngineeringWorkItemResponse,
 } from '@/shared/api/types';
 import type { Locale } from '@/shared/i18n/config';
 import { useBrandingStore } from '@/features/tenant/branding-store';
@@ -30,6 +30,7 @@ import { PriorityBadge, StatusBadge } from './badges';
 import { openTicketTab } from './ticket-actions';
 import { useWindowStore } from '@/features/windows/window-store';
 import { Can } from '@/features/auth/can';
+import { useAuthStore } from '@/features/auth/auth-store';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { cn } from '@/shared/lib/utils';
@@ -38,7 +39,8 @@ import { TicketTimeline } from './timeline';
 import { tokenStore } from '@/shared/api/token-store';
 import { Portal } from '@/shared/ui/portal';
 import { Checkbox } from '@/shared/ui/checkbox';
-import { RichContent, RichEditor } from '@/shared/ui/rich-editor';
+import { RichEditor } from '@/shared/ui/rich-editor';
+import { MarkdownEditor, MarkdownContent } from '@/shared/ui/markdown-editor';
 import { openIntelligenceModal } from './intelligence-modal';
 
 type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'investigation' | 'workItems' | 'attachments';
@@ -128,9 +130,17 @@ export function TicketDetail({ id }: { id: number }) {
   });
 
   const uploadImage = useCallback(async (file: File): Promise<string> => {
-    const att = await ticketsApi.uploadAttachment(id, file);
-    qc.invalidateQueries({ queryKey: ['tickets', 'detail', id] });
-    return ticketsApi.downloadAttachmentUrl(att.id);
+    // Upload to API (for attachments tab), but return base64 data URI so
+    // the editor can display the image without auth headers in <img src>.
+    ticketsApi.uploadAttachment(id, file).then(() => {
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', id] });
+    });
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }, [id, qc]);
 
   if (isLoading) return <LoadingState label={tTicket('loading')} />;
@@ -279,7 +289,7 @@ export function TicketDetail({ id }: { id: number }) {
         ))}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-lg">
+      <div className={cn('min-h-0 flex-1 p-lg', sub === 'conversation' ? 'overflow-hidden flex flex-col' : 'overflow-auto')}>
         {sub === 'overview' && (
           <div className="grid items-start gap-lg lg:grid-cols-3">
             <div className="flex flex-col gap-lg lg:col-span-2">
@@ -292,7 +302,7 @@ export function TicketDetail({ id }: { id: number }) {
                 </div>
                 {editingDesc ? (
                   <div className="flex flex-col gap-2">
-                    <RichEditor
+                    <MarkdownEditor
                       value={editDesc}
                       onChange={setEditDesc}
                       placeholder={tTicket('descriptionPh')}
@@ -305,8 +315,8 @@ export function TicketDetail({ id }: { id: number }) {
                     </div>
                   </div>
                 ) : (
-                  <div className="card-surface min-h-[140px] p-lg text-sm leading-relaxed text-text cursor-pointer hover:border-primary/30 transition-colors" onClick={() => { setEditDesc(ticket.description); setEditingDesc(true); }}>
-                    {ticket.description ? <RichContent html={ticket.description} /> : <span className="text-dim">—</span>}
+                  <div className="card-surface min-h-[140px] p-lg cursor-pointer hover:border-primary/30 transition-colors" onClick={() => { setEditDesc(ticket.description); setEditingDesc(true); }}>
+                    {ticket.description ? <MarkdownContent content={ticket.description} /> : <span className="text-dim text-sm">—</span>}
                   </div>
                 )}
               </div>
@@ -336,22 +346,12 @@ export function TicketDetail({ id }: { id: number }) {
 
               <div>
                 <p className="mb-sm h-5 text-xs font-semibold uppercase tracking-wide text-dim">{tTicket('timeTracking')}</p>
-                <div className="card-surface flex flex-col gap-3 p-lg text-sm">
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <TrackMini label={tTicket('estimated')} value={fmtMin(ticket.estimateMinutes ?? 0)} />
-                    <TrackMini label={tTicket('completed')} value={fmtMin(ticket.completedMinutes)} accent="primary" />
-                    <TrackMini
-                      label={tTicket('remaining')}
-                      value={fmtMin(
-                        ticket.remainingMinutes != null
-                          ? Math.max(0, ticket.remainingMinutes)
-                          : Math.max(0, (ticket.estimateMinutes ?? 0) - ticket.completedMinutes),
-                      )}
-                      accent={ticket.completedMinutes > (ticket.estimateMinutes ?? 0) ? 'danger' : undefined}
-                    />
-                  </div>
-                  <EstimateInput ticketId={id} estimateMinutes={ticket.estimateMinutes} remainingMinutes={ticket.remainingMinutes} />
-                </div>
+                <TimeTrackingCard
+                  ticketId={id}
+                  estimateMinutes={ticket.estimateMinutes}
+                  completedMinutes={ticket.completedMinutes}
+                  remainingMinutes={ticket.remainingMinutes}
+                />
               </div>
 
               <div>
@@ -405,38 +405,128 @@ export function TicketDetail({ id }: { id: number }) {
 }
 
 /* ---- Estimate Input ---- */
-function EstimateInput({ ticketId, estimateMinutes, remainingMinutes }: { ticketId: number; estimateMinutes: number | null; remainingMinutes: number | null }) {
+function TimeTrackingCard({ ticketId, estimateMinutes, completedMinutes, remainingMinutes }: {
+  ticketId: number;
+  estimateMinutes: number | null;
+  completedMinutes: number;
+  remainingMinutes: number | null;
+}) {
   const t = useTranslations('worklog');
+  const tTicket = useTranslations('ticket');
   const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
   const [estimateInput, setEstimateInput] = useState<string>(estimateMinutes ? String(estimateMinutes / 60) : '');
-  const [remainingInput, setRemainingInput] = useState<string>(remainingMinutes != null ? String(remainingMinutes / 60) : '');
+
+  const estMin = Math.max(0, estimateMinutes ?? 0);
+  const remMin = remainingMinutes != null ? Math.max(0, remainingMinutes) : Math.max(0, estMin - completedMinutes);
+  const over = completedMinutes > estMin && estMin > 0;
+  const progress = estMin > 0 ? Math.min(100, (completedMinutes / estMin) * 100) : 0;
 
   const saveTracking = useMutation({
     mutationFn: () =>
       ticketsApi.updateTracking(ticketId, {
         estimateMinutes: estimateInput.trim() === '' ? null : Math.round(Number(estimateInput) * 60),
-        remainingMinutes: remainingInput.trim() === '' ? null : Math.round(Number(remainingInput) * 60),
+        remainingMinutes: null,
       }),
     onSuccess: () => {
       toast.success(t('trackingUpdated'));
       qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+      setEditing(false);
     },
     onError: (err) => toast.error(apiErrorMessage(err, t('trackingError'))),
   });
 
   return (
-    <div className="flex items-end gap-2">
-      <label className="flex flex-1 flex-col gap-1">
-        <span className="text-[10px] uppercase tracking-wide text-dim">{t('estimate')} (h)</span>
-        <Input type="number" min={0} step="0.5" value={estimateInput} onChange={(e) => setEstimateInput(e.target.value)} placeholder="0" className="h-8 text-xs" />
-      </label>
-      <label className="flex flex-1 flex-col gap-1">
-        <span className="text-[10px] uppercase tracking-wide text-dim">{t('remaining')} (h)</span>
-        <Input type="number" min={0} step="0.5" value={remainingInput} onChange={(e) => setRemainingInput(e.target.value)} placeholder="auto" className="h-8 text-xs" />
-      </label>
-      <Button type="button" size="sm" variant="secondary" onClick={() => saveTracking.mutate()} loading={saveTracking.isPending} className="h-8">
-        {t('save')}
-      </Button>
+    <div className="card-surface overflow-hidden">
+      <div className="p-md">
+        {/* Ring + stats row */}
+        <div className="flex items-center gap-3">
+          {/* SVG ring */}
+          {(() => {
+            const r = 22, circ = 2 * Math.PI * r;
+            const pct = estMin > 0 ? Math.min(1, completedMinutes / estMin) : 0;
+            return (
+              <svg width="56" height="56" viewBox="0 0 56 56" className="shrink-0">
+                <circle cx="28" cy="28" r={r} fill="none" stroke="var(--color-panel-2)" strokeWidth="6" />
+                {pct > 0 && (
+                  <circle cx="28" cy="28" r={r} fill="none"
+                    stroke={over ? 'var(--color-danger)' : 'var(--color-primary)'}
+                    strokeWidth="6" strokeLinecap="round"
+                    strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)}
+                    transform="rotate(-90 28 28)"
+                    style={{ transition: 'stroke-dashoffset .4s ease' }}
+                  />
+                )}
+                <text x="28" y="32" textAnchor="middle" fontSize="9" fontWeight="700" fill={over ? 'var(--color-danger)' : 'var(--color-text)'}>
+                  {fmtMin(completedMinutes)}
+                </text>
+              </svg>
+            );
+          })()}
+
+          {/* Stats */}
+          <div className="flex-1 flex flex-col gap-1.5 text-xs min-w-0">
+            <div className="flex justify-between">
+              <span className="text-dim">{tTicket('estimated')}</span>
+              <span className="font-semibold tabular-nums">{estMin > 0 ? fmtMin(estMin) : '—'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-dim">{tTicket('completed')}</span>
+              <span className="font-semibold tabular-nums text-primary">{fmtMin(completedMinutes)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-dim">{tTicket('remaining')}</span>
+              <span className={cn('font-semibold tabular-nums', over ? 'text-danger' : 'text-text')}>
+                {estMin > 0 ? fmtMin(remMin) : '—'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        {estMin > 0 && (
+          <div className="mt-3 h-1 overflow-hidden rounded-full bg-panel-2">
+            <div
+              className={cn('h-full rounded-full transition-all duration-500', over ? 'bg-danger' : 'bg-primary')}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Estimate setter */}
+      <div className="border-t border-border bg-panel-2/20 px-md py-2">
+        {editing ? (
+          <div className="flex items-center gap-2">
+            <Input
+              type="number" min={0} step={0.5}
+              value={estimateInput}
+              onChange={(e) => setEstimateInput(e.target.value)}
+              placeholder="0"
+              className="h-7 flex-1 text-xs"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') saveTracking.mutate(); if (e.key === 'Escape') setEditing(false); }}
+            />
+            <span className="text-[10px] text-dim shrink-0">h</span>
+            <Button size="sm" onClick={() => saveTracking.mutate()} loading={saveTracking.isPending} className="h-7 text-xs px-3">
+              {t('save')}
+            </Button>
+            <button type="button" onClick={() => setEditing(false)} className="text-dim hover:text-text">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="flex w-full items-center gap-1.5 text-[10px] text-dim hover:text-primary transition-colors"
+          >
+            <Timer className="h-3 w-3" />
+            {estMin > 0 ? t('estimate') + ': ' + fmtMin(estMin) : t('setEstimate')}
+            <Edit3 className="h-3 w-3 ml-auto opacity-50" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1848,51 +1938,90 @@ function WorklogsTab({ ticketId, worklogs, userName, estimateMinutesServer, rema
   return (
     <div className="grid grid-cols-1 gap-lg lg:grid-cols-2">
       <div>
-        <div className="card-surface p-lg">
-          <h3 className="mb-md text-sm font-semibold">{t('timeTracking')}</h3>
-          <div className="flex items-center gap-2 mb-md text-xs">
-            <div className="text-center flex-1 bg-panel-2/50 rounded p-2">
-              <p className="text-[10px] uppercase text-dim">{t('estimate')}</p>
-              <p className="font-bold text-text text-sm">{fmtMin(estimateMin)}</p>
+        <div className="card-surface overflow-hidden">
+          {/* Header stats */}
+          <div className="p-lg pb-md">
+            <div className="flex items-center justify-between mb-md">
+              <h3 className="text-sm font-semibold">{t('timeTracking')}</h3>
+              {estimateMin > 0 && (
+                <span className={cn('text-xs font-bold tabular-nums px-2 py-0.5 rounded-full', totalMin > estimateMin ? 'bg-danger/10 text-danger' : 'bg-primary/10 text-primary')}>
+                  {Math.round(progress)}%
+                </span>
+              )}
             </div>
-            <ArrowRight className="h-3 w-3 text-dim shrink-0" />
-            <div className="text-center flex-1 bg-panel-2/50 rounded p-2">
-              <p className="text-[10px] uppercase text-dim">{t('completed')}</p>
-              <p className="font-bold text-primary text-sm">{fmtMin(totalMin)}</p>
-            </div>
-            <ArrowRight className="h-3 w-3 text-dim shrink-0" />
-            <div className="text-center flex-1 bg-panel-2/50 rounded p-2">
-              <p className="text-[10px] uppercase text-dim">{t('remaining')}</p>
-              <p className={cn('font-bold text-sm', totalMin > estimateMin ? 'text-danger' : 'text-text')}>{fmtMin(remainingMin)}</p>
-            </div>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-panel-2 mb-2">
-            <div className={cn('h-full rounded-full transition-all', totalMin > estimateMin ? 'bg-danger' : 'bg-primary')} style={{ width: `${estimateMin > 0 ? Math.min(100, progress) : 0}%` }} />
-          </div>
-          <p className="text-[10px] text-dim text-right mb-lg">{estimateMin > 0 ? `${Math.round(progress)}%` : '—'}</p>
 
-          <Can permission="worklog.create">
-            <form onSubmit={(e) => { e.preventDefault(); if (canLog) log.mutate(); }} className="flex flex-col gap-3">
-              <label className="flex flex-col gap-1 text-xs text-muted">
-                {t('type')}
-                <Select value={type} onChange={setType} options={types} />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-muted">
-                {t('what')}
-                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('descriptionPh')} />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-muted">
-                {t('time')} (h:min)
-                <div className="flex items-center gap-1">
-                  <button type="button" onClick={() => { const d = parseTimeInput(timeInput); const m = Math.max(0, d - 15); setTimeInput(`${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`); }} className="grid h-8 w-8 place-items-center rounded border border-border hover:bg-panel-2 text-dim"><Minus className="h-3 w-3" /></button>
-                  <Input value={timeInput} onChange={(e) => handleTimeChange(e.target.value)} onBlur={handleTimeBlur} placeholder="1:30" className="h-8 text-xs text-center flex-1" />
-                  <button type="button" onClick={() => { const d = parseTimeInput(timeInput); const m = d + 15; setTimeInput(`${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`); }} className="grid h-8 w-8 place-items-center rounded border border-border hover:bg-panel-2 text-dim"><Plus className="h-3 w-3" /></button>
+            {/* Ring + stats */}
+            <div className="flex items-center gap-4 mb-md">
+              {/* SVG ring */}
+              <div className="shrink-0">
+                {(() => {
+                  const r = 28, circ = 2 * Math.PI * r;
+                  const pct = estimateMin > 0 ? Math.min(1, totalMin / estimateMin) : 0;
+                  const over = totalMin > estimateMin;
+                  return (
+                    <svg width="72" height="72" viewBox="0 0 72 72">
+                      <circle cx="36" cy="36" r={r} fill="none" stroke="var(--color-panel-2)" strokeWidth="8" />
+                      {pct > 0 && (
+                        <circle
+                          cx="36" cy="36" r={r} fill="none"
+                          stroke={over ? 'var(--color-danger)' : 'var(--color-primary)'}
+                          strokeWidth="8" strokeLinecap="round"
+                          strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)}
+                          transform="rotate(-90 36 36)"
+                          style={{ transition: 'stroke-dashoffset .4s ease' }}
+                        />
+                      )}
+                      <text x="36" y="40" textAnchor="middle" fontSize="11" fontWeight="700" fill={over ? 'var(--color-danger)' : 'var(--color-text)'}>
+                        {fmtMin(totalMin)}
+                      </text>
+                    </svg>
+                  );
+                })()}
+              </div>
+              {/* Stats */}
+              <div className="flex flex-col gap-2 flex-1 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-dim">{t('estimate')}</span>
+                  <span className="font-semibold tabular-nums">{estimateMin > 0 ? fmtMin(estimateMin) : '—'}</span>
                 </div>
-              </label>
-              <Button type="submit" disabled={!canLog} loading={log.isPending} className="w-full mt-1">
-                <Plus className="h-4 w-4" /> {t('log')}
-              </Button>
-            </form>
+                <div className="flex items-center justify-between">
+                  <span className="text-dim">{t('completed')}</span>
+                  <span className="font-semibold tabular-nums text-primary">{fmtMin(totalMin)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-dim">{t('remaining')}</span>
+                  <span className={cn('font-semibold tabular-nums', totalMin > estimateMin ? 'text-danger' : 'text-text')}>
+                    {estimateMin > 0 ? fmtMin(remainingMin) : '—'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            {estimateMin > 0 && (
+              <div className="h-1 overflow-hidden rounded-full bg-panel-2 mb-md">
+                <div className={cn('h-full rounded-full transition-all duration-500', totalMin > estimateMin ? 'bg-danger' : 'bg-primary')} style={{ width: `${Math.min(100, progress)}%` }} />
+              </div>
+            )}
+          </div>
+
+          {/* Log form */}
+          <Can permission="worklog.create">
+            <div className="border-t border-border bg-panel-2/20 px-lg py-md">
+              <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-dim">{t('addLog')}</p>
+              <form onSubmit={(e) => { e.preventDefault(); if (canLog) log.mutate(); }} className="flex flex-col gap-2.5">
+                <Select value={type} onChange={setType} options={types} />
+                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('descriptionPh')} />
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => { const d = parseTimeInput(timeInput); const m = Math.max(0, d - 15); setTimeInput(`${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`); }} className="grid h-8 w-8 shrink-0 place-items-center rounded border border-border hover:bg-panel-2 text-dim"><Minus className="h-3 w-3" /></button>
+                  <Input value={timeInput} onChange={(e) => handleTimeChange(e.target.value)} onBlur={handleTimeBlur} placeholder="1:30" className="h-8 text-xs text-center flex-1" />
+                  <button type="button" onClick={() => { const d = parseTimeInput(timeInput); const m = d + 15; setTimeInput(`${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`); }} className="grid h-8 w-8 shrink-0 place-items-center rounded border border-border hover:bg-panel-2 text-dim"><Plus className="h-3 w-3" /></button>
+                  <Button type="submit" disabled={!canLog} loading={log.isPending} className="shrink-0 h-8 px-4 text-xs">
+                    {t('log')}
+                  </Button>
+                </div>
+              </form>
+            </div>
           </Can>
         </div>
       </div>
@@ -2183,78 +2312,62 @@ function AttachmentsTab({ ticketId, userName, investigations }: { ticketId: numb
         </div>
       </Can>
 
-      {/* Two-column layout when both evidence and regular attachments exist */}
-      {hasEvidences && hasRegularAttachments ? (
-        <div className="grid gap-lg lg:grid-cols-2">
-          {/* Evidence column */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <FlaskConical className="h-4 w-4 text-purple-600" />
-              <h3 className="text-xs font-semibold text-text">{t('evidenceSection')}</h3>
-              <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">{allEvidences.length}</span>
-            </div>
-            <div className="flex flex-col gap-2">
-              {allEvidences.map((ev) => (
-                <div key={ev.id} className="card-surface flex items-center gap-2.5 px-3 py-2 border-l-2 border-l-purple-400">
-                  <div className="shrink-0 grid h-7 w-7 place-items-center rounded-md bg-purple-50 dark:bg-purple-900/30">
-                    <FileText className="h-3.5 w-3.5 text-purple-600" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-medium truncate">{ev.notes || `Evidence ${ev.type}`}</p>
-                    <p className="text-[9px] text-dim">{ev.fileSize > 0 ? fmtSize(ev.fileSize) : ''} {ev.createdAt ? formatDateTime(ev.createdAt, { locale, timeZone }) : ''}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          {/* Regular column */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <Paperclip className="h-4 w-4 text-dim" />
-              <h3 className="text-xs font-semibold text-text">{t('regularSection')}</h3>
-              <span className="rounded-full bg-panel-2 px-2 py-0.5 text-[10px] font-medium text-dim">{data!.length}</span>
-            </div>
-            <AttachmentGrid attachments={data!} thumbnailUrls={thumbnailUrls} loadingThumbnails={loadingThumbnails} failedThumbnails={failedThumbnails} onPreview={openPreview} onDownload={downloadOne} onDelete={(id) => deleteAttachment.mutate(id)} deleting={deleteAttachment.isPending} locale={locale} timeZone={timeZone} t={t} />
-          </div>
-        </div>
-      ) : hasEvidences ? (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <FlaskConical className="h-4 w-4 text-purple-600" />
-            <h3 className="text-xs font-semibold text-text">{t('evidenceSection')}</h3>
-            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">{allEvidences.length}</span>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {allEvidences.map((ev) => (
-              <div key={ev.id} className="card-surface flex items-center gap-2.5 px-3 py-2 border-l-2 border-l-purple-400">
-                <div className="shrink-0 grid h-7 w-7 place-items-center rounded-md bg-purple-50 dark:bg-purple-900/30">
-                  <FileText className="h-3.5 w-3.5 text-purple-600" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-medium truncate">{ev.notes || `Evidence ${ev.type}`}</p>
-                  <p className="text-[9px] text-dim">{ev.fileSize > 0 ? fmtSize(ev.fileSize) : ''} {ev.createdAt ? formatDateTime(ev.createdAt, { locale, timeZone }) : ''}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {!hasEvidences && hasRegularAttachments && (
-        <div className="flex items-center gap-2">
-          <Paperclip className="h-4 w-4 text-dim" />
-          <h3 className="text-xs font-semibold text-text">{t('regularSection')}</h3>
-          <span className="rounded-full bg-panel-2 px-2 py-0.5 text-[10px] font-medium text-dim">{data!.length}</span>
-        </div>
-      )}
-
+      {/* Anexos do ticket */}
       {isLoading ? (
         <LoadingState label={t('loading')} />
-      ) : !hasRegularAttachments && !hasEvidences ? (
-        <p className="text-sm text-dim">{t('empty')}</p>
-      ) : !hasEvidences && hasRegularAttachments ? (
-        <AttachmentGrid attachments={data!} thumbnailUrls={thumbnailUrls} loadingThumbnails={loadingThumbnails} failedThumbnails={failedThumbnails} onPreview={openPreview} onDownload={downloadOne} onDelete={(id) => deleteAttachment.mutate(id)} deleting={deleteAttachment.isPending} locale={locale} timeZone={timeZone} t={t} />
-      ) : null}
+      ) : (
+        <>
+          {hasRegularAttachments && (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Paperclip className="h-4 w-4 text-dim" />
+                <h3 className="text-xs font-semibold text-text">{t('regularSection')}</h3>
+                <span className="rounded-full bg-panel-2 px-2 py-0.5 text-[10px] font-medium text-dim">{data!.length}</span>
+              </div>
+              <AttachmentGrid attachments={data!} thumbnailUrls={thumbnailUrls} loadingThumbnails={loadingThumbnails} failedThumbnails={failedThumbnails} onPreview={openPreview} onDownload={downloadOne} onDelete={(id) => deleteAttachment.mutate(id)} deleting={deleteAttachment.isPending} locale={locale} timeZone={timeZone} t={t} />
+            </div>
+          )}
+
+          {hasEvidences && (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <FlaskConical className="h-4 w-4 text-purple-500" />
+                <h3 className="text-xs font-semibold text-text">{t('evidenceSection')}</h3>
+                <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">{allEvidences.length}</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {investigations.map((inv) =>
+                  inv.evidences.filter(ev => ev.filePath).map((ev) => {
+                    const fileName = ev.filePath?.split('/').pop() ?? ev.filePath ?? `Evidence ${ev.type}`;
+                    return (
+                      <div key={ev.id} className="card-surface flex items-center gap-2.5 px-3 py-2 border-l-2 border-l-purple-400">
+                        <div className="shrink-0 grid h-7 w-7 place-items-center rounded-md bg-purple-50 dark:bg-purple-900/30">
+                          <FileText className="h-3.5 w-3.5 text-purple-600" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-medium truncate">{ev.notes || fileName}</p>
+                          <p className="text-[9px] text-dim">
+                            {ev.type}
+                            {ev.fileSize > 0 ? ` · ${fmtSize(ev.fileSize)}` : ''}
+                            {ev.createdAt ? ` · ${formatDateTime(ev.createdAt, { locale, timeZone })}` : ''}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-purple-100 px-2 py-0.5 text-[9px] font-semibold text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                          {inv.summary ? inv.summary.slice(0, 20) + (inv.summary.length > 20 ? '…' : '') : `Inv. #${inv.id}`}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
+          {!hasRegularAttachments && !hasEvidences && (
+            <p className="text-sm text-dim">{t('empty')}</p>
+          )}
+        </>
+      )}
 
       {preview && (
         <Portal>
@@ -3201,11 +3314,11 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
 /* ================================================================
    TASKS TAB (Work Items)
    ================================================================ */
-const TASK_STATUSES = ['Open', 'InProgress', 'Done', 'Cancelled'] as const;
+const TASK_STATUSES = ['Backlog', 'InProgress', 'Done', 'Cancelled'] as const;
 
 function taskStatusColor(s: string) {
   switch (s) {
-    case 'Open': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+    case 'Backlog': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
     case 'InProgress': return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
     case 'Done': return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
     case 'Cancelled': return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
@@ -3222,18 +3335,29 @@ function taskStatusIcon(s: string) {
   }
 }
 
+/** Strip HTML tags to check if rich-editor has actual visible text */
+function hasEditorContent(html: string) {
+  return html.replace(/<[^>]*>/g, '').trim().length > 0;
+}
+
 function WorkItemsTab({ ticketId }: { ticketId: number }) {
   const t = useTranslations('workItems');
   const locale = useLocale() as Locale;
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const qc = useQueryClient();
   const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [creating, setCreating] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [pendingNew, setPendingNew] = useState<EngineeringWorkItemResponse | null>(null);
   const [editDesc, setEditDesc] = useState('');
   const [editAssignee, setEditAssignee] = useState<number | null>(null);
-  const [estHours, setEstHours] = useState(0);
-  const [spentHours, setSpentHours] = useState(0);
-  const [attachments, setAttachments] = useState<File[]>([]);
+  const [logTimeInput, setLogTimeInput] = useState('0:00');
+  const [logDesc, setLogDesc] = useState('');
+  const [logType, setLogType] = useState(3);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const worklogTypes = useWorklogTypes();
 
   const list = useQuery({
     queryKey: ['workitems', ticketId],
@@ -3246,8 +3370,17 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
   const userMap = new Map((users.data?.items ?? []).map(u => [u.id, u.name]));
 
   const create = useMutation({
-    mutationFn: () => workItemsApi.create(ticketId, { title: newTitle.trim() }),
-    onSuccess: () => { invalidate(); setNewTitle(''); toast.success(t('createdOk')); },
+    mutationFn: () => workItemsApi.create(ticketId, { title: newTitle.trim(), technicalDescription: newDesc || undefined }),
+    onSuccess: (created) => {
+      invalidate();
+      setNewTitle('');
+      setNewDesc('');
+      setCreating(false);
+      setPendingNew(created);
+      setSelectedId(created.id);
+      setEditDesc(created.technicalDescription ?? '');
+      setEditAssignee(created.assignedToId ?? null);
+    },
     onError: (err) => toast.error(apiErrorMessage(err, t('createError'))),
   });
 
@@ -3268,15 +3401,40 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
   const doneCount = allItems.filter(i => i.status === 'Done').length;
   const totalCount = allItems.length;
   const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
-  const selected = allItems.find(i => i.id === selectedId) ?? null;
+  // Use pendingNew as fallback while the refetch hasn't returned the newly created item yet
+  const selected = allItems.find(i => i.id === selectedId) ?? (pendingNew?.id === selectedId ? pendingNew : null);
+
+  const parseLogTime = (val: string) => {
+    const parts = val.split(':');
+    const h = parseInt(parts[0]) || 0;
+    const m = parseInt(parts[1]) || 0;
+    return h * 60 + m;
+  };
+
+  const logDuration = parseLogTime(logTimeInput);
+
+  const logWorkItem = useMutation({
+    mutationFn: async () => {
+      const description = logDesc.trim() || (selected ? selected.title : '');
+      const created = await worklogsApi.create(ticketId, { type: logType, description, startedAt: new Date().toISOString() });
+      await worklogsApi.updateDuration(created.id, logDuration);
+      return created;
+    },
+    onSuccess: () => {
+      toast.success(t('timeLogged'));
+      setLogTimeInput('0:00');
+      setLogDesc('');
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, t('logError'))),
+  });
 
   const selectTask = (task: typeof allItems[number]) => {
     setSelectedId(task.id);
     setEditDesc(task.technicalDescription ?? '');
-    setEditAssignee(task.assignedToId);
-    setEstHours(0);
-    setSpentHours(0);
-    setAttachments([]);
+    setEditAssignee(task.assignedToId ?? null);
+    setLogTimeInput('0:00');
+    setLogDesc('');
   };
 
   const handleSave = () => {
@@ -3286,281 +3444,230 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
       body: {
         technicalDescription: editDesc,
         assignedToId: editAssignee,
-        estimatedMinutes: Math.round(estHours * 60),
-        actualMinutes: Math.round(spentHours * 60),
       },
     });
   };
 
-  const isApiError = list.isError;
+  const handleFileUpload = async (files: FileList | File[]) => {
+    const arr = Array.from(files);
+    if (!arr.length) return;
+    setUploadingFile(true);
+    try {
+      for (const file of arr) {
+        await ticketsApi.uploadAttachment(ticketId, file);
+      }
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+      toast.success(t('attachUploaded'));
+    } catch (err) {
+      toast.error(t('attachError'));
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const canCreate = newTitle.trim().length > 0 && hasEditorContent(newDesc);
+  const rightMode: 'empty' | 'create' | 'detail' = selected ? 'detail' : creating ? 'create' : 'empty';
 
   return (
-    <div className="flex h-full" style={{ minHeight: 420 }}>
-      {/* Left: task list */}
-      <div className={cn(
-        'flex flex-col border-r border-border',
-        selected ? 'w-[320px] shrink-0' : 'flex-1',
-      )}>
-        {/* Header with progress */}
-        <div className="flex flex-col gap-sm px-md pt-md pb-sm">
-          {totalCount > 0 && (
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-panel-2">
-                <div
-                  className={cn('h-full rounded-full transition-all duration-500', progress === 100 ? 'bg-emerald-500' : 'bg-primary')}
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <span className="text-[11px] font-semibold text-text shrink-0">
-                {t('tasksSummary', { done: doneCount, total: totalCount })}
-              </span>
-            </div>
-          )}
+    <div className="flex h-full" style={{ minHeight: 520 }}>
 
+      {/* ══ LEFT: lista ══ */}
+      <div className={cn('flex flex-col border-r border-border', rightMode !== 'empty' ? 'w-[280px] shrink-0' : 'flex-1')}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-lg py-md border-b border-border shrink-0">
+          <div className="flex items-center gap-sm">
+            <span className="text-sm font-semibold text-text">Tasks</span>
+            {totalCount > 0 && (
+              <>
+                <div className="w-16 h-1 overflow-hidden rounded-full bg-panel-2">
+                  <div className={cn('h-full rounded-full transition-all', progress === 100 ? 'bg-emerald-500' : 'bg-primary')} style={{ width: `${progress}%` }} />
+                </div>
+                <span className="text-xs text-dim tabular-nums">{doneCount}/{totalCount}</span>
+              </>
+            )}
+          </div>
           <Can permission="ticket.update">
-            <form
-              onSubmit={(e) => { e.preventDefault(); if (newTitle.trim()) create.mutate(); }}
-              className="flex items-center gap-sm"
+            <Button
+              size="sm"
+              variant={creating && !selected ? 'primary' : 'secondary'}
+              onClick={() => { setCreating(true); setSelectedId(null); }}
             >
-              <input
-                className={FIELD_SM + ' flex-1'}
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                placeholder={t('titlePh')}
-              />
-              <Button type="submit" size="sm" disabled={!newTitle.trim()} loading={create.isPending} className="h-8 shrink-0 text-xs">
-                <Plus className="h-3 w-3" />
-              </Button>
-            </form>
+              <Plus className="h-3.5 w-3.5" />Nova task
+            </Button>
           </Can>
         </div>
 
-        {/* Task list */}
-        <div className="flex-1 overflow-y-auto px-sm pb-sm">
+        {/* Lista */}
+        <div className="flex-1 overflow-y-auto">
           {list.isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-5 w-5 animate-spin text-dim" />
-            </div>
-          ) : isApiError ? (
-            <div className="flex flex-col items-center gap-2 py-16 text-dim px-md text-center">
-              <ListChecks className="h-8 w-8" />
-              <p className="text-xs font-medium text-text">{t('empty')}</p>
-              <p className="text-[10px] leading-relaxed">{t('emptyHint')}</p>
-            </div>
+            <div className="flex items-center justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-dim" /></div>
           ) : allItems.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-16 text-dim px-md text-center">
-              <ListChecks className="h-8 w-8" />
-              <p className="text-xs font-medium text-text">{t('empty')}</p>
-              <p className="text-[10px] leading-relaxed">{t('emptyHint')}</p>
+            <div className="flex flex-col items-center gap-sm py-10 px-lg text-center">
+              <ListChecks className="h-8 w-8 text-dim opacity-30" />
+              <p className="text-sm font-medium text-text">{t('empty')}</p>
+              <p className="text-xs text-dim">{t('emptyHint')}</p>
             </div>
-          ) : (
-            <div className="flex flex-col gap-0.5">
-              {allItems.map((task) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  onClick={() => selectTask(task)}
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-lg px-sm py-2 text-left transition-all',
-                    selectedId === task.id
-                      ? 'bg-primary/8 ring-1 ring-primary/20'
-                      : 'hover:bg-panel-2/60',
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); updateStatus.mutate({ id: task.id, status: task.status === 'Done' ? 'Open' : 'Done' }); }}
-                    className="shrink-0 p-0.5 rounded hover:bg-panel-2"
-                  >
-                    {taskStatusIcon(task.status)}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p className={cn('text-xs font-medium leading-tight', task.status === 'Done' && 'line-through text-dim')}>
-                      {task.title}
-                    </p>
-                    {task.assignedToId != null && (
-                      <p className="text-[10px] text-dim mt-0.5 truncate">
-                        {userMap.get(task.assignedToId) ?? `#${task.assignedToId}`}
-                      </p>
-                    )}
-                  </div>
-                  <span className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase', taskStatusColor(task.status))}>
-                    {t(`status.${task.status}` as 'status.Open')}
-                  </span>
+          ) : allItems.map((task) => {
+            const assigneeName = task.assignedToId ? userMap.get(task.assignedToId) : null;
+            const initials = assigneeName ? assigneeName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() : null;
+            const isSel = selectedId === task.id;
+            return (
+              <div
+                key={task.id}
+                onClick={() => { selectTask(task); setCreating(false); }}
+                className={cn(
+                  'group flex items-center gap-sm px-lg py-md cursor-pointer border-b border-border/40 transition-colors',
+                  isSel ? 'bg-primary/8 border-l-2 border-l-primary' : 'border-l-2 border-l-transparent hover:bg-panel-2/60',
+                )}
+              >
+                <button type="button" onClick={(e) => { e.stopPropagation(); updateStatus.mutate({ id: task.id, status: task.status === 'Done' ? 'Backlog' : 'Done' }); }} className="shrink-0">
+                  {taskStatusIcon(task.status)}
                 </button>
-              ))}
-            </div>
-          )}
+                <div className="flex-1 min-w-0">
+                  <p className={cn('text-sm truncate', task.status === 'Done' && 'line-through text-dim')}>{task.title}</p>
+                  {assigneeName && <p className="text-xs text-dim truncate mt-px">{assigneeName}</p>}
+                </div>
+                {initials && (
+                  <span className="h-6 w-6 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">
+                    {initials}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Right: detail panel */}
-      {selected ? (
-        <div className="flex-1 min-w-0 flex flex-col overflow-y-auto">
-          {/* Detail header */}
-          <div className="flex items-center gap-2 border-b border-border px-md py-sm">
-            <h3 className="flex-1 text-sm font-bold text-text truncate">{selected.title}</h3>
-            <button
-              type="button"
-              onClick={() => setSelectedId(null)}
-              className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-dim hover:text-text hover:bg-panel-2"
-            >
-              <X className="h-3.5 w-3.5" />
+      {/* ══ RIGHT: create form ou detalhe ══ */}
+      {rightMode === 'create' && (
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between px-lg py-md border-b border-border shrink-0">
+            <span className="text-sm font-semibold text-text">Nova task</span>
+            <button type="button" onClick={() => setCreating(false)} className="grid h-7 w-7 place-items-center rounded text-dim hover:text-text hover:bg-panel-2 transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex flex-1 flex-col gap-md overflow-auto p-lg">
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              {t('titleLabel')} <span className="text-danger font-normal">*</span>
+              <input
+                className={FIELD_SM + ' w-full'}
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder={t('titlePh')}
+                autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              {t('descriptionLabel')} <span className="text-danger font-normal">*</span>
+              <MarkdownEditor value={newDesc} onChange={setNewDesc} placeholder={t('descriptionPh')} minHeight="160px" />
+            </label>
+          </div>
+          <div className="flex shrink-0 justify-end gap-sm border-t border-border bg-panel p-md">
+            <Button variant="secondary" onClick={() => { setCreating(false); setNewTitle(''); setNewDesc(''); }}>{t('close')}</Button>
+            <Button disabled={!canCreate} loading={create.isPending} onClick={() => create.mutate()}>
+              <Plus className="h-4 w-4" />{t('create')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {rightMode === 'detail' && selected && (
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+          <div className="flex items-center gap-sm px-lg py-md border-b border-border shrink-0">
+            <div className="flex items-center gap-sm flex-1 min-w-0">
+              {taskStatusIcon(selected.status)}
+              <h3 className="text-sm font-semibold text-text truncate">{selected.title}</h3>
+            </div>
+            <button type="button" onClick={() => setSelectedId(null)} className="grid h-7 w-7 shrink-0 place-items-center rounded text-dim hover:text-text hover:bg-panel-2 transition-colors">
+              <X className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-md py-md flex flex-col gap-lg">
-            {/* Status */}
-            <div>
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-dim">Status</p>
-              <div className="flex flex-wrap gap-1">
+          <div className="flex flex-1 flex-col gap-md overflow-auto p-lg">
+            <div className="flex flex-col gap-1.5 text-sm font-medium">
+              Status
+              <div className="flex flex-wrap gap-sm">
                 {TASK_STATUSES.map((s) => (
                   <button
-                    key={s}
-                    type="button"
+                    key={s} type="button"
                     onClick={() => updateStatus.mutate({ id: selected.id, status: s })}
                     className={cn(
-                      'rounded-lg border px-3 py-1.5 text-xs font-medium transition-all',
-                      selected.status === s
-                        ? taskStatusColor(s) + ' ring-1'
-                        : 'border-border text-dim hover:text-text hover:border-border-strong',
+                      'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-all',
+                      selected.status === s ? taskStatusColor(s) : 'border-border text-dim hover:bg-panel-2 hover:text-text',
                     )}
                   >
+                    {taskStatusIcon(s)}
                     {t(`status.${s}` as 'status.Open')}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Assignee */}
-            <div>
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-dim">{t('assignee')}</p>
-              <AsyncCombobox
-                options={userOptions}
-                value={editAssignee}
-                onChange={setEditAssignee}
-                placeholder={t('unassigned')}
-                allowClear
-              />
+            <div className="flex flex-col gap-1.5 text-sm font-medium">
+              {t('assignee')}
+              <AsyncCombobox options={userOptions} value={editAssignee} onChange={setEditAssignee} placeholder={t('unassigned')} allowClear />
             </div>
 
-            {/* Time tracking */}
-            <div>
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-dim">{t('estimatedTime')}</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-1.5">
-                  <div className="flex-1 relative">
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      value={estHours || ''}
-                      onChange={(e) => setEstHours(Math.max(0, parseFloat(e.target.value) || 0))}
-                      className={FIELD_SM + ' w-full pr-8'}
-                      placeholder="0"
-                    />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-dim">h</span>
-                  </div>
-                  <span className="text-[10px] text-dim">{t('estimatedTime')}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="flex-1 relative">
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      value={spentHours || ''}
-                      onChange={(e) => setSpentHours(Math.max(0, parseFloat(e.target.value) || 0))}
-                      className={FIELD_SM + ' w-full pr-8'}
-                      placeholder="0"
-                    />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-dim">h</span>
-                  </div>
-                  <span className="text-[10px] text-dim">{t('timeSpent')}</span>
+            <div className="flex flex-col gap-1.5 text-sm font-medium">
+              {t('descriptionLabel')}
+              <MarkdownEditor value={editDesc} onChange={setEditDesc} placeholder={t('descriptionPh')} minHeight="150px" />
+            </div>
+
+            <div className="flex flex-col gap-1.5 text-sm font-medium">
+              {t('logTime')}
+              <div className="flex flex-col gap-sm">
+                <Select value={logType} onChange={setLogType} options={worklogTypes} />
+                <input className={FIELD_SM + ' w-full'} value={logDesc} onChange={(e) => setLogDesc(e.target.value)} placeholder={t('logDescPh')} />
+                <div className="flex items-center gap-sm">
+                  <button type="button" onClick={() => { const m = Math.max(0, logDuration - 15); setLogTimeInput(`${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`); }} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border bg-panel hover:bg-panel-2 text-dim transition-colors">
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <input
+                    className={FIELD_SM + ' flex-1 text-center font-semibold tabular-nums'}
+                    value={logTimeInput}
+                    onChange={(e) => setLogTimeInput(e.target.value.replace(/[^0-9:]/g, ''))}
+                    onBlur={() => { const p = logTimeInput.split(':'); if (p.length !== 2 || isNaN(+p[0]) || isNaN(+p[1])) setLogTimeInput('0:00'); }}
+                    placeholder="0:00"
+                  />
+                  <button type="button" onClick={() => { const m = logDuration + 15; setLogTimeInput(`${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`); }} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border bg-panel hover:bg-panel-2 text-dim transition-colors">
+                    <Plus className="h-4 w-4" />
+                  </button>
+                  <Button disabled={logDuration === 0} loading={logWorkItem.isPending} onClick={() => logWorkItem.mutate()} variant="secondary">
+                    <Clock className="h-4 w-4" />{t('log')}
+                  </Button>
                 </div>
               </div>
             </div>
 
-            {/* Description */}
-            <div>
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-dim">{t('descriptionLabel')}</p>
-              <RichEditor
-                value={editDesc}
-                onChange={setEditDesc}
-                placeholder={t('descriptionPh')}
-                minHeight="140px"
-                compact
-              />
-            </div>
-
-            {/* Attachments */}
-            <div>
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-dim">{t('attachments')}</p>
+            <div className="flex flex-col gap-1.5 text-sm font-medium">
+              {t('attachments')}
               <label
-                className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4 py-3 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-colors"
-                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                onDrop={(e) => {
-                  e.preventDefault(); e.stopPropagation();
-                  const files = Array.from(e.dataTransfer.files);
-                  if (files.length) setAttachments((prev) => [...prev, ...files]);
-                }}
+                className={cn('flex flex-col items-center justify-center gap-sm rounded-lg border-2 border-dashed py-6 cursor-pointer transition-colors', uploadingFile ? 'opacity-50 pointer-events-none' : 'hover:border-primary/50 hover:bg-primary/5')}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files); }}
               >
-                <UploadCloud className="h-4 w-4 text-dim" />
-                <span className="text-[11px] text-dim">{t('dropFiles')}</span>
-                <input
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files ?? []);
-                    if (files.length) setAttachments((prev) => [...prev, ...files]);
-                    e.target.value = '';
-                  }}
-                />
+                {uploadingFile ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <UploadCloud className="h-5 w-5 text-dim" />}
+                <span className="text-sm text-dim">{uploadingFile ? t('uploading') : t('dropFiles')}</span>
+                <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => { if (e.target.files) { handleFileUpload(e.target.files); e.target.value = ''; } }} />
               </label>
-              {attachments.length > 0 && (
-                <ul className="mt-2 flex flex-col gap-1">
-                  {attachments.map((f, i) => (
-                    <li key={`${f.name}-${i}`} className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-xs">
-                      <FileText className="h-3.5 w-3.5 shrink-0 text-dim" />
-                      <span className="flex-1 min-w-0 truncate text-text">{f.name}</span>
-                      <span className="shrink-0 text-[10px] text-dim">{(f.size / 1024).toFixed(1)} KB</span>
-                      <button
-                        type="button"
-                        onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
-                        className="grid h-5 w-5 place-items-center rounded text-dim hover:text-danger hover:bg-danger/10"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
-
-            {/* Created at */}
-            {selected.createdAt && (
-              <div className="flex items-center gap-1.5 text-[10px] text-dim">
-                <Calendar className="h-3 w-3" />
-                {t('createdAtLabel')}: {formatDateTime(selected.createdAt, { locale, timeZone })}
-              </div>
-            )}
           </div>
 
-          {/* Save footer */}
-          <div className="border-t border-border px-md py-sm flex justify-end">
-            <Button size="sm" onClick={handleSave} loading={updateItem.isPending}>
-              {t('save')}
-            </Button>
+          <div className="flex shrink-0 justify-end gap-sm border-t border-border bg-panel p-md">
+            <Button variant="secondary" onClick={() => setSelectedId(null)}>{t('close')}</Button>
+            <Button onClick={handleSave} loading={updateItem.isPending}>{t('save')}</Button>
           </div>
         </div>
-      ) : (
-        !list.isLoading && allItems.length > 0 && (
-          <div className="flex-1 flex flex-col items-center justify-center text-dim gap-2">
-            <ListChecks className="h-10 w-10" />
-            <p className="text-xs">{t('taskDetail')}</p>
-          </div>
-        )
+      )}
+
+      {rightMode === 'empty' && (
+        <div className="flex-1 hidden md:flex flex-col items-center justify-center gap-sm text-dim">
+          <ListChecks className="h-10 w-10 opacity-20" />
+          <p className="text-sm">{t('taskDetail')}</p>
+        </div>
       )}
     </div>
   );
@@ -3571,6 +3678,7 @@ type CommentFilter = 'all' | 'public' | 'internal';
 function Conversation({ ticketId, comments, userName, locale, timeZone, onImagePaste }: { ticketId: number; comments: { id: number; userId: number; message: string; isInternal: boolean; createdAt: string | null }[]; userName: (id: number | null) => string; locale: Locale; timeZone: string; onImagePaste?: (file: File) => Promise<string> }) {
   const t = useTranslations('comments');
   const qc = useQueryClient();
+  const meId = useAuthStore((s) => s.user?.id);
   const [text, setText] = useState('');
   const [internal, setInternal] = useState(false);
   const [filter, setFilter] = useState<CommentFilter>('all');
@@ -3581,61 +3689,140 @@ function Conversation({ ticketId, comments, userName, locale, timeZone, onImageP
     onError: (err) => toast.error(apiErrorMessage(err, t('addError'))),
   });
 
-  const filtered = comments.filter((c) => filter === 'all' ? true : filter === 'internal' ? c.isInternal : !c.isInternal);
-  const counts = { all: comments.length, public: comments.filter((c) => !c.isInternal).length, internal: comments.filter((c) => c.isInternal).length };
+  const filtered = comments.filter((c) =>
+    filter === 'all' ? true : filter === 'internal' ? c.isInternal : !c.isInternal,
+  );
+  const counts = {
+    all: comments.length,
+    public: comments.filter((c) => !c.isInternal).length,
+    internal: comments.filter((c) => c.isInternal).length,
+  };
+
+  const ini = (name: string) => name.split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
+  const timeFmt = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone });
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="flex h-full w-full flex-col gap-md">
-      <div className="flex items-center gap-1 text-xs">
+    <div className="flex flex-1 min-h-0 w-full flex-col overflow-hidden">
+
+      {/* Filter bar */}
+      <div className="flex items-center gap-1.5 pb-3 shrink-0">
         {(['all', 'public', 'internal'] as CommentFilter[]).map((f) => (
-          <button key={f} type="button" onClick={() => setFilter(f)} className={cn('rounded-full border px-2.5 py-1 transition-colors', filter === f ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted hover:text-text')}>
-            {t(`filter.${f}`)} · {counts[f]}
+          <button
+            key={f} type="button" onClick={() => setFilter(f)}
+            className={cn(
+              'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+              filter === f ? 'border-primary bg-primary/10 text-primary' : 'border-border text-dim hover:border-border-strong hover:text-text',
+            )}
+          >
+            {t(`filter.${f}`)}
+            <span className={cn('rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums', filter === f ? 'bg-primary text-white' : 'bg-panel-2 text-dim')}>
+              {counts[f]}
+            </span>
           </button>
         ))}
       </div>
 
-      <div className="flex flex-1 flex-col gap-sm">
+      {/* Messages feed */}
+      <div className="flex-1 overflow-y-auto flex flex-col gap-4 pb-3 min-h-0">
         {filtered.length === 0 ? (
-          <p className="text-sm text-dim">{t('empty')}</p>
-        ) : (
-          filtered.map((c) => (
-            <div key={c.id} className={cn('card-surface', c.isInternal ? 'border-warning/40 bg-warning/5' : 'border-l-2 border-l-primary/40')}>
-              <div className="p-md pb-0 mb-1 flex items-center gap-sm text-xs text-muted">
-                <span className="font-medium text-text">{userName(c.userId)}</span>
-                {c.isInternal ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-warning/20 px-1.5 py-0.5 text-warning"><Lock className="h-3 w-3" /> {t('internal')}</span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-primary">{t('public')}</span>
-                )}
-                {c.createdAt && <span className="text-dim">{formatDateTime(c.createdAt, { locale, timeZone })}</span>}
+          <div className="flex flex-col items-center gap-2 py-16 text-dim">
+            <MessageSquare className="h-10 w-10 opacity-30" />
+            <p className="text-sm font-medium text-text">{t('empty')}</p>
+            <p className="text-xs">{t('emptyHint')}</p>
+          </div>
+        ) : filtered.map((c) => {
+          const isMe = c.userId === meId;
+          const name = userName(c.userId);
+          const avatar = ini(name);
+          const time = c.createdAt ? timeFmt.format(new Date(c.createdAt)) : '';
+
+          if (c.isInternal) return (
+            <div key={c.id} className="flex gap-3">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-warning/20 text-[11px] font-bold text-warning ring-2 ring-warning/10">
+                {avatar || '?'}
               </div>
-              <div className="px-md pb-md">
-                <RichContent html={c.message} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xs font-semibold text-text">{name}</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning">
+                    <Lock className="h-2.5 w-2.5" />{t('internal')}
+                  </span>
+                  {time && <span className="text-[10px] text-dim ml-auto">{time}</span>}
+                </div>
+                <div className="rounded-xl rounded-tl-none border border-warning/30 bg-warning/5 px-4 py-3">
+                  <MarkdownContent content={c.message} />
+                </div>
               </div>
             </div>
-          ))
-        )}
+          );
+
+          if (isMe) return (
+            <div key={c.id} className="flex flex-row-reverse gap-3">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-bold text-primary-fg">
+                {avatar || '?'}
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col items-end">
+                <div className="flex items-center gap-2 mb-1.5">
+                  {time && <span className="text-[10px] text-dim">{time}</span>}
+                  <span className="text-xs font-semibold text-text">{name}</span>
+                </div>
+                <div className="max-w-[80%] rounded-xl rounded-tr-none border border-primary/20 bg-primary/10 px-4 py-3">
+                  <MarkdownContent content={c.message} />
+                </div>
+              </div>
+            </div>
+          );
+
+          return (
+            <div key={c.id} className="flex gap-3">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-border bg-panel-2 text-[11px] font-bold text-text">
+                {avatar || '?'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xs font-semibold text-text">{name}</span>
+                  {time && <span className="text-[10px] text-dim">{time}</span>}
+                </div>
+                <div className="max-w-[80%] rounded-xl rounded-tl-none border border-border bg-panel px-4 py-3">
+                  <MarkdownContent content={c.message} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
       </div>
 
+      {/* Composer */}
       <Can permission="ticket.comment.add">
-        <div className={cn('card-surface overflow-hidden', internal && 'border-warning/40 bg-warning/5')}>
-          <RichEditor
+        <div className={cn('mt-2 rounded-xl border overflow-hidden transition-colors shrink-0', internal ? 'border-warning/40 bg-warning/5' : 'border-border bg-panel')}>
+          <MarkdownEditor
             value={text}
             onChange={setText}
             placeholder={internal ? t('placeholderInternal') : t('placeholderPublic')}
             minHeight="80px"
-            compact
             onImagePaste={onImagePaste}
           />
-          <div className="px-md pb-md flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 border-t border-border/50 px-3 py-2">
             <Checkbox
               checked={internal}
               onChange={(e) => setInternal(e.currentTarget.checked)}
-              label={<span className="flex items-center gap-1.5"><Lock className="h-3 w-3" />{t('internalToggle')}</span>}
+              label={
+                <span className="flex items-center gap-1.5 text-xs">
+                  <Lock className="h-3 w-3" />
+                  {t('internalToggle')}
+                </span>
+              }
               size="sm"
             />
-            <Button size="sm" disabled={!text.trim() || add.isPending} loading={add.isPending} onClick={() => add.mutate()}>
-              <Send className="h-3.5 w-3.5" /> {t('submit')}
+            <Button
+              size="sm"
+              disabled={!text.trim()}
+              loading={add.isPending}
+              onClick={() => add.mutate()}
+            >
+              <Send className="h-3.5 w-3.5" />{t('submit')}
             </Button>
           </div>
         </div>

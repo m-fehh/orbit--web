@@ -164,5 +164,7 @@
 .rich-editor-content pre code { background: none; padding: 0; }
 .rich-editor-content a { color: var(--orbit-color-primary); text-decoration: underline; cursor: pointer; }
 .rich-editor-content a:hover { opacity: 0.8; }
-.rich-editor-content img { max-width: 100%; border-radius: var(--orbit-radius-md); margin: 0.75em 0; border: 1px solid var(--orbit-color-border); box-shadow: 0 1px 3px rgb(0 0 0 / 0.08); }
+.rich-editor-content img { display: block; max-width: 100%; border-radius: var(--orbit-radius-md); margin: 0.75em 0; border: 1px solid var(--orbit-color-border); box-shadow: 0 1px 3px rgb(0 0 0 / 0.08); }
 .rich-editor-content p + p { margin-top: 0.5em; }
+/* Force images to render immediately inside ProseMirror while editing */
+.ProseMirror img { display: block !important; max-width: 100%; }

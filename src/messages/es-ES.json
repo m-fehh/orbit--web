@@ -265,6 +265,7 @@
     "entriesTitle": "Entradas",
     "timeTracking": "Control de Tiempo",
     "estimate": "Estimado",
+    "setEstimate": "Definir estimación",
     "completed": "Realizado",
     "remaining": "Restante",
     "trackingUpdated": "Seguimiento actualizado",
@@ -277,7 +278,8 @@
     "yesterday": "Ayer",
     "worklogRemoved": "Registro eliminado",
     "worklogRemoveError": "Error al eliminar registro",
-    "time": "Tiempo"
+    "time": "Tiempo",
+    "addLog": "Registrar tiempo"
   },
   "worklogType": {
     "Investigation": "Investigación",
@@ -382,6 +384,7 @@
   "comments": {
     "addError": "No se pudo comentar",
     "empty": "Aún no hay comentarios.",
+    "emptyHint": "Usa el compositor de abajo para iniciar la conversación.",
     "internal": "interno",
     "public": "público",
     "filter": {
@@ -1134,14 +1137,23 @@
     "attachments": "Adjuntos",
     "dropFiles": "Suelte archivos aquí o haga clic para subir",
     "noAttachments": "Sin adjuntos",
+    "uploading": "Cargando...",
+    "attachUploaded": "Archivo cargado",
+    "attachError": "Error al cargar archivo",
     "saved": "Cambios guardados",
     "saveError": "Error al guardar cambios",
+    "logTime": "Registrar tiempo",
+    "logDescPh": "Descripción del trabajo (opcional)...",
+    "timeLogged": "Tiempo registrado",
+    "logError": "Error al registrar tiempo",
+    "log": "Registrar",
+    "close": "Cerrar",
     "totalEstimated": "Total Estimado",
     "totalSpent": "Total Empleado",
     "tasksSummary": "{done} de {total} completadas",
     "apiUnavailable": "Funcionalidad en preparación",
     "status": {
-      "Open": "Abierto",
+      "Backlog": "Backlog",
       "InProgress": "En progreso",
       "Done": "Completado",
       "Cancelled": "Cancelado"

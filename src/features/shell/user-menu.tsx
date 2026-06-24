@@ -42,7 +42,7 @@ export function UserMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-xs font-bold text-primary-fg ring-2 ring-primary/20">
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-xs font-bold text-primary-fg ring-primary/20">
           {initials || '?'}
         </span>
         <span className="hidden max-w-[120px] truncate text-sm font-medium lg:inline">{user?.name}</span>

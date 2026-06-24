@@ -1,16 +1,17 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import {
-  Activity, AlertCircle, ArrowRight, FilePlus, MessageSquare, Paperclip,
-  ShieldAlert, Sparkles, Tag, Timer, UserPlus, Users, Wrench,
+  Activity, AlertCircle, ArrowRight, ChevronDown, ChevronRight, FilePlus,
+  MessageSquare, Paperclip, ShieldAlert, Sparkles, Tag, Timer, UserPlus, Users, Wrench,
 } from 'lucide-react';
 import type { Locale } from '@/shared/i18n/config';
 import { auditApi, ticketsApi, iterationsApi } from '@/shared/api/endpoints';
 import type { AuditLogResponse, TicketCommentResponse, TicketDetailResponse, WorklogResponse } from '@/shared/api/types';
 import { LoadingState } from '@/shared/ui/states';
+import { MarkdownContent } from '@/shared/ui/markdown-editor';
 import { useBrandingStore } from '@/features/tenant/branding-store';
 import { cn } from '@/shared/lib/utils';
 
@@ -150,6 +151,89 @@ function fromWorklog(
     title: `${dur} — ${t(`timeline.worklogType.${w.type}`)}`,
     detail: w.description,
   };
+}
+
+// ─── Item individual da timeline ──────────────────────────────────────────────
+function TimelineItem({
+  ev,
+  isLast,
+  actorInitials,
+  timeFmt,
+  t,
+}: {
+  ev: TimelineEvent;
+  isLast: boolean;
+  actorInitials: (name: string | null) => string;
+  timeFmt: Intl.DateTimeFormat;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const meta = KIND_META[ev.kind];
+  const Icon = meta.icon;
+  const isComment = ev.kind === 'comment';
+  const isAttachment = ev.kind === 'attachment';
+
+  return (
+    <li className={cn('relative pl-8', isLast ? 'pb-0' : 'pb-6')}>
+      {/* Ícone na linha */}
+      <span
+        className={cn(
+          'absolute -left-[15px] top-0 z-[1] flex h-7 w-7 items-center justify-center rounded-full border-2 border-bg',
+          meta.bg,
+        )}
+        title={ev.actor ?? t('timeline.system')}
+      >
+        {isComment
+          ? <span className={cn('text-[10px] font-bold', meta.tone)}>{actorInitials(ev.actor)}</span>
+          : <Icon className={cn('h-3.5 w-3.5', meta.tone)} aria-hidden />
+        }
+      </span>
+
+      {/* Conteúdo */}
+      <div className="flex flex-col gap-1 min-w-0 pt-0.5">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+          <span className="text-xs font-semibold text-text">{ev.actor ?? t('timeline.system')}</span>
+          {!isComment && (
+            <>
+              <span className="text-dim">·</span>
+              <span className="text-xs text-text/80">{ev.title}</span>
+            </>
+          )}
+          <span className="text-[10px] text-dim tabular-nums ml-auto">{timeFmt.format(new Date(ev.at))}</span>
+        </div>
+
+        {isComment && (
+          <div className={cn(
+            'mt-1.5 rounded-xl border px-4 py-3',
+            ev.internal ? 'border-warning/30 bg-warning/5' : 'border-border bg-panel',
+          )}>
+            {ev.internal && (
+              <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-warning">
+                <span className="h-1.5 w-1.5 rounded-full bg-warning" />{ev.title}
+              </span>
+            )}
+            <MarkdownContent content={ev.detail ?? ''} />
+          </div>
+        )}
+
+        {isAttachment && ev.detail && (
+          <button
+            type="button"
+            onClick={() => setExpanded(p => !p)}
+            className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs text-dim hover:bg-panel-2 hover:text-text transition-colors self-start"
+          >
+            <Paperclip className="h-3 w-3" />
+            <span className="max-w-[200px] truncate">{ev.detail}</span>
+            {expanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+          </button>
+        )}
+
+        {!isComment && !isAttachment && ev.detail && (
+          <p className="text-xs text-dim leading-relaxed line-clamp-2">{ev.detail}</p>
+        )}
+      </div>
+    </li>
+  );
 }
 
 // ─── Componente principal ──────────────────────────────
@@ -332,24 +416,16 @@ export function TicketTimeline({
   if (audit.isLoading) return <LoadingState label={t('timeline.loading')} />;
   if (events.length === 0) {
     return (
-      <div className="py-20 text-center">
-        <p className="text-base text-muted">{t('timeline.empty')}</p>
+      <div className="flex flex-col items-center gap-2 py-20 text-center">
+        <Activity className="h-10 w-10 opacity-20" />
+        <p className="text-sm font-medium text-text">{t('timeline.empty')}</p>
       </div>
     );
   }
 
   // ─── Agrupamento por dia ─────────────────────────────
-  const dayFmt = new Intl.DateTimeFormat(locale, {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    timeZone,
-  });
-  const timeFmt = new Intl.DateTimeFormat(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone,
-  });
+  const dayFmt = new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'long', year: 'numeric', timeZone });
+  const timeFmt = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone });
   const todayKey = dayFmt.format(new Date());
   const yesterdayKey = dayFmt.format(new Date(Date.now() - 86_400_000));
   const dayLabel = (key: string) =>
@@ -359,128 +435,35 @@ export function TicketTimeline({
   for (const ev of events) {
     const day = dayFmt.format(new Date(ev.at));
     const last = groups[groups.length - 1];
-    if (last && last.day === day) {
-      last.events.push(ev);
-    } else {
-      groups.push({ day, events: [ev] });
-    }
+    if (last?.day === day) last.events.push(ev);
+    else groups.push({ day, events: [ev] });
   }
 
   const actorInitials = (name: string | null) =>
-    (name ?? '?')
-      .split(' ')
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? '')
-      .join('');
+    (name ?? '?').split(' ').slice(0, 2).map(p => p[0]?.toUpperCase() ?? '').join('');
 
   // ─── Render ──────────────────────────────────────────
   return (
-    <div className="w-full py-4">
-      {groups.map((g, groupIdx) => {
-        const isLastGroup = groupIdx === groups.length - 1;
-        // Só mostra linha se tiver mais de 1 evento no grupo
-        const showLine = g.events.length > 1;
+    <div className="w-full py-2">
+      {groups.map((g) => (
+        <section key={g.day} className="mb-8 last:mb-0">
+          {/* Cabeçalho do dia */}
+          <div className="sticky top-0 z-10 -mx-1 mb-4 flex items-center gap-3 bg-bg/90 px-1 py-2 backdrop-blur-sm">
+            <div className="h-px flex-1 bg-border" />
+            <span className="shrink-0 rounded-full border border-border bg-panel px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-dim">
+              {dayLabel(g.day)}
+            </span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
 
-        return (
-          <section key={g.day} className="mb-12 last:mb-0">
-            {/* Cabeçalho do dia */}
-            <div className="sticky top-0 z-10 -mx-2 mb-6 bg-bg/80 px-2 py-3 bg-bg">
-              <h3 className="text-sm font-semibold uppercase tracking-widest text-muted">
-                {dayLabel(g.day)}
-              </h3>
-            </div>
-
-            {/* Lista: border-l só aparece se showLine for true */}
-            <ol
-              className={cn(
-                'relative ml-5',
-                showLine && 'border-l-2 border-border',
-              )}
-            >
-              {g.events.map((ev, idx) => {
-                const meta = KIND_META[ev.kind];
-                const Icon = meta.icon;
-                const isComment = ev.kind === 'comment';
-
-                // Último evento do último grupo: sem padding bottom
-                const isLastEvent = isLastGroup && idx === g.events.length - 1;
-
-                return (
-                  <li
-                    key={ev.id}
-                    className={cn(
-                      'relative pb-10 pl-10',
-                      isLastEvent && 'pb-0',
-                    )}
-                  >
-                    {/* Círculo com background sólido para cobrir a linha */}
-                    <span
-                      className={cn(
-                        'absolute -left-[17px] top-0.5 z-[1] flex h-8 w-8 items-center justify-center rounded-full border-2 border-bg shadow-sm',
-                        meta.bg,
-                        meta.ring,
-                        'ring-[5px]',
-                        // Background sólido do tema pra cobrir a linha
-                        'bg-bg',
-                      )}
-                      title={ev.actor ?? t('timeline.system')}
-                    >
-                      {isComment ? (
-                        <span className="text-[11px] font-bold text-text">
-                          {actorInitials(ev.actor)}
-                        </span>
-                      ) : (
-                        <Icon className={cn('h-4 w-4', meta.tone)} aria-hidden />
-                      )}
-                    </span>
-
-                    {/* Conteúdo */}
-                    <div className="flex flex-col gap-1.5 min-w-0">
-                      <div className="flex flex-wrap items-baseline gap-x-1.5 text-sm min-w-0">
-                        <span className="font-semibold text-text truncate">
-                          {ev.actor ?? t('timeline.system')}
-                        </span>
-                        <span className="text-muted/70">·</span>
-                        {!isComment && (
-                          <>
-                            <span className="text-text/80 truncate">{ev.title}</span>
-                            <span className="text-muted/70">·</span>
-                          </>
-                        )}
-                        <span className="text-xs text-muted shrink-0 tabular-nums">
-                          {timeFmt.format(new Date(ev.at))}
-                        </span>
-                      </div>
-
-                      {isComment ? (
-                        <div
-                          className={cn(
-                            'mt-2 rounded-xl border px-5 py-4 text-sm leading-relaxed',
-                            ev.internal
-                              ? 'border-warning/25 bg-warning/[0.04]'
-                              : 'border-border bg-panel',
-                          )}
-                        >
-                          {ev.internal && (
-                            <span className="mb-2.5 inline-block rounded-lg bg-warning/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-warning">
-                              {ev.title}
-                            </span>
-                          )}
-                          <p className="whitespace-pre-wrap text-text break-words">{ev.detail}</p>
-                        </div>
-                      ) : (
-                        ev.detail && (
-                          <p className="text-sm text-muted truncate">{ev.detail}</p>
-                        )
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </section>
-        );
-      })}
+          {/* Lista de eventos */}
+          <ol className="relative ml-4 border-l border-border/60">
+            {g.events.map((ev, idx) => (
+              <TimelineItem key={ev.id} ev={ev} isLast={idx === g.events.length - 1} actorInitials={actorInitials} timeFmt={timeFmt} t={t} />
+            ))}
+          </ol>
+        </section>
+      ))}
     </div>
   );
 }
