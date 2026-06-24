@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { Check, ChevronsUpDown, Loader2, X, Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/shared/lib/utils';
 import { Portal } from '@/shared/ui/portal';
 
@@ -29,12 +30,16 @@ export function CreatableCombobox({
   value,
   onChange,
   loading,
-  placeholder = 'Selecionar…',
-  emptyText = 'Nada encontrado.',
+  placeholder,
+  emptyText,
   onCreate,
-  createLabel = 'Criar',
+  createLabel,
   max,
 }: CreatableComboboxProps) {
+  const tUi = useTranslations('ui');
+  const resolvedPlaceholder = placeholder ?? tUi('select');
+  const resolvedEmptyText = emptyText ?? tUi('nothingFound');
+  const resolvedCreateLabel = createLabel ?? tUi('create');
   const [open, setOpen] = useState(false);
   const [term, setTerm] = useState('');
   const [creating, setCreating] = useState(false);
@@ -101,7 +106,7 @@ export function CreatableCombobox({
             </button>
           </span>
         ))}
-        {selected.length === 0 && <span className="text-sm text-dim px-1">{placeholder}</span>}
+        {selected.length === 0 && <span className="text-sm text-dim px-1">{resolvedPlaceholder}</span>}
         <span className="ml-auto shrink-0 pl-1">
           {loading ? <Loader2 className="h-4 w-4 animate-spin text-dim" /> : <ChevronsUpDown className="h-4 w-4 text-dim" />}
         </span>
@@ -117,7 +122,7 @@ export function CreatableCombobox({
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && canCreate) { e.preventDefault(); void handleCreate(); } }}
-                placeholder="Buscar ou criar…"
+                placeholder={tUi('searchOrCreate')}
                 className="h-8 flex-1 rounded bg-bg-subtle px-3 text-sm outline-none placeholder:text-dim"
               />
               {canCreate && (
@@ -128,13 +133,13 @@ export function CreatableCombobox({
                   className="flex h-8 shrink-0 items-center gap-1 rounded px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
                 >
                   {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                  {createLabel} "{term.trim()}"
+                  {resolvedCreateLabel} "{term.trim()}"
                 </button>
               )}
             </div>
             <ul role="listbox" className="max-h-56 overflow-y-auto py-1">
               {filtered.length === 0 && !canCreate ? (
-                <li className="px-3 py-2 text-sm text-dim">{emptyText}</li>
+                <li className="px-3 py-2 text-sm text-dim">{resolvedEmptyText}</li>
               ) : (
                 filtered.map((o) => {
                   const checked = value.includes(o.id);

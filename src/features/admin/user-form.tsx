@@ -15,6 +15,8 @@ import { Input } from '@/shared/ui/input';
 /** Formulário de criação/edição de usuário (dentro de uma janela). */
 export function UserForm({ windowId, user }: { windowId: string; user?: UserResponse }) {
   const t = useTranslations('admin.users');
+  const tRoles = useTranslations('admin.roles');
+  const tTeams = useTranslations('admin.teams');
   const tc = useTranslations('common');
   const qc = useQueryClient();
   const closeWindow = useWindowStore((s) => s.close);
@@ -82,7 +84,7 @@ export function UserForm({ windowId, user }: { windowId: string; user?: UserResp
 
       <div className="flex flex-col gap-1.5 text-sm font-medium">
         {t('role')}
-        <AsyncCombobox options={roleOptions} value={roleId} onChange={setRoleId} loading={roles.isLoading} placeholder={t('selectRole')} allowClear={false} onCreate={openRolesIndexWindow} createLabel={t('manageRoles')} />
+        <AsyncCombobox options={roleOptions} value={roleId} onChange={setRoleId} loading={roles.isLoading} placeholder={t('selectRole')} allowClear={false} onCreate={() => openRolesIndexWindow(tRoles('title'))} createLabel={t('manageRoles')} />
       </div>
 
       <div className="flex flex-col gap-1.5 text-sm font-medium">
@@ -92,7 +94,7 @@ export function UserForm({ windowId, user }: { windowId: string; user?: UserResp
 
       <div className="flex flex-col gap-1.5 text-sm font-medium">
         {t('teamOptional')}
-        <AsyncCombobox options={teamOptions} value={teamId} onChange={setTeamId} loading={teams.isLoading} placeholder={t('selectTeam')} onCreate={openTeamsIndexWindow} createLabel={t('manageTeams')} />
+        <AsyncCombobox options={teamOptions} value={teamId} onChange={setTeamId} loading={teams.isLoading} placeholder={t('selectTeam')} onCreate={() => openTeamsIndexWindow(tTeams('title'))} createLabel={t('manageTeams')} />
       </div>
 
       </div>

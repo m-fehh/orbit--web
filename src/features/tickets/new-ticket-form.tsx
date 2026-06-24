@@ -39,6 +39,7 @@ function suggestTagIds(description: string, tags: TagResponse[]): number[] {
 export function NewTicketForm({ windowId }: { windowId: string }) {
   const t = useTranslations('newTicket');
   const tPriority = useTranslations('priority');
+  const tAdminUsers = useTranslations('admin.users');
   const qc = useQueryClient();
   const closeWindow = useWindowStore((s) => s.close);
   const currentUser = useAuthStore((s) => s.user);
@@ -221,7 +222,7 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
               placeholder={t('requesterPlaceholder')}
               allowClear={false}
               disabled={!!currentUser?.id}
-              onCreate={openUsersIndexWindow}
+              onCreate={() => openUsersIndexWindow(tAdminUsers('title'))}
               createLabel={t('manageUsers')}
             />
           </div>
@@ -233,7 +234,7 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
               onChange={setAssigneeId}
               loading={users.isLoading}
               placeholder={t('assigneePlaceholder')}
-              onCreate={openUsersIndexWindow}
+              onCreate={() => openUsersIndexWindow(tAdminUsers('title'))}
               createLabel={t('manageUsers')}
             />
             {assigneeTeamId != null && (

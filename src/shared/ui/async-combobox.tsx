@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { Check, ChevronsUpDown, Loader2, X, Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/shared/lib/utils';
 
 export interface ComboOption {
@@ -20,11 +21,11 @@ export function AsyncCombobox({
   value,
   onChange,
   loading,
-  placeholder = 'Selecionar…',
-  emptyText = 'Nada encontrado.',
+  placeholder,
+  emptyText,
   allowClear = true,
   onCreate,
-  createLabel = 'Cadastrar',
+  createLabel,
   disabled = false,
 }: {
   options: ComboOption[];
@@ -39,6 +40,10 @@ export function AsyncCombobox({
   createLabel?: string;
   disabled?: boolean;
 }) {
+  const tUi = useTranslations('ui');
+  const resolvedPlaceholder = placeholder ?? tUi('select');
+  const resolvedEmptyText = emptyText ?? tUi('nothingFound');
+  const resolvedCreateLabel = createLabel ?? tUi('register');
   const [open, setOpen] = useState(false);
   const [term, setTerm] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +71,7 @@ export function AsyncCombobox({
         )}
       >
         <span className={cn('flex-1 truncate text-left', !selected && 'text-dim')}>
-          {selected ? selected.label : placeholder}
+          {selected ? selected.label : resolvedPlaceholder}
         </span>
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin text-dim" aria-hidden />
@@ -74,7 +79,7 @@ export function AsyncCombobox({
           <span
             role="button"
             tabIndex={-1}
-            aria-label="Limpar"
+            aria-label={tUi('clear')}
             onClick={(e) => {
               e.stopPropagation();
               onChange(null);
@@ -98,7 +103,7 @@ export function AsyncCombobox({
                 ref={inputRef}
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
-                placeholder="Buscar…"
+                placeholder={tUi('searchEllipsis')}
                 className="h-8 flex-1 rounded bg-bg-subtle px-md text-sm outline-none placeholder:text-dim"
               />
               {onCreate && (
@@ -108,8 +113,8 @@ export function AsyncCombobox({
                     setOpen(false);
                     onCreate();
                   }}
-                  title={createLabel}
-                  aria-label={createLabel}
+                  title={resolvedCreateLabel}
+                  aria-label={resolvedCreateLabel}
                   className="grid h-8 w-8 shrink-0 place-items-center rounded text-muted transition-colors hover:bg-primary-soft hover:text-primary"
                 >
                   <Plus className="h-4 w-4" aria-hidden />
@@ -118,7 +123,7 @@ export function AsyncCombobox({
             </div>
             <ul role="listbox" className="max-h-56 overflow-y-auto py-1">
               {filtered.length === 0 ? (
-                <li className="px-md py-sm text-sm text-dim">{emptyText}</li>
+                <li className="px-md py-sm text-sm text-dim">{resolvedEmptyText}</li>
               ) : (
                 filtered.map((o) => (
                   <li key={o.id}>

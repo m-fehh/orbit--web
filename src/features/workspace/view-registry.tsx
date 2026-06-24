@@ -10,6 +10,8 @@ import { AuditLogsView } from '@/features/admin/audit-logs-view';
 import { DashboardView } from '@/features/dashboard/dashboard-view';
 import { InvestigationsView } from '@/features/investigations/investigations-view';
 import { KnowledgeView } from '@/features/knowledge/knowledge-view';
+import { KnowledgeDetail } from '@/features/knowledge/knowledge-detail';
+import { KnowledgeEditor } from '@/features/knowledge/knowledge-editor';
 import { AnalyticsView } from '@/features/analytics/analytics-view';
 import { IterationsView } from '@/features/iterations/iterations-view';
 import { TagsView } from '@/features/tags/tags-view';
@@ -40,8 +42,13 @@ export function renderView(loc: TabLocation) {
     case 'investigations':
       return wrap(<InvestigationsView />);
     case 'knowledge':
-    case 'knowledge-article':
       return wrap(<KnowledgeView />);
+    case 'knowledge-article': {
+      const articleId = loc.params?.id;
+      if (articleId === 'new') return wrap(<KnowledgeEditor id="new" />);
+      if (loc.params?.mode === 'edit') return wrap(<KnowledgeEditor id={Number(articleId)} />);
+      return wrap(<KnowledgeDetail id={Number(articleId)} />);
+    }
     case 'analytics':
       return wrap(<AnalyticsView />);
     case 'intelligence':

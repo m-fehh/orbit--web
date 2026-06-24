@@ -5,12 +5,11 @@ import { useWindowStore } from '@/features/windows/window-store';
 import type { UserResponse } from '@/shared/api/types';
 import { UserForm } from './user-form';
 
-/** Abre a janela modal de criação/edição de usuário. */
-export function openUserWindow(user?: UserResponse) {
+export function openUserWindow(user?: UserResponse, newUserLabel?: string) {
   const id = user ? `user-${user.id}` : 'user-new';
   useWindowStore.getState().open({
     id,
-    title: user ? user.name : 'Novo usuário',
+    title: user ? user.name : (newUserLabel ?? 'New user'),
     icon: user ? <UserCog className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />,
     modal: true,
     width: 640,

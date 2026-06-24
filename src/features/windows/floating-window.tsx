@@ -1,6 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useWindowStore, type OrbitWindow } from '@/features/windows/window-store';
 
 /**
@@ -9,6 +10,7 @@ import { useWindowStore, type OrbitWindow } from '@/features/windows/window-stor
  */
 export function FloatingWindow({ win }: { win: OrbitWindow }) {
   const close = useWindowStore((s) => s.close);
+  const tc = useTranslations('common');
 
   return (
     <div className="fixed inset-0" role="dialog" aria-modal="true" aria-label={win.title} style={{ zIndex: win.z }}>
@@ -25,7 +27,7 @@ export function FloatingWindow({ win }: { win: OrbitWindow }) {
             type="button"
             onClick={() => close(win.id)}
             className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-panel-2 hover:text-text"
-            aria-label="Fechar"
+            aria-label={tc('close')}
           >
             <X className="h-4 w-4" aria-hidden />
           </button>

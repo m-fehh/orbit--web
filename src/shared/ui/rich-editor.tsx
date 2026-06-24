@@ -10,9 +10,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Bold, Italic, Underline as UnderlineIcon, Heading1, Heading2,
   List, ListOrdered, Code, Link as LinkIcon, ImageIcon, Undo, Redo, Quote,
-  X, Check, Unlink,
+  X, Check, Unlink, Type,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/shared/lib/utils';
+import { Portal } from '@/shared/ui/portal';
 
 interface RichEditorProps {
   value: string;
@@ -43,48 +45,112 @@ function Btn({ active, onClick, children, title, className: cls }: { active?: bo
   );
 }
 
-function LinkPopover({ editor }: { editor: Editor }) {
-  const [url, setUrl] = useState('');
-  const [open, setOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+function LinkModal({ editor, onClose }: { editor: Editor; onClose: () => void }) {
+  const t = useTranslations('editor');
+  const tc = useTranslations('common');
+  const isEditing = editor.isActive('link');
+  const prevHref = editor.getAttributes('link').href ?? '';
+
+  const { from, to } = editor.state.selection;
+  const selectedText = editor.state.doc.textBetween(from, to, ' ');
+
+  const [displayText, setDisplayText] = useState(selectedText || '');
+  const [url, setUrl] = useState(prevHref);
+  const urlRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => urlRef.current?.focus(), 50);
+  }, []);
 
   const apply = () => {
-    if (!url.trim()) { editor.chain().focus().extendMarkRange('link').unsetLink().run(); }
-    else { editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run(); }
-    setOpen(false);
-    setUrl('');
+    if (!url.trim()) {
+      if (isEditing) editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      onClose();
+      return;
+    }
+
+    const href = url.trim();
+    if (displayText.trim() && displayText !== selectedText) {
+      editor.chain().focus()
+        .deleteSelection()
+        .insertContent(`<a href="${href}" target="_blank">${displayText.trim()}</a>`)
+        .run();
+    } else {
+      editor.chain().focus().extendMarkRange('link').setLink({ href, target: '_blank' }).run();
+    }
+    onClose();
   };
 
-  const openPopover = () => {
-    const prev = editor.getAttributes('link').href ?? '';
-    setUrl(prev);
-    setOpen(true);
-    setTimeout(() => inputRef.current?.focus(), 50);
+  const removeLink = () => {
+    editor.chain().focus().extendMarkRange('link').unsetLink().run();
+    onClose();
   };
 
-  if (open) {
-    return (
-      <div className="flex items-center gap-1">
-        <input
-          ref={inputRef}
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); apply(); } if (e.key === 'Escape') setOpen(false); }}
-          placeholder="https://..."
-          className="h-7 w-44 rounded border border-border bg-bg-subtle px-2 text-xs outline-none focus:border-primary"
-        />
-        <Btn onClick={apply} title="Apply"><Check className="h-3.5 w-3.5 text-success" /></Btn>
-        {editor.isActive('link') && (
-          <Btn onClick={() => { editor.chain().focus().extendMarkRange('link').unsetLink().run(); setOpen(false); }} title="Remove link">
-            <Unlink className="h-3.5 w-3.5 text-danger" />
-          </Btn>
-        )}
-        <Btn onClick={() => setOpen(false)} title="Cancel"><X className="h-3 w-3" /></Btn>
+  return (
+    <Portal>
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={onClose}>
+        <div
+          className="w-[400px] rounded-xl border border-border bg-panel shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h3 className="text-sm font-semibold text-text">{isEditing ? t('editLink') : t('insertLink')}</h3>
+            <button type="button" onClick={onClose} className="grid h-6 w-6 place-items-center rounded text-dim hover:text-text hover:bg-panel-2">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-3 p-4">
+            <div>
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-dim">
+                <Type className="mr-1 inline h-3 w-3" />
+                {t('displayText')}
+              </label>
+              <input
+                value={displayText}
+                onChange={(e) => setDisplayText(e.target.value)}
+                placeholder={t('displayTextPh')}
+                className="h-9 w-full rounded-lg border border-border bg-bg-subtle px-3 text-sm text-text outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-dim">
+                <LinkIcon className="mr-1 inline h-3 w-3" />
+                {t('url')}
+              </label>
+              <input
+                ref={urlRef}
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); apply(); } if (e.key === 'Escape') onClose(); }}
+                placeholder="https://..."
+                className="h-9 w-full rounded-lg border border-border bg-bg-subtle px-3 text-sm text-text outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-border px-4 py-3">
+            <div>
+              {isEditing && (
+                <button type="button" onClick={removeLink} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/10 transition-colors">
+                  <Unlink className="h-3.5 w-3.5" />
+                  {t('removeLink')}
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={onClose} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-dim hover:text-text transition-colors">
+                {tc('cancel')}
+              </button>
+              <button type="button" onClick={apply} className="rounded-lg bg-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-primary/90 transition-colors">
+                {isEditing ? t('update') : t('insert')}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-    );
-  }
-
-  return <Btn active={editor.isActive('link')} onClick={openPopover} title="Link"><LinkIcon className="h-3.5 w-3.5" /></Btn>;
+    </Portal>
+  );
 }
 
 function ImagePopover({ editor, onImagePaste }: { editor: Editor; onImagePaste?: (file: File) => Promise<string> }) {
@@ -141,7 +207,7 @@ function ImagePopover({ editor, onImagePaste }: { editor: Editor; onImagePaste?:
   );
 }
 
-function Toolbar({ editor, onImagePaste, compact }: { editor: Editor; onImagePaste?: (file: File) => Promise<string>; compact?: boolean }) {
+function Toolbar({ editor, onImagePaste, compact, onLinkClick }: { editor: Editor; onImagePaste?: (file: File) => Promise<string>; compact?: boolean; onLinkClick: () => void }) {
   return (
     <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-panel-2/30 px-2 py-1.5">
       <Btn active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold (Ctrl+B)"><Bold className="h-3.5 w-3.5" /></Btn>
@@ -164,7 +230,7 @@ function Toolbar({ editor, onImagePaste, compact }: { editor: Editor; onImagePas
         </>
       )}
       <div className="mx-1 h-4 w-px bg-border" />
-      <LinkPopover editor={editor} />
+      <Btn active={editor.isActive('link')} onClick={onLinkClick} title="Link (Ctrl+K)"><LinkIcon className="h-3.5 w-3.5" /></Btn>
       <ImagePopover editor={editor} onImagePaste={onImagePaste} />
       <div className="ml-auto flex items-center gap-0.5">
         <Btn onClick={() => editor.chain().focus().undo().run()} title="Undo (Ctrl+Z)"><Undo className="h-3.5 w-3.5" /></Btn>
@@ -175,12 +241,20 @@ function Toolbar({ editor, onImagePaste, compact }: { editor: Editor; onImagePas
 }
 
 export function RichEditor({ value, onChange, placeholder, onImagePaste, readOnly, className, minHeight = '140px', compact }: RichEditorProps) {
+  const [showLinkModal, setShowLinkModal] = useState(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       Underline,
-      LinkExt.configure({ openOnClick: false, HTMLAttributes: { class: 'text-primary underline cursor-pointer' } }),
-      ImageExt.configure({ inline: true, HTMLAttributes: { class: 'max-w-full rounded-md my-2' } }),
+      LinkExt.configure({
+        openOnClick: false,
+        HTMLAttributes: { class: 'text-primary underline cursor-pointer', target: '_blank', rel: 'noopener noreferrer' },
+      }),
+      ImageExt.configure({
+        inline: false,
+        HTMLAttributes: { class: 'max-w-full rounded-lg border border-border shadow-sm my-3' },
+      }),
       Placeholder.configure({ placeholder: placeholder ?? '' }),
     ],
     content: value,
@@ -242,20 +316,33 @@ export function RichEditor({ value, onChange, placeholder, onImagePaste, readOnl
   }
 
   return (
-    <div className={cn('overflow-hidden rounded-lg border border-border bg-bg-subtle transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15', className)}>
-      <Toolbar editor={editor} onImagePaste={onImagePaste} compact={compact} />
-      <div className="px-3 py-2" style={{ minHeight }}>
-        <EditorContent editor={editor} />
+    <>
+      <div className={cn('mt-2 mx-2 mb-6 overflow-hidden rounded-md border border-border bg-bg-subtle transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15', className)}>
+        <Toolbar editor={editor} onImagePaste={onImagePaste} compact={compact} onLinkClick={() => setShowLinkModal(true)} />
+        <div className="px-3 py-2" style={{ minHeight }}>
+          <EditorContent editor={editor} />
+        </div>
       </div>
-    </div>
+      {showLinkModal && <LinkModal editor={editor} onClose={() => setShowLinkModal(false)} />}
+    </>
   );
 }
 
 export function RichContent({ html, className }: { html: string; className?: string }) {
+  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const anchor = target.closest('a');
+    if (anchor?.href) {
+      e.preventDefault();
+      window.open(anchor.href, '_blank', 'noopener,noreferrer');
+    }
+  }, []);
+
   return (
     <div
       className={cn('rich-editor-content prose-sm text-sm leading-relaxed text-text', className)}
       dangerouslySetInnerHTML={{ __html: html }}
+      onClick={handleClick}
     />
   );
 }

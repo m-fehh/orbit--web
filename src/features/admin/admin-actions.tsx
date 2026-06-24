@@ -6,33 +6,30 @@ import { UsersView } from './users-view';
 import { RolesView } from './roles-view';
 import { TeamsView } from './teams-view';
 
-/** Abre a listagem de usuários (index + botão de cadastrar) num drawer, para navegação rápida. */
-export function openUsersIndexWindow() {
+export function openUsersIndexWindow(title?: string) {
   useWindowStore.getState().open({
     id: 'users-index',
-    title: 'Usuários',
+    title: title ?? 'Users',
     icon: <Users className="h-4 w-4" />,
     modal: true,
     content: <UsersView />,
   });
 }
 
-/** Abre a listagem de papéis (Roles) — tabela com busca e cadastro — num drawer. */
-export function openRolesIndexWindow() {
+export function openRolesIndexWindow(title?: string) {
   useWindowStore.getState().open({
     id: 'roles-index',
-    title: 'Papéis',
+    title: title ?? 'Roles',
     icon: <KeyRound className="h-4 w-4" />,
     modal: true,
     content: <RolesView />,
   });
 }
 
-/** Abre a listagem de equipes (Teams) num drawer. */
-export function openTeamsIndexWindow() {
+export function openTeamsIndexWindow(title?: string) {
   useWindowStore.getState().open({
     id: 'teams-index',
-    title: 'Equipes',
+    title: title ?? 'Teams',
     icon: <Users2 className="h-4 w-4" />,
     modal: true,
     content: <TeamsView />,

@@ -104,7 +104,7 @@ export function UsersView() {
         pageSize={pageSize}
         onPageChange={setPage}
         onPageSizeChange={(ps) => { setPageSize(ps); setPage(1); }}
-        onRowClick={(u) => openUserWindow(u)}
+        onRowClick={(u) => openUserWindow(u, t('newUser'))}
         onRefresh={() => refetch()}
         loading={isLoading}
         error={isError ? t('loadError') : null}
@@ -113,7 +113,7 @@ export function UsersView() {
         labels={gridLabels}
         toolbar={
           <Can permission="admin.users.create">
-            <Button size="sm" onClick={() => openUserWindow()} className="gap-1.5">
+            <Button size="sm" onClick={() => openUserWindow(undefined, t('newUser'))} className="gap-1.5">
               <Plus className="h-3.5 w-3.5" /> {t('newUser')}
             </Button>
           </Can>

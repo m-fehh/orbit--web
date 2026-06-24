@@ -3,6 +3,7 @@
 import { useMemo, useRef, useEffect } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { AccessRuleResponse } from '@/shared/api/types';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { cn } from '@/shared/lib/utils';
@@ -180,6 +181,7 @@ function TreeRow({
   selected: Set<number>;
   onToggle: (node: TreeNode) => void;
 }) {
+  const tUi = useTranslations('ui');
   const [open, setOpen] = useState(true);
   const ref = useRef<HTMLInputElement>(null);
 
@@ -205,7 +207,7 @@ function TreeRow({
             type="button"
             onClick={() => setOpen((v) => !v)}
             className="grid h-4 w-4 place-items-center text-dim hover:text-text"
-            aria-label={open ? 'Recolher' : 'Expandir'}
+            aria-label={open ? tUi('collapse') : tUi('expand')}
           >
             <ChevronRight className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-90')} aria-hidden />
           </button>

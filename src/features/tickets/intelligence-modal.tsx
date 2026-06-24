@@ -27,14 +27,14 @@ function pct(v: number | null | undefined): string {
   return `${Math.round(v * 100)}%`;
 }
 
-export function openIntelligenceModal(ticketId: number, ticketTitle: string) {
+export function openIntelligenceModal(ticketId: number, ticketTitle: string, modalTitle?: string) {
   useWindowStore.getState().open({
     id: `${MODAL_ID}-${ticketId}`,
-    title: '',
+    title: modalTitle ?? `Orbit Intelligence — ${ticketTitle}`,
     icon: <Brain className="h-4 w-4" />,
     modal: true,
-    width: 720,
-    height: 780,
+    width: 960,
+    height: 800,
     content: <IntelligenceModalContent ticketId={ticketId} ticketTitle={ticketTitle} />,
   });
 }
@@ -160,11 +160,11 @@ function CauseCard({ cause, index, t }: { cause: RootCauseCandidate; index: numb
               {cause.supportingTicketIds.length > 0 && (
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); openRelatedTicketsModal(cause.supportingTicketIds); }}
+                  onClick={(e) => { e.stopPropagation(); openRelatedTicketsModal(cause.supportingTicketIds, t('relatedTicketsTitle')); }}
                   className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/15 transition-colors"
                 >
                   <Layers className="h-3 w-3" />
-                  {cause.supportingTicketIds.length} tickets similares
+                  {t('similarTickets', { count: cause.supportingTicketIds.length })}
                   <ArrowUpRight className="h-3 w-3" />
                 </button>
               )}
@@ -281,10 +281,10 @@ function ResolutionCard({ res, index, feedback, onFeedback, onApply, applyPendin
   );
 }
 
-function openRelatedTicketsModal(ticketIds: number[]) {
+function openRelatedTicketsModal(ticketIds: number[], title?: string) {
   useWindowStore.getState().open({
     id: `related-tickets-${ticketIds.join('-')}`,
-    title: '',
+    title: title ?? 'Related Tickets',
     icon: <Layers className="h-4 w-4" />,
     modal: true,
     width: 520,
@@ -478,11 +478,11 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
                   {topCause.supportingTicketIds.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => openRelatedTicketsModal(topCause.supportingTicketIds)}
+                      onClick={() => openRelatedTicketsModal(topCause.supportingTicketIds, t('relatedTicketsTitle'))}
                       className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-primary hover:underline"
                     >
                       <Layers className="h-3 w-3" />
-                      {topCause.supportingTicketIds.length} tickets similares
+                      {t('similarTickets', { count: topCause.supportingTicketIds.length })}
                       <ArrowUpRight className="h-3 w-3" />
                     </button>
                   )}
@@ -526,7 +526,7 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
                 {resolutions.length > 1 && (
                   <button type="button" onClick={() => setActiveTab('resolutions')} className="flex-1 rounded-lg border border-border p-2.5 text-left hover:border-success/30 transition-colors">
                     <p className="text-[10px] font-semibold text-dim uppercase">{t('resolutions')}</p>
-                    <p className="text-xs text-muted mt-0.5">+{resolutions.length - 1} alternativas</p>
+                    <p className="text-xs text-muted mt-0.5">{t('moreAlternatives', { count: resolutions.length - 1 })}</p>
                   </button>
                 )}
               </div>
@@ -589,7 +589,7 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
       <div className="flex items-center gap-md border-t border-border px-md py-2 text-[10px] text-dim">
         <span className="flex items-center gap-1">
           <Brain className="h-3 w-3 text-primary" />
-          Orbit Intelligence
+          {t('brandFooter')}
         </span>
         <span className="ml-auto flex items-center gap-1">
           <Clock className="h-3 w-3" />

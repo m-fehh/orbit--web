@@ -1,8 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Plus, Search } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Plus, Search, BookOpen, Clock, TrendingUp,
+  FileText, ChevronRight, Eye,
+} from 'lucide-react';
 import { knowledgeApi } from '@/shared/api/endpoints';
 import type { KnowledgeAssetResponse } from '@/shared/api/types';
 import type { Locale } from '@/shared/i18n/config';
@@ -12,184 +16,55 @@ import { useTabStore } from '@/features/workspace/tab-store';
 import { Can } from '@/features/auth/can';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
-import { DataGrid, type ColumnDef, type DataGridLabels } from '@/shared/ui/data-grid';
-import { useDataGridQuery, type DataGridQueryParams } from '@/shared/ui/use-data-grid-query';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function buildApiParams(params: DataGridQueryParams) {
-  const apiParams: Record<string, unknown> = {
-    page: params.page,
-    pageSize: params.pageSize,
-  };
-  if (params.search) apiParams.search = params.search;
-  if (params.sort.length > 0) {
-    apiParams.sortBy = params.sort[0].field;
-    apiParams.sortDirection = params.sort[0].direction;
-  }
-  return apiParams;
-}
-
-function statusLabel(row: KnowledgeAssetResponse): 'published' | 'draft' | 'archived' {
-  // The API doesn't have an explicit archived flag yet, so we infer from isPublished
-  return row.isPublished ? 'published' : 'draft';
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+type ViewMode = 'all' | 'recent' | 'popular';
 
 export function KnowledgeView() {
   const locale = useLocale() as Locale;
   const t = useTranslations('knowledge');
-  const tGrid = useTranslations('dataGrid');
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const openTab = useTabStore((s) => s.openTab);
+  const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('all');
 
-  const grid = useDataGridQuery<KnowledgeAssetResponse>({
-    queryKey: ['knowledge', 'list'],
-    queryFn: (params) => knowledgeApi.list(buildApiParams(params) as any),
-    defaultPageSize: 20,
-    defaultSorts: [{ field: 'updatedAt', direction: 'desc' }],
+  const { data: allData, isLoading } = useQuery({
+    queryKey: ['knowledge', 'list', 'wiki'],
+    queryFn: () => knowledgeApi.list({ pageSize: 200 }),
   });
 
-  const columns = useMemo<ColumnDef<KnowledgeAssetResponse>[]>(
-    () => [
-      {
-        field: 'title',
-        header: t('title'),
-        width: 300,
-        minWidth: 180,
-        sortable: true,
-        sticky: 'left',
-        cellClassName: 'max-w-[300px] truncate font-medium',
-      },
-      {
-        field: 'summary',
-        header: t('summary'),
-        width: 320,
-        minWidth: 150,
-        cellClassName: 'max-w-[320px] truncate',
-        render: (val: string) => (
-          <span className="text-xs text-muted">{val || '—'}</span>
-        ),
-      },
-      {
-        field: 'isPublished',
-        header: 'Status',
-        width: 120,
-        minWidth: 100,
-        sortable: true,
-        filterable: true,
-        filterType: 'select',
-        filterOptions: [
-          { label: t('statusPublished'), value: 'published' },
-          { label: t('statusDraft'), value: 'draft' },
-        ],
-        render: (_val: boolean, row: KnowledgeAssetResponse) => {
-          const s = statusLabel(row);
-          return (
-            <span
-              className={
-                s === 'published'
-                  ? 'inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                  : 'inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-[11px] font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-              }
-            >
-              {s === 'published' ? t('statusPublished') : t('statusDraft')}
-            </span>
-          );
-        },
-      },
-      {
-        field: 'reuseCount',
-        header: t('reuseCount'),
-        width: 110,
-        minWidth: 80,
-        sortable: true,
-        align: 'center',
-        render: (val: number) => (
-          <span className="text-xs font-mono">{val}</span>
-        ),
-      },
-      {
-        field: 'rootCauseId',
-        header: t('rootCause'),
-        width: 120,
-        minWidth: 80,
-        render: (val: number | null) => (
-          <span className="text-xs text-muted">{val ? `#${val}` : '—'}</span>
-        ),
-      },
-      {
-        field: 'createdAt',
-        header: t('createdAt'),
-        width: 160,
-        minWidth: 130,
-        sortable: true,
-        render: (val: string | null) => (
-          <span className="text-xs text-muted">
-            {val ? formatDateTime(val, { locale, timeZone }) : '—'}
-          </span>
-        ),
-      },
-      {
-        field: 'updatedAt',
-        header: t('updatedAt'),
-        width: 160,
-        minWidth: 130,
-        sortable: true,
-        render: (val: string | null) => (
-          <span className="text-xs text-muted">
-            {val ? formatDateTime(val, { locale, timeZone }) : '—'}
-          </span>
-        ),
-      },
-    ],
-    [t, locale, timeZone],
-  );
+  const articles = allData?.items ?? [];
 
-  const labels = useMemo<Partial<DataGridLabels>>(
-    () => ({
-      showing: tGrid('showing'),
-      of: tGrid('of'),
-      noData: tGrid('noData'),
-      loading: tGrid('loading'),
-      errorDefault: tGrid('errorDefault'),
-      retry: tGrid('retry'),
-      refresh: tGrid('refresh'),
-      exportCsv: tGrid('exportCsv'),
-      page: tGrid('page'),
-      pageSize: tGrid('pageSize'),
-      first: tGrid('first'),
-      last: tGrid('last'),
-      previous: tGrid('previous'),
-      next: tGrid('next'),
-      selectAll: tGrid('selectAll'),
-      selectedCount: tGrid('selectedCount'),
-      filterContains: tGrid('filterContains'),
-      filterStartsWith: tGrid('filterStartsWith'),
-      filterEquals: tGrid('filterEquals'),
-      filterFrom: tGrid('filterFrom'),
-      filterTo: tGrid('filterTo'),
-      filterApply: tGrid('filterApply'),
-      filterClear: tGrid('filterClear'),
-    }),
-    [tGrid],
-  );
+  const filtered = useMemo(() => {
+    let list = articles;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (a) =>
+          a.title.toLowerCase().includes(q) ||
+          (a.summary && a.summary.toLowerCase().includes(q)),
+      );
+    }
+    if (viewMode === 'recent') {
+      list = [...list].sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')).slice(0, 20);
+    } else if (viewMode === 'popular') {
+      list = [...list].sort((a, b) => b.reuseCount - a.reuseCount).slice(0, 20);
+    }
+    return list;
+  }, [articles, search, viewMode]);
 
-  const handleRowClick = (row: KnowledgeAssetResponse) => {
+  const published = articles.filter((a) => a.isPublished);
+  const drafts = articles.filter((a) => !a.isPublished);
+
+  const handleOpen = (article: KnowledgeAssetResponse) => {
     openTab({
       kind: 'knowledge-article',
-      params: { id: row.id },
-      title: row.title,
+      params: { id: article.id },
+      title: article.title,
       icon: 'knowledge',
     });
   };
 
-  const handleNewArticle = () => {
+  const handleNew = () => {
     openTab({
       kind: 'knowledge-article',
       params: { id: 'new' },
@@ -198,59 +73,143 @@ export function KnowledgeView() {
     });
   };
 
-  const toolbar = (
-    <>
-      <div className="relative w-64 max-w-full">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
-        <Input
-          value={grid.search}
-          onChange={(e) => grid.setSearch(e.target.value)}
-          placeholder={t('searchPlaceholder')}
-          className=" h-8 text-xs"
-        />
-      </div>
-      <Can permission="knowledge.create">
-        <Button size="sm" onClick={handleNewArticle}>
-          <Plus className="h-3.5 w-3.5" aria-hidden />
-          {t('newArticle')}
-        </Button>
-      </Can>
-    </>
-  );
+  const sidebarItems: { key: ViewMode; icon: React.ElementType; label: string; count?: number }[] = [
+    { key: 'all', icon: FileText, label: t('allArticles'), count: articles.length },
+    { key: 'recent', icon: Clock, label: t('recentArticles') },
+    { key: 'popular', icon: TrendingUp, label: t('popularArticles') },
+  ];
 
   return (
-    <div className="flex h-full flex-col p-md gap-md">
-      <div>
-        <h1 className="text-lg font-bold">{t('pageTitle')}</h1>
-        <p className="text-xs text-muted">
-          {grid.totalCount > 0
-            ? `${grid.totalCount} ${t('articlesCount')}`
-            : grid.isLoading
-              ? '...'
-              : '—'}
-        </p>
+    <div className="flex h-full">
+      {/* Sidebar */}
+      <div className="flex w-56 shrink-0 flex-col border-r border-border bg-bg-subtle/30">
+        <div className="px-md py-md">
+          <div className="flex items-center gap-2 mb-1">
+            <BookOpen className="h-5 w-5 text-primary" />
+            <h1 className="text-sm font-bold text-text">{t('wikiTitle')}</h1>
+          </div>
+          <p className="text-[10px] text-muted leading-relaxed">{t('wikiSubtitle')}</p>
+        </div>
+
+        <nav className="flex flex-col gap-0.5 px-sm">
+          {sidebarItems.map(({ key, icon: Icon, label, count }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setViewMode(key)}
+              className={`flex items-center gap-2 rounded-lg px-sm py-2 text-xs font-medium transition-colors ${
+                viewMode === key
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted hover:bg-panel-2 hover:text-text'
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="flex-1 text-left">{label}</span>
+              {count != null && (
+                <span className="rounded-full bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium">{count}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        <div className="mt-auto border-t border-border px-sm py-sm">
+          <div className="flex items-center gap-2 text-[10px] text-dim px-sm">
+            <Eye className="h-3 w-3" />
+            <span>{published.length} {t('statusPublished').toLowerCase()}</span>
+            <span className="text-border">|</span>
+            <span>{drafts.length} {t('statusDraft').toLowerCase()}</span>
+          </div>
+        </div>
       </div>
 
-      <DataGrid<KnowledgeAssetResponse>
-        gridId="knowledge-center"
-        columns={columns}
-        data={grid.data}
-        rowKey="id"
-        totalCount={grid.totalCount}
-        page={grid.page}
-        pageSize={grid.pageSize}
-        onPageChange={grid.onPageChange}
-        onPageSizeChange={grid.onPageSizeChange}
-        onSortChange={grid.onSortChange}
-        onFilterChange={grid.onFilterChange}
-        onRefresh={grid.onRefresh}
-        onRowClick={handleRowClick}
-        loading={grid.isLoading}
-        error={grid.error}
-        toolbar={toolbar}
-        labels={labels}
-        className="flex-1 min-h-0"
-      />
+      {/* Main */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Search bar */}
+        <div className="flex items-center gap-md border-b border-border px-lg py-sm">
+          <div className="relative flex-1 max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('searchPlaceholder')}
+              className="pl-9 h-9 text-xs"
+            />
+          </div>
+          {search && (
+            <span className="text-xs text-muted">
+              {filtered.length} {t('searchResults').toLowerCase()}
+            </span>
+          )}
+          <div className="ml-auto">
+            <Can permission="knowledge.create">
+              <Button size="sm" onClick={handleNew}>
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                {t('newArticle')}
+              </Button>
+            </Can>
+          </div>
+        </div>
+
+        {/* Articles grid */}
+        <div className="flex-1 overflow-y-auto p-lg">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="flex items-center gap-2 text-sm text-muted">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                {t('loading')}
+              </div>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-muted">
+              <BookOpen className="h-12 w-12 mb-3 text-dim" />
+              <p className="text-sm font-medium text-text">{t('noContent')}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-md">
+              {filtered.map((article) => (
+                <button
+                  key={article.id}
+                  type="button"
+                  onClick={() => handleOpen(article)}
+                  className="card-surface flex flex-col gap-2 p-md text-left transition-all hover:border-primary/30 hover:shadow-sm group"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-text group-hover:text-primary transition-colors line-clamp-2">
+                      {article.title}
+                    </h3>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-dim group-hover:text-primary transition-colors mt-0.5" />
+                  </div>
+
+                  {article.summary && (
+                    <p className="text-xs text-muted line-clamp-2 leading-relaxed">{article.summary}</p>
+                  )}
+
+                  <div className="mt-auto flex items-center gap-3 pt-2 text-[10px] text-dim">
+                    <span className={
+                      article.isPublished
+                        ? 'inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : 'inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                    }>
+                      {article.isPublished ? t('statusPublished') : t('statusDraft')}
+                    </span>
+                    {article.reuseCount > 0 && (
+                      <span className="flex items-center gap-1">
+                        <TrendingUp className="h-2.5 w-2.5" />
+                        {article.reuseCount}
+                      </span>
+                    )}
+                    {article.updatedAt && (
+                      <span className="ml-auto">
+                        {formatDateTime(article.updatedAt, { locale, timeZone })}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

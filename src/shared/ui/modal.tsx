@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Portal } from './portal';
 import { cn } from '@/shared/lib/utils';
 
@@ -59,8 +60,10 @@ function useDialog(open: boolean, onClose: () => void, prevent: boolean | undefi
  * Footer fica fixo no rodapé; content tem scroll independente.
  */
 export function Modal({
-  open, onClose, title, subtitle, children, footer, size = 'md', preventClose, closeLabel = 'Fechar',
+  open, onClose, title, subtitle, children, footer, size = 'md', preventClose, closeLabel,
 }: ShellProps) {
+  const tc = useTranslations('common');
+  const resolvedCloseLabel = closeLabel ?? tc('close');
   useDialog(open, onClose, preventClose);
   if (!open) return null;
   return (
@@ -78,7 +81,7 @@ export function Modal({
             MODAL_SIZE[size],
           )}
         >
-          <ModalHeader title={title} subtitle={subtitle} onClose={onClose} closeLabel={closeLabel} />
+          <ModalHeader title={title} subtitle={subtitle} onClose={onClose} closeLabel={resolvedCloseLabel} />
           <div className="flex-1 overflow-y-auto p-lg">{children}</div>
           {footer && (
             <div className="flex flex-wrap items-center justify-end gap-sm border-t border-border bg-bg-subtle/40 p-md">
@@ -97,8 +100,10 @@ export function Modal({
  * o componente é renderizado via Portal direto no body, fora da árvore do shell.
  */
 export function Drawer({
-  open, onClose, title, subtitle, children, footer, size = 'md', preventClose, side = 'right', closeLabel = 'Fechar',
+  open, onClose, title, subtitle, children, footer, size = 'md', preventClose, side = 'right', closeLabel,
 }: ShellProps & { side?: 'left' | 'right' }) {
+  const tc = useTranslations('common');
+  const resolvedCloseLabel = closeLabel ?? tc('close');
   useDialog(open, onClose, preventClose);
   if (!open) return null;
   return (
@@ -117,7 +122,7 @@ export function Drawer({
             side === 'right' ? 'ml-auto border-l' : 'mr-auto border-r',
           )}
         >
-          <ModalHeader title={title} subtitle={subtitle} onClose={onClose} closeLabel={closeLabel} />
+          <ModalHeader title={title} subtitle={subtitle} onClose={onClose} closeLabel={resolvedCloseLabel} />
           <div className="flex-1 overflow-y-auto p-lg">{children}</div>
           {footer && (
             <div className="flex flex-wrap items-center justify-end gap-sm border-t border-border bg-bg-subtle/40 p-md">

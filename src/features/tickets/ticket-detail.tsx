@@ -83,6 +83,7 @@ export function TicketDetail({ id }: { id: number }) {
   const locale = useLocale() as Locale;
   const tSla = useTranslations('sla');
   const tTicket = useTranslations('ticket');
+  const tIntelMain = useTranslations('intelligence');
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const qc = useQueryClient();
   const [sub, setSub] = useState<SubTab>('overview');
@@ -207,7 +208,7 @@ export function TicketDetail({ id }: { id: number }) {
                 size="sm"
                 variant="ghost"
                 className="gap-1.5 text-primary hover:bg-primary/10"
-                onClick={() => openIntelligenceModal(id, ticket.title)}
+                onClick={() => openIntelligenceModal(id, ticket.title, tIntelMain('modalTitle', { title: ticket.title }))}
               >
                 <Brain className="h-4 w-4" />
                 {tTicket('assistantButton')}
@@ -216,44 +217,46 @@ export function TicketDetail({ id }: { id: number }) {
           </div>
         </div>
 
-        <div className="mt-md flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-          <StatusBadge status={ticket.status} />
-          <PriorityBadge priority={ticket.priority} />
-          {ticket.iteration && (
-            <>
-              <span className="text-dim">·</span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary font-medium">
-                <Layers className="h-3 w-3" />
-                {ticket.iteration.name}
-              </span>
-            </>
-          )}
-          <span className="text-dim">·</span>
-          <span className="inline-flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {tTicket('openedAt')} {formatDateTime(ticket.openedAt, { locale, timeZone })}
-          </span>
-          {ticket.closedAt && (
-            <>
-              <span className="text-dim">·</span>
-              <span className="inline-flex items-center gap-1 text-success">
-                <Check className="h-3 w-3" />
-                {tTicket('closedAt')} {formatDateTime(ticket.closedAt, { locale, timeZone })}
-              </span>
-            </>
-          )}
-          {ticket.updatedAt && (
-            <>
-              <span className="text-dim">·</span>
-              <span className="inline-flex items-center gap-1">
-                <Edit3 className="h-3 w-3" />
-                {tTicket('updatedAt')} {formatDateTime(ticket.updatedAt, { locale, timeZone })}
-              </span>
-            </>
-          )}
-          {/* Tags moved to the right of "Atualizado em" */}
-          <span className="text-dim">·</span>
-          <TagsBar ticketId={id} currentTags={ticket.tags ?? []} />
+        <div className="mt-md flex flex-wrap items-center justify-between gap-y-1 text-xs text-muted">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <StatusBadge status={ticket.status} />
+            <PriorityBadge priority={ticket.priority} />
+            {ticket.iteration && (
+              <>
+                <span className="text-dim">·</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary font-medium">
+                  <Layers className="h-3 w-3" />
+                  {ticket.iteration.name}
+                </span>
+              </>
+            )}
+            <span className="text-dim">·</span>
+            <TagsBar ticketId={id} currentTags={ticket.tags ?? []} />
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {tTicket('openedAt')} {formatDateTime(ticket.openedAt, { locale, timeZone })}
+            </span>
+            {ticket.closedAt && (
+              <>
+                <span className="text-dim">·</span>
+                <span className="inline-flex items-center gap-1 text-success">
+                  <Check className="h-3 w-3" />
+                  {tTicket('closedAt')} {formatDateTime(ticket.closedAt, { locale, timeZone })}
+                </span>
+              </>
+            )}
+            {ticket.updatedAt && (
+              <>
+                <span className="text-dim">·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Edit3 className="h-3 w-3" />
+                  {tTicket('updatedAt')} {formatDateTime(ticket.updatedAt, { locale, timeZone })}
+                </span>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -309,11 +312,11 @@ export function TicketDetail({ id }: { id: number }) {
               </div>
 
               {(ticket.status === 'Resolved' || ticket.status === 'Closed') ? (
-                <ResolutionSummaryPanel ticketId={id} />
+                <ResolutionSummaryPanel ticketId={id} estimateMinutes={ticket.estimateMinutes} completedMinutes={ticket.completedMinutes} closedAt={ticket.closedAt} openedAt={ticket.openedAt} />
               ) : (
                 <>
-                  <IntelligenceQuickView ticketId={id} onExpand={() => openIntelligenceModal(id, ticket.title)} />
-                  <RecommendationsPanel ticketId={id} onOpenIntelligence={() => openIntelligenceModal(id, ticket.title)} />
+                  <IntelligenceQuickView ticketId={id} onExpand={() => openIntelligenceModal(id, ticket.title, tIntelMain('modalTitle', { title: ticket.title }))} />
+                  <RecommendationsPanel ticketId={id} onOpenIntelligence={() => openIntelligenceModal(id, ticket.title, tIntelMain('modalTitle', { title: ticket.title }))} />
                 </>
               )}
             </div>
@@ -567,10 +570,10 @@ function RelatedTicketsPreview({ ticketIds }: { ticketIds: number[] }) {
   );
 }
 
-function openRelatedTicketsModal(ticketIds: number[]) {
+function openRelatedTicketsModal(ticketIds: number[], title?: string) {
   useWindowStore.getState().open({
     id: `related-tickets-${ticketIds.join('-')}`,
-    title: '',
+    title: title ?? 'Related Tickets',
     icon: <Layers className="h-4 w-4" />,
     modal: true,
     width: 520,
@@ -580,9 +583,16 @@ function openRelatedTicketsModal(ticketIds: number[]) {
 }
 
 /* ---- Resolution Summary (resolved tickets) ---- */
-function ResolutionSummaryPanel({ ticketId }: { ticketId: number }) {
+function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, closedAt, openedAt }: {
+  ticketId: number;
+  estimateMinutes?: number | null;
+  completedMinutes: number;
+  closedAt?: string | null;
+  openedAt: string;
+}) {
   const t = useTranslations('resolution');
   const tTicket = useTranslations('ticket');
+  const tWork = useTranslations('workItems');
   const locale = useLocale() as Locale;
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const resolution = useQuery({
@@ -595,6 +605,13 @@ function ResolutionSummaryPanel({ ticketId }: { ticketId: number }) {
     queryFn: () => rootCausesApi.byTicket(ticketId),
     retry: false,
   });
+  const workItems = useQuery({
+    queryKey: ['workitems', ticketId],
+    queryFn: () => workItemsApi.byTicket(ticketId),
+    retry: false,
+  });
+  const users = useQuery({ queryKey: ['users', 'options'], queryFn: () => usersApi.list(1, 200) });
+  const userMap = new Map((users.data?.items ?? []).map(u => [u.id, u.name]));
 
   if (resolution.isLoading) {
     return (
@@ -612,73 +629,195 @@ function ResolutionSummaryPanel({ ticketId }: { ticketId: number }) {
 
   if (!res) return null;
 
+  const totalTimeMs = closedAt && openedAt ? new Date(closedAt).getTime() - new Date(openedAt).getTime() : null;
+  const totalTimeHours = totalTimeMs ? Math.round(totalTimeMs / (1000 * 60 * 60) * 10) / 10 : null;
+  const efficiencyPct = (estimateMinutes && completedMinutes && estimateMinutes > 0)
+    ? Math.round((completedMinutes / estimateMinutes) * 100)
+    : null;
+
+  const tasks = workItems.data ?? [];
+  const tasksDone = tasks.filter(wi => wi.status === 'Done').length;
+
   return (
-    <div className="card-surface overflow-hidden border border-success/20">
-      <div className="flex items-center gap-3 bg-gradient-to-r from-success/8 to-transparent px-md py-2.5">
-        <div className="grid h-6 w-6 place-items-center rounded-md bg-success/15">
-          <Check className="h-3.5 w-3.5 text-success" />
-        </div>
-        <p className="text-xs font-semibold text-success">{t('resolvedSummaryTitle')}</p>
-      </div>
-      <div className="flex flex-col gap-3 p-md text-sm">
-        {rc && (
-          <div className="flex items-start gap-2">
-            <Target className="h-4 w-4 text-dim mt-0.5 shrink-0" />
-            <div>
-              <p className="text-[10px] font-medium uppercase text-dim">{t('rootCause')}</p>
-              <p className="font-medium">{rc.title}</p>
-              {rc.description && <p className="text-xs text-muted mt-0.5">{rc.description}</p>}
-              <span className="mt-1 inline-block rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
-            </div>
+    <div className="flex flex-col gap-md">
+      {/* Card 1: Resolution Summary */}
+      <div className="card-surface overflow-hidden border border-success/20">
+        {/* Header */}
+        <div className="flex items-center gap-3 bg-gradient-to-r from-success/10 via-success/5 to-transparent px-md py-3">
+          <div className="grid h-8 w-8 place-items-center rounded-lg bg-success/15">
+            <Check className="h-4 w-4 text-success" />
           </div>
-        )}
-        <div className="flex items-start gap-2">
-          <Zap className="h-4 w-4 text-dim mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-bold text-success">{t('resolvedSummaryTitle')}</p>
+            {res.resolvedAt && (
+              <p className="text-[10px] text-muted">{t('resolutionDate')}: {formatDateTime(res.resolvedAt, { locale, timeZone })}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4 p-md text-sm">
+          {/* Time finalization */}
           <div>
-            <p className="text-[10px] font-medium uppercase text-dim">{t('resolution')}</p>
-            <p>{res.summary}</p>
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="h-4 w-4 text-primary" />
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">{t('timeFinalization')}</p>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <div className="rounded-lg bg-panel-2/50 px-3 py-2 text-center">
+                <p className="text-[9px] uppercase text-dim">{tTicket('estimated')}</p>
+                <p className="text-sm font-bold text-text">{fmtMin(estimateMinutes ?? 0)}</p>
+              </div>
+              <div className="rounded-lg bg-panel-2/50 px-3 py-2 text-center">
+                <p className="text-[9px] uppercase text-dim">{tTicket('completed')}</p>
+                <p className="text-sm font-bold text-primary">{fmtMin(completedMinutes)}</p>
+              </div>
+              <div className="rounded-lg bg-panel-2/50 px-3 py-2 text-center">
+                <p className="text-[9px] uppercase text-dim">{t('totalLifecycle')}</p>
+                <p className="text-sm font-bold text-text">{totalTimeHours != null ? `${totalTimeHours}h` : '—'}</p>
+              </div>
+              <div className="rounded-lg bg-panel-2/50 px-3 py-2 text-center">
+                <p className="text-[9px] uppercase text-dim">{t('efficiency')}</p>
+                <p className={cn(
+                  'text-sm font-bold',
+                  efficiencyPct != null && efficiencyPct <= 100 ? 'text-success' : efficiencyPct != null ? 'text-warning' : 'text-text',
+                )}>
+                  {efficiencyPct != null ? `${efficiencyPct}%` : '—'}
+                </p>
+              </div>
+            </div>
+            {closedAt && openedAt && (
+              <p className="text-[10px] text-dim mt-1.5">
+                {t('openToClose')}: {formatDateTime(openedAt, { locale, timeZone })} → {formatDateTime(closedAt, { locale, timeZone })}
+              </p>
+            )}
+          </div>
+
+          {/* Root cause */}
+          {rc && (
+            <div className="rounded-lg border border-border bg-bg-subtle/50 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="h-4 w-4 text-primary" />
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">{t('rootCause')}</p>
+                <span className="ml-auto rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
+              </div>
+              <p className="font-medium text-text">{rc.title}</p>
+              {rc.description && <p className="text-xs text-muted mt-1 leading-relaxed">{rc.description}</p>}
+            </div>
+          )}
+
+          {/* Resolution summary */}
+          <div className="rounded-lg border border-success/20 bg-success/5 p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap className="h-4 w-4 text-success" />
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-success">{t('resolution')}</p>
+            </div>
+            <p className="text-text leading-relaxed">{res.summary}</p>
+          </div>
+
+          {/* Learnings */}
+          {res.learnings.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <BookOpen className="h-4 w-4 text-warning" />
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-warning">{t('learnings')}</p>
+              </div>
+              <div className="space-y-1.5">
+                {res.learnings.map(l => (
+                  <div key={l.id} className="flex items-start gap-2 rounded-md bg-warning/5 border border-warning/10 px-3 py-2">
+                    <Lightbulb className="h-3.5 w-3.5 text-warning mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs text-text">{l.description}</p>
+                      {l.impact && <p className="text-[10px] text-dim mt-0.5">{l.impact}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Card 2: Solution Roadmap */}
+      {(res.resolutionSteps || res.outcome || tasks.length > 0) && (
+        <div className="card-surface overflow-hidden border border-primary/15">
+          <div className="flex items-center gap-3 bg-gradient-to-r from-primary/8 via-primary/3 to-transparent px-md py-3">
+            <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10">
+              <ListChecks className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-primary">{t('solutionRoadmap')}</p>
+              <p className="text-[10px] text-muted">{t('solutionRoadmapHint')}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 p-md text-sm">
+            {/* Steps roadmap */}
+            {res.resolutionSteps && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <ListChecks className="h-4 w-4 text-dim" />
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-dim">{t('actions')}</p>
+                </div>
+                <div className="ml-1 border-l-2 border-success/20 pl-4 space-y-2">
+                  {res.resolutionSteps.split('\n').filter(Boolean).map((step, i) => (
+                    <div key={i} className="flex items-start gap-2 relative">
+                      <div className="absolute -left-[21px] top-1 grid h-4 w-4 place-items-center rounded-full bg-success/15 ring-2 ring-[var(--color-bg)]">
+                        <Check className="h-2.5 w-2.5 text-success" />
+                      </div>
+                      <p className="text-xs text-text leading-relaxed">{step.replace(/^[-•\d.]\s*/, '')}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Outcome */}
+            {res.outcome && (
+              <div className="rounded-lg border border-border bg-bg-subtle/50 p-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <TrendingUp className="h-4 w-4 text-success" />
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-success">{t('outcome')}</p>
+                </div>
+                <p className="text-text leading-relaxed">{res.outcome}</p>
+              </div>
+            )}
+
+            {/* Work items summary */}
+            {tasks.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <ListChecks className="h-4 w-4 text-dim" />
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-dim">{t('workItemsSummary')}</p>
+                  <span className="ml-auto text-[10px] text-dim">
+                    {tWork('tasksSummary', { done: tasksDone, total: tasks.length })}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {tasks.map((wi) => (
+                    <div key={wi.id} className="flex items-center gap-2 rounded-md bg-panel-2/40 px-3 py-1.5">
+                      {wi.status === 'Done'
+                        ? <Check className="h-3 w-3 text-emerald-600 shrink-0" />
+                        : wi.status === 'Cancelled'
+                          ? <X className="h-3 w-3 text-slate-400 shrink-0" />
+                          : <div className="h-3 w-3 rounded-full border-2 border-blue-400 shrink-0" />
+                      }
+                      <span className={cn('text-xs flex-1 truncate', wi.status === 'Done' && 'line-through text-dim')}>
+                        {wi.title}
+                      </span>
+                      {wi.assignedToId && (
+                        <span className="text-[10px] text-dim shrink-0">{userMap.get(wi.assignedToId) ?? ''}</span>
+                      )}
+                      <span className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold', taskStatusColor(wi.status))}>
+                        {tWork(`status.${wi.status}` as 'status.Open')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
-        {res.resolutionSteps && (
-          <div className="flex items-start gap-2">
-            <ListChecks className="h-4 w-4 text-dim mt-0.5 shrink-0" />
-            <div>
-              <p className="text-[10px] font-medium uppercase text-dim">{t('actions')}</p>
-              <p className="text-xs text-muted whitespace-pre-wrap">{res.resolutionSteps}</p>
-            </div>
-          </div>
-        )}
-        {res.outcome && (
-          <div className="flex items-start gap-2">
-            <TrendingUp className="h-4 w-4 text-dim mt-0.5 shrink-0" />
-            <div>
-              <p className="text-[10px] font-medium uppercase text-dim">{t('outcome')}</p>
-              <p>{res.outcome}</p>
-            </div>
-          </div>
-        )}
-        {res.learnings.length > 0 && (
-          <div className="flex items-start gap-2">
-            <BookOpen className="h-4 w-4 text-dim mt-0.5 shrink-0" />
-            <div>
-              <p className="text-[10px] font-medium uppercase text-dim">{t('learnings')}</p>
-              <ul className="text-xs text-muted space-y-1 mt-1">
-                {res.learnings.map(l => (
-                  <li key={l.id} className="flex items-start gap-1.5">
-                    <span className="mt-1.5 h-1 w-1 rounded-full bg-success shrink-0" />
-                    <span>{l.description}{l.impact && <span className="text-dim"> — {l.impact}</span>}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-        {res.resolvedAt && (
-          <p className="text-[10px] text-dim text-right mt-1">
-            {formatDateTime(res.resolvedAt, { locale, timeZone })}
-          </p>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -754,7 +893,7 @@ function IntelligenceQuickView({ ticketId, onExpand }: { ticketId: number; onExp
                       {relatedCount > 0 && (
                         <button
                           type="button"
-                          onClick={() => openRelatedTicketsModal(rc.supportingTicketIds)}
+                          onClick={() => openRelatedTicketsModal(rc.supportingTicketIds, t('relatedTicketsTitle'))}
                           className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/15 transition-colors cursor-pointer"
                         >
                           <Layers className="h-2.5 w-2.5" /> {relatedCount} {tTicket('relatedTickets')}
@@ -3060,7 +3199,7 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
 }
 
 /* ================================================================
-   TASKS TAB (Work Items com subtasks)
+   TASKS TAB (Work Items)
    ================================================================ */
 const TASK_STATUSES = ['Open', 'InProgress', 'Done', 'Cancelled'] as const;
 
@@ -3085,18 +3224,30 @@ function taskStatusIcon(s: string) {
 
 function WorkItemsTab({ ticketId }: { ticketId: number }) {
   const t = useTranslations('workItems');
+  const locale = useLocale() as Locale;
+  const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const qc = useQueryClient();
   const [newTitle, setNewTitle] = useState('');
-  const [newDesc, setNewDesc] = useState('');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [editDesc, setEditDesc] = useState('');
+  const [editAssignee, setEditAssignee] = useState<number | null>(null);
+  const [estHours, setEstHours] = useState(0);
+  const [spentHours, setSpentHours] = useState(0);
+  const [attachments, setAttachments] = useState<File[]>([]);
 
-  const list = useQuery({ queryKey: ['workitems', ticketId], queryFn: () => workItemsApi.byTicket(ticketId), retry: false });
+  const list = useQuery({
+    queryKey: ['workitems', ticketId],
+    queryFn: () => workItemsApi.byTicket(ticketId),
+    retry: false,
+  });
   const users = useQuery({ queryKey: ['users', 'options'], queryFn: () => usersApi.list(1, 200) });
   const invalidate = () => qc.invalidateQueries({ queryKey: ['workitems', ticketId] });
+  const userOptions: ComboOption[] = (users.data?.items ?? []).map(u => ({ id: u.id, label: u.name, hint: u.email }));
   const userMap = new Map((users.data?.items ?? []).map(u => [u.id, u.name]));
 
   const create = useMutation({
-    mutationFn: () => workItemsApi.create(ticketId, { title: newTitle.trim(), technicalDescription: newDesc.trim() }),
-    onSuccess: () => { invalidate(); setNewTitle(''); setNewDesc(''); toast.success(t('createdOk')); },
+    mutationFn: () => workItemsApi.create(ticketId, { title: newTitle.trim() }),
+    onSuccess: () => { invalidate(); setNewTitle(''); toast.success(t('createdOk')); },
     onError: (err) => toast.error(apiErrorMessage(err, t('createError'))),
   });
 
@@ -3106,89 +3257,310 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
     onError: (err) => toast.error(apiErrorMessage(err, t('updateError'))),
   });
 
+  const updateItem = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: Parameters<typeof workItemsApi.update>[2] }) =>
+      workItemsApi.update(ticketId, id, body),
+    onSuccess: () => { invalidate(); toast.success(t('saved')); },
+    onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
+  });
+
   const allItems = list.data ?? [];
   const doneCount = allItems.filter(i => i.status === 'Done').length;
   const totalCount = allItems.length;
   const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  const selected = allItems.find(i => i.id === selectedId) ?? null;
+
+  const selectTask = (task: typeof allItems[number]) => {
+    setSelectedId(task.id);
+    setEditDesc(task.technicalDescription ?? '');
+    setEditAssignee(task.assignedToId);
+    setEstHours(0);
+    setSpentHours(0);
+    setAttachments([]);
+  };
+
+  const handleSave = () => {
+    if (!selected) return;
+    updateItem.mutate({
+      id: selected.id,
+      body: {
+        technicalDescription: editDesc,
+        assignedToId: editAssignee,
+        estimatedMinutes: Math.round(estHours * 60),
+        actualMinutes: Math.round(spentHours * 60),
+      },
+    });
+  };
+
+  const isApiError = list.isError;
 
   return (
-    <div className="flex flex-col gap-md">
-      {totalCount > 0 && (
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-2 overflow-hidden rounded-full bg-panel-2">
-            <div className={cn('h-full rounded-full transition-all', progress === 100 ? 'bg-emerald-500' : 'bg-primary')} style={{ width: `${progress}%` }} />
-          </div>
-          <span className="text-xs font-bold text-text shrink-0">{doneCount}/{totalCount} ({progress}%)</span>
-        </div>
-      )}
-
-      {/* Create form */}
-      <Can permission="ticket.update">
-        <form onSubmit={(e) => { e.preventDefault(); if (newTitle.trim()) create.mutate(); }} className="card-surface p-md flex flex-col gap-sm">
-          <div className="flex items-center gap-sm">
-            <input className={FIELD_SM + ' flex-1'} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={t('titlePh')} />
-            <Button type="submit" size="sm" disabled={!newTitle.trim()} loading={create.isPending} className="h-8 shrink-0 text-xs">
-              <Plus className="h-3 w-3" /> {t('add')}
-            </Button>
-          </div>
-          {newTitle.trim() && (
-            <textarea
-              className={FIELD_BASE + ' text-xs min-h-[60px] resize-y'}
-              value={newDesc}
-              onChange={(e) => setNewDesc(e.target.value)}
-              placeholder={t('descriptionPh')}
-            />
-          )}
-        </form>
-      </Can>
-
-      {/* List */}
-      {list.isLoading ? (
-        <div className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-dim" /></div>
-      ) : list.isError ? (
-        <div className="flex flex-col items-center gap-3 py-12 text-dim">
-          <ListChecks className="h-8 w-8" />
-          <p className="text-xs font-medium text-text">{t('empty')}</p>
-          <p className="text-[10px]">{t('emptyHint')}</p>
-        </div>
-      ) : allItems.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-12 text-dim">
-          <ListChecks className="h-8 w-8" />
-          <p className="text-xs font-medium text-text">{t('empty')}</p>
-          <p className="text-[10px]">{t('emptyHint')}</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-1">
-          {allItems.map((task) => (
-            <div key={task.id} className="card-surface flex items-center gap-3 px-md py-2.5">
-              <button
-                type="button"
-                onClick={() => updateStatus.mutate({ id: task.id, status: task.status === 'Done' ? 'Open' : 'Done' })}
-                className="shrink-0"
-              >
-                {taskStatusIcon(task.status)}
-              </button>
-              <div className="flex-1 min-w-0">
-                <p className={cn('text-xs font-medium', task.status === 'Done' && 'line-through text-dim')}>{task.title}</p>
-                {task.technicalDescription && (
-                  <p className="text-[10px] text-dim mt-0.5 line-clamp-1">{task.technicalDescription}</p>
-                )}
+    <div className="flex h-full" style={{ minHeight: 420 }}>
+      {/* Left: task list */}
+      <div className={cn(
+        'flex flex-col border-r border-border',
+        selected ? 'w-[320px] shrink-0' : 'flex-1',
+      )}>
+        {/* Header with progress */}
+        <div className="flex flex-col gap-sm px-md pt-md pb-sm">
+          {totalCount > 0 && (
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-panel-2">
+                <div
+                  className={cn('h-full rounded-full transition-all duration-500', progress === 100 ? 'bg-emerald-500' : 'bg-primary')}
+                  style={{ width: `${progress}%` }}
+                />
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {task.assignedToId != null && (
-                  <span className="text-[10px] text-dim">{userMap.get(task.assignedToId) ?? `#${task.assignedToId}`}</span>
-                )}
-                <select
-                  value={task.status}
-                  onChange={(e) => updateStatus.mutate({ id: task.id, status: e.target.value })}
-                  className={cn('rounded-md border px-2 py-1 text-[10px] font-semibold outline-none cursor-pointer', taskStatusColor(task.status))}
+              <span className="text-[11px] font-semibold text-text shrink-0">
+                {t('tasksSummary', { done: doneCount, total: totalCount })}
+              </span>
+            </div>
+          )}
+
+          <Can permission="ticket.update">
+            <form
+              onSubmit={(e) => { e.preventDefault(); if (newTitle.trim()) create.mutate(); }}
+              className="flex items-center gap-sm"
+            >
+              <input
+                className={FIELD_SM + ' flex-1'}
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder={t('titlePh')}
+              />
+              <Button type="submit" size="sm" disabled={!newTitle.trim()} loading={create.isPending} className="h-8 shrink-0 text-xs">
+                <Plus className="h-3 w-3" />
+              </Button>
+            </form>
+          </Can>
+        </div>
+
+        {/* Task list */}
+        <div className="flex-1 overflow-y-auto px-sm pb-sm">
+          {list.isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-5 w-5 animate-spin text-dim" />
+            </div>
+          ) : isApiError ? (
+            <div className="flex flex-col items-center gap-2 py-16 text-dim px-md text-center">
+              <ListChecks className="h-8 w-8" />
+              <p className="text-xs font-medium text-text">{t('empty')}</p>
+              <p className="text-[10px] leading-relaxed">{t('emptyHint')}</p>
+            </div>
+          ) : allItems.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-16 text-dim px-md text-center">
+              <ListChecks className="h-8 w-8" />
+              <p className="text-xs font-medium text-text">{t('empty')}</p>
+              <p className="text-[10px] leading-relaxed">{t('emptyHint')}</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-0.5">
+              {allItems.map((task) => (
+                <button
+                  key={task.id}
+                  type="button"
+                  onClick={() => selectTask(task)}
+                  className={cn(
+                    'flex items-center gap-2.5 rounded-lg px-sm py-2 text-left transition-all',
+                    selectedId === task.id
+                      ? 'bg-primary/8 ring-1 ring-primary/20'
+                      : 'hover:bg-panel-2/60',
+                  )}
                 >
-                  {TASK_STATUSES.map((s) => <option key={s} value={s}>{t(`status.${s}` as 'status.Open')}</option>)}
-                </select>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); updateStatus.mutate({ id: task.id, status: task.status === 'Done' ? 'Open' : 'Done' }); }}
+                    className="shrink-0 p-0.5 rounded hover:bg-panel-2"
+                  >
+                    {taskStatusIcon(task.status)}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn('text-xs font-medium leading-tight', task.status === 'Done' && 'line-through text-dim')}>
+                      {task.title}
+                    </p>
+                    {task.assignedToId != null && (
+                      <p className="text-[10px] text-dim mt-0.5 truncate">
+                        {userMap.get(task.assignedToId) ?? `#${task.assignedToId}`}
+                      </p>
+                    )}
+                  </div>
+                  <span className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase', taskStatusColor(task.status))}>
+                    {t(`status.${task.status}` as 'status.Open')}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right: detail panel */}
+      {selected ? (
+        <div className="flex-1 min-w-0 flex flex-col overflow-y-auto">
+          {/* Detail header */}
+          <div className="flex items-center gap-2 border-b border-border px-md py-sm">
+            <h3 className="flex-1 text-sm font-bold text-text truncate">{selected.title}</h3>
+            <button
+              type="button"
+              onClick={() => setSelectedId(null)}
+              className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-dim hover:text-text hover:bg-panel-2"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-md py-md flex flex-col gap-lg">
+            {/* Status */}
+            <div>
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-dim">Status</p>
+              <div className="flex flex-wrap gap-1">
+                {TASK_STATUSES.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => updateStatus.mutate({ id: selected.id, status: s })}
+                    className={cn(
+                      'rounded-lg border px-3 py-1.5 text-xs font-medium transition-all',
+                      selected.status === s
+                        ? taskStatusColor(s) + ' ring-1'
+                        : 'border-border text-dim hover:text-text hover:border-border-strong',
+                    )}
+                  >
+                    {t(`status.${s}` as 'status.Open')}
+                  </button>
+                ))}
               </div>
             </div>
-          ))}
+
+            {/* Assignee */}
+            <div>
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-dim">{t('assignee')}</p>
+              <AsyncCombobox
+                options={userOptions}
+                value={editAssignee}
+                onChange={setEditAssignee}
+                placeholder={t('unassigned')}
+                allowClear
+              />
+            </div>
+
+            {/* Time tracking */}
+            <div>
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-dim">{t('estimatedTime')}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 relative">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={estHours || ''}
+                      onChange={(e) => setEstHours(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className={FIELD_SM + ' w-full pr-8'}
+                      placeholder="0"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-dim">h</span>
+                  </div>
+                  <span className="text-[10px] text-dim">{t('estimatedTime')}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 relative">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={spentHours || ''}
+                      onChange={(e) => setSpentHours(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className={FIELD_SM + ' w-full pr-8'}
+                      placeholder="0"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-dim">h</span>
+                  </div>
+                  <span className="text-[10px] text-dim">{t('timeSpent')}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-dim">{t('descriptionLabel')}</p>
+              <RichEditor
+                value={editDesc}
+                onChange={setEditDesc}
+                placeholder={t('descriptionPh')}
+                minHeight="140px"
+                compact
+              />
+            </div>
+
+            {/* Attachments */}
+            <div>
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-dim">{t('attachments')}</p>
+              <label
+                className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4 py-3 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const files = Array.from(e.dataTransfer.files);
+                  if (files.length) setAttachments((prev) => [...prev, ...files]);
+                }}
+              >
+                <UploadCloud className="h-4 w-4 text-dim" />
+                <span className="text-[11px] text-dim">{t('dropFiles')}</span>
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files ?? []);
+                    if (files.length) setAttachments((prev) => [...prev, ...files]);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+              {attachments.length > 0 && (
+                <ul className="mt-2 flex flex-col gap-1">
+                  {attachments.map((f, i) => (
+                    <li key={`${f.name}-${i}`} className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-xs">
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-dim" />
+                      <span className="flex-1 min-w-0 truncate text-text">{f.name}</span>
+                      <span className="shrink-0 text-[10px] text-dim">{(f.size / 1024).toFixed(1)} KB</span>
+                      <button
+                        type="button"
+                        onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="grid h-5 w-5 place-items-center rounded text-dim hover:text-danger hover:bg-danger/10"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Created at */}
+            {selected.createdAt && (
+              <div className="flex items-center gap-1.5 text-[10px] text-dim">
+                <Calendar className="h-3 w-3" />
+                {t('createdAtLabel')}: {formatDateTime(selected.createdAt, { locale, timeZone })}
+              </div>
+            )}
+          </div>
+
+          {/* Save footer */}
+          <div className="border-t border-border px-md py-sm flex justify-end">
+            <Button size="sm" onClick={handleSave} loading={updateItem.isPending}>
+              {t('save')}
+            </Button>
+          </div>
         </div>
+      ) : (
+        !list.isLoading && allItems.length > 0 && (
+          <div className="flex-1 flex flex-col items-center justify-center text-dim gap-2">
+            <ListChecks className="h-10 w-10" />
+            <p className="text-xs">{t('taskDetail')}</p>
+          </div>
+        )
       )}
     </div>
   );
