@@ -345,6 +345,9 @@
     "appliedSuccess": "Solution applied successfully",
     "applyError": "Failed to apply solution",
     "feedbackSent": "Feedback recorded",
+    "wasHelpful": "Helpful?",
+    "helpfulYes": "Helpful",
+    "helpfulNo": "Not helpful",
     "feedbackError": "Failed to record feedback",
     "smartRecommendations": "Recommendations",
     "viewFullAnalysis": "View full analysis",
@@ -1107,6 +1110,9 @@
     "insert": "Insert"
   },
   "workItems": {
+    "tabLabel": "Tasks",
+    "newTask": "New Task",
+    "selectTask": "Select a task to view details",
     "newWorkItem": "New Task",
     "newWorkItemHint": "Create tasks needed for resolution.",
     "titlePh": "New task...",
@@ -1142,6 +1148,8 @@
     "attachError": "Failed to upload file",
     "saved": "Changes saved",
     "saveError": "Failed to save changes",
+    "saving": "Saving…",
+    "autoSaved": "Saved automatically",
     "logTime": "Log time",
     "logDescPh": "Work description (optional)...",
     "timeLogged": "Time logged",

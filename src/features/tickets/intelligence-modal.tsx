@@ -109,29 +109,29 @@ function CauseCard({ cause, index, t }: { cause: RootCauseCandidate; index: numb
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="group rounded-lg border border-border bg-bg-subtle/50 overflow-hidden transition-all hover:border-primary/30 hover:shadow-sm"
+      className="group rounded-xl border border-border bg-panel overflow-hidden transition-all hover:border-primary/40 hover:shadow-md"
     >
       <button
         type="button"
         onClick={() => setExpanded(v => !v)}
-        className="flex w-full items-start gap-3 p-sm text-left"
+        className="flex w-full items-start gap-3.5 p-4 text-left"
       >
-        <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-          <span className="text-[10px] font-bold">#{index + 1}</span>
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+          <span className="text-[11px] font-bold">#{index + 1}</span>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-text">{cause.category}</p>
+            <p className="text-sm font-semibold text-text">{cause.category}</p>
             {cause.aiEnhanced && (
               <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold text-primary">AI</span>
             )}
           </div>
           {cause.description && (
-            <p className={cn('mt-0.5 text-xs leading-relaxed text-muted', !expanded && 'line-clamp-2')}>{cause.description}</p>
+            <p className={cn('mt-1 text-xs leading-relaxed text-muted', !expanded && 'line-clamp-2')}>{cause.description}</p>
           )}
         </div>
         <div className="shrink-0 text-right">
-          <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-bold tabular-nums text-primary">
+          <span className="rounded-lg bg-primary/10 px-2.5 py-1.5 text-sm font-bold tabular-nums text-primary">
             {pct(cause.confidenceScore)}
           </span>
         </div>
@@ -194,35 +194,35 @@ function ResolutionCard({ res, index, feedback, onFeedback, onApply, applyPendin
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="group rounded-lg border border-border bg-bg-subtle/50 p-sm transition-all hover:border-success/30 hover:shadow-sm"
+      className="group rounded-xl border border-border bg-panel p-4 transition-all hover:border-success/40 hover:shadow-md"
     >
-      <div className="flex items-start gap-3">
-        <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-success/10 text-success">
-          <Zap className="h-3.5 w-3.5" />
+      <div className="flex items-start gap-3.5">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-success/10 text-success ring-1 ring-success/20">
+          <Zap className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-text">{res.summary}</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <p className="text-sm font-semibold leading-relaxed text-text">{res.summary}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {res.successRate != null && !isNaN(res.successRate) && (
-              <span className="rounded-full bg-success/10 px-1.5 py-0.5 text-[9px] font-bold text-success">
+              <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold text-success">
                 {pct(res.successRate)} {t('success')}
               </span>
             )}
             {res.similarityScore != null && !isNaN(res.similarityScore) && (
-              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
                 {pct(res.similarityScore)} {t('similar')}
               </span>
             )}
             {res.reusedCount > 0 && (
-              <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[9px] font-medium text-dim">
+              <span className="rounded-full bg-panel-2 px-2 py-0.5 text-[10px] font-medium text-dim">
                 {res.reusedCount}× {t('reuse')}
               </span>
             )}
             {(res.matchedTerms ?? []).slice(0, 3).map(term => (
-              <span key={term} className="rounded bg-primary/8 px-1.5 py-0.5 text-[9px] text-primary">{term}</span>
+              <span key={term} className="rounded-full bg-primary/8 px-2 py-0.5 text-[10px] text-primary">{term}</span>
             ))}
           </div>
         </div>
@@ -232,7 +232,7 @@ function ResolutionCard({ res, index, feedback, onFeedback, onApply, applyPendin
         <button
           type="button"
           onClick={() => openTicketTab({ id: res.ticketId, number: String(res.ticketId) })}
-          className="mt-2 ml-10 flex items-center gap-1.5 text-[11px] text-primary hover:underline"
+          className="mt-3 ml-[3.125rem] inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline"
         >
           <FileText className="h-3 w-3" />
           {t('sourceTicket')} #{res.ticketId}
@@ -240,39 +240,42 @@ function ResolutionCard({ res, index, feedback, onFeedback, onApply, applyPendin
         </button>
       )}
 
-      <div className="mt-2 ml-10 flex items-center gap-1.5 border-t border-border/50 pt-2">
+      <div className="mt-3.5 flex items-center gap-2 border-t border-border/60 pt-3.5">
         <Button
           size="sm"
-          className="h-7 gap-1 text-xs"
+          className="gap-1.5"
           loading={applyPending}
           onClick={() => onApply(res)}
         >
-          <Check className="h-3 w-3" />
+          <Check className="h-3.5 w-3.5" />
           {t('applySolution')}
         </Button>
         {res.resolutionId != null && (
-          <div className="ml-auto flex items-center gap-0.5">
+          <div className="ml-auto flex items-center gap-1">
+            <span className="mr-1 text-[10px] text-dim">{t('wasHelpful')}</span>
             <button
               type="button"
               onClick={() => onFeedback(res.resolutionId, true)}
               className={cn(
-                'grid h-7 w-7 place-items-center rounded text-muted transition-colors hover:bg-success/10 hover:text-success',
-                fb === 'up' && 'bg-success/15 text-success',
+                'grid h-8 w-8 place-items-center rounded-lg border border-transparent text-muted transition-colors hover:border-success/30 hover:bg-success/10 hover:text-success',
+                fb === 'up' && 'border-success/30 bg-success/15 text-success',
               )}
               disabled={!!fb}
+              aria-label={t('helpfulYes')}
             >
-              <ThumbsUp className="h-3.5 w-3.5" />
+              <ThumbsUp className="h-4 w-4" />
             </button>
             <button
               type="button"
               onClick={() => onFeedback(res.resolutionId, false)}
               className={cn(
-                'grid h-7 w-7 place-items-center rounded text-muted transition-colors hover:bg-danger/10 hover:text-danger',
-                fb === 'down' && 'bg-danger/15 text-danger',
+                'grid h-8 w-8 place-items-center rounded-lg border border-transparent text-muted transition-colors hover:border-danger/30 hover:bg-danger/10 hover:text-danger',
+                fb === 'down' && 'border-danger/30 bg-danger/15 text-danger',
               )}
               disabled={!!fb}
+              aria-label={t('helpfulNo')}
             >
-              <ThumbsDown className="h-3.5 w-3.5" />
+              <ThumbsDown className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -399,29 +402,44 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
   ];
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="border-b border-border bg-gradient-to-r from-primary/5 to-transparent px-md py-2">
-        <div className="flex items-center gap-2 text-[11px] text-muted">
-          <PulseDot color="bg-primary" />
-          <Sparkles className="h-3 w-3 text-primary" />
-          <span>{t('aiDisclaimer')}</span>
+    <div className="flex flex-1 flex-col overflow-hidden bg-bg">
+      {/* Hero */}
+      <div className="relative overflow-hidden border-b border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent px-6 py-5">
+        <div className="flex items-start gap-4">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/15 text-primary ring-1 ring-primary/20">
+            <Brain className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-text">Orbit Intelligence</h2>
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
+                <PulseDot color="bg-primary" /> AI
+              </span>
+            </div>
+            <p className="mt-0.5 truncate text-xs text-muted">{ticketTitle}</p>
+            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-dim">
+              <Sparkles className="h-3 w-3 text-primary" />
+              {t('aiDisclaimer')}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="flex border-b border-border">
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border bg-bg-subtle/30 px-3">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             type="button"
             onClick={() => setActiveTab(tab.key)}
             className={cn(
-              'flex flex-1 items-center justify-center gap-1.5 border-b-2 px-sm py-2.5 text-xs font-medium transition-all',
+              'relative flex items-center gap-1.5 border-b-2 px-4 py-3 text-xs font-semibold transition-all',
               activeTab === tab.key
-                ? 'border-primary text-text'
-                : 'border-transparent text-dim hover:border-border hover:text-muted',
+                ? 'border-primary text-primary'
+                : 'border-transparent text-dim hover:text-text',
             )}
           >
-            <tab.icon className={cn('h-3.5 w-3.5', activeTab === tab.key ? 'text-primary' : '')} />
+            <tab.icon className="h-4 w-4" />
             {tab.label}
             {tab.count != null && tab.count > 0 && (
               <span className={cn(
@@ -438,40 +456,66 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
       <div className="flex-1 overflow-y-auto">
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && (
-            <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-md p-md">
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-lg border border-border bg-bg-subtle/50 p-3 text-center">
-                  <Target className="mx-auto h-4 w-4 text-primary mb-1" />
-                  <p className="text-lg font-bold text-text">{causes.length}</p>
-                  <p className="text-[10px] text-dim">{t('rootCauses')}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-bg-subtle/50 p-3 text-center">
-                  <Lightbulb className="mx-auto h-4 w-4 text-success mb-1" />
-                  <p className="text-lg font-bold text-text">{resolutions.length}</p>
-                  <p className="text-[10px] text-dim">{t('resolutions')}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-bg-subtle/50 p-3 text-center">
-                  <BookOpen className="mx-auto h-4 w-4 text-warning mb-1" />
-                  <p className="text-lg font-bold text-text">{knData.length}</p>
-                  <p className="text-[10px] text-dim">{t('relatedKnowledge')}</p>
-                </div>
+            <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-5 p-6">
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { icon: Target, color: 'text-primary', bg: 'bg-primary/10', n: causes.length, label: t('rootCauses') },
+                  { icon: Lightbulb, color: 'text-success', bg: 'bg-success/10', n: resolutions.length, label: t('resolutions') },
+                  { icon: BookOpen, color: 'text-warning', bg: 'bg-warning/10', n: knData.length, label: t('relatedKnowledge') },
+                ].map((s, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-panel p-4">
+                    <div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl', s.bg, s.color)}>
+                      <s.icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold leading-none text-text">{s.n}</p>
+                      <p className="mt-1 text-[11px] text-dim">{s.label}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              {topCause && (
-                <div className="rounded-lg border border-primary/20 bg-primary/5 p-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Target className="h-4 w-4 text-primary" />
-                    <p className="text-xs font-semibold text-primary">{t('probableCause')}</p>
-                    <span className="ml-auto rounded-md bg-primary/15 px-2 py-0.5 text-xs font-bold text-primary">{pct(topCause.confidenceScore)}</span>
+              {topResolution && (
+                <div className="rounded-2xl border border-success/30 bg-gradient-to-br from-success/8 to-transparent p-5">
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="grid h-7 w-7 place-items-center rounded-lg bg-success/15 text-success"><Zap className="h-4 w-4" /></span>
+                    <p className="text-sm font-bold text-success">{t('suggestedSolution')}</p>
+                    {topResolution.successRate != null && !isNaN(topResolution.successRate) && (
+                      <span className="ml-auto rounded-full bg-success/15 px-2.5 py-1 text-xs font-bold text-success">{pct(topResolution.successRate)} {t('success')}</span>
+                    )}
                   </div>
-                  <p className="text-sm font-medium text-text">{topCause.category}</p>
+                  <p className="text-sm font-medium leading-relaxed text-text">{topResolution.summary}</p>
+                  <div className="mt-4 flex items-center gap-3">
+                    <Button
+                      className="gap-1.5"
+                      loading={applyResolution.isPending}
+                      onClick={() => applyResolution.mutate({ resolutionId: topResolution.resolutionId, summary: topResolution.summary })}
+                    >
+                      <Check className="h-4 w-4" />
+                      {t('applySolution')}
+                    </Button>
+                    {topResolution.reusedCount > 0 && (
+                      <span className="text-[11px] text-dim">{topResolution.reusedCount}× {t('reuse')}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {topCause && (
+                <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/8 to-transparent p-5">
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/15 text-primary"><Target className="h-4 w-4" /></span>
+                    <p className="text-sm font-bold text-primary">{t('probableCause')}</p>
+                    <span className="ml-auto rounded-full bg-primary/15 px-2.5 py-1 text-xs font-bold text-primary">{pct(topCause.confidenceScore)}</span>
+                  </div>
+                  <p className="text-sm font-semibold text-text">{topCause.category}</p>
                   {topCause.description && (
-                    <p className="mt-1 text-xs text-muted leading-relaxed">{topCause.description}</p>
+                    <p className="mt-1.5 text-xs leading-relaxed text-muted">{topCause.description}</p>
                   )}
                   {topCause.coOccurrencePatterns.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
+                    <div className="mt-3 flex flex-wrap gap-1.5">
                       {topCause.coOccurrencePatterns.map(p => (
-                        <span key={p} className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">{p}</span>
+                        <span key={p} className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">{p}</span>
                       ))}
                     </div>
                   )}
@@ -479,7 +523,7 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
                     <button
                       type="button"
                       onClick={() => openRelatedTicketsModal(topCause.supportingTicketIds, t('relatedTicketsTitle'))}
-                      className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-primary hover:underline"
+                      className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline"
                     >
                       <Layers className="h-3 w-3" />
                       {t('similarTickets', { count: topCause.supportingTicketIds.length })}
@@ -489,44 +533,23 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
                 </div>
               )}
 
-              {topResolution && (
-                <div className="rounded-lg border border-success/20 bg-success/5 p-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className="h-4 w-4 text-success" />
-                    <p className="text-xs font-semibold text-success">{t('suggestedSolution')}</p>
-                    {topResolution.successRate != null && !isNaN(topResolution.successRate) && (
-                      <span className="ml-auto rounded-md bg-success/15 px-2 py-0.5 text-xs font-bold text-success">{pct(topResolution.successRate)} {t('success')}</span>
-                    )}
-                  </div>
-                  <p className="text-sm font-medium text-text">{topResolution.summary}</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      className="h-7 gap-1 text-xs"
-                      loading={applyResolution.isPending}
-                      onClick={() => applyResolution.mutate({ resolutionId: topResolution.resolutionId, summary: topResolution.summary })}
-                    >
-                      <Check className="h-3 w-3" />
-                      {t('applySolution')}
-                    </Button>
-                    {topResolution.reusedCount > 0 && (
-                      <span className="text-[10px] text-dim">{topResolution.reusedCount}× {t('reuse')}</span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 {causes.length > 1 && (
-                  <button type="button" onClick={() => setActiveTab('causes')} className="flex-1 rounded-lg border border-border p-2.5 text-left hover:border-primary/30 transition-colors">
-                    <p className="text-[10px] font-semibold text-dim uppercase">{t('rootCauses')}</p>
-                    <p className="text-xs text-muted mt-0.5">+{causes.length - 1} {t('otherPossibleCauses').toLowerCase()}</p>
+                  <button type="button" onClick={() => setActiveTab('causes')} className="group flex flex-1 items-center justify-between rounded-xl border border-border bg-panel p-4 text-left transition-colors hover:border-primary/40">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-dim">{t('rootCauses')}</p>
+                      <p className="mt-0.5 text-xs text-muted">+{causes.length - 1} {t('otherPossibleCauses').toLowerCase()}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-dim transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
                   </button>
                 )}
                 {resolutions.length > 1 && (
-                  <button type="button" onClick={() => setActiveTab('resolutions')} className="flex-1 rounded-lg border border-border p-2.5 text-left hover:border-success/30 transition-colors">
-                    <p className="text-[10px] font-semibold text-dim uppercase">{t('resolutions')}</p>
-                    <p className="text-xs text-muted mt-0.5">{t('moreAlternatives', { count: resolutions.length - 1 })}</p>
+                  <button type="button" onClick={() => setActiveTab('resolutions')} className="group flex flex-1 items-center justify-between rounded-xl border border-border bg-panel p-4 text-left transition-colors hover:border-success/40">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-dim">{t('resolutions')}</p>
+                      <p className="mt-0.5 text-xs text-muted">{t('moreAlternatives', { count: resolutions.length - 1 })}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-dim transition-transform group-hover:translate-x-0.5 group-hover:text-success" />
                   </button>
                 )}
               </div>
@@ -534,7 +557,7 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
           )}
 
           {activeTab === 'causes' && (
-            <motion.div key="causes" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.2 }} className="flex flex-col gap-sm p-md">
+            <motion.div key="causes" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.2 }} className="flex flex-col gap-3 p-6">
               {causes.map((rc, i) => (
                 <CauseCard key={i} cause={rc} index={i} t={t} />
               ))}
@@ -543,7 +566,7 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
           )}
 
           {activeTab === 'resolutions' && (
-            <motion.div key="resolutions" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.2 }} className="flex flex-col gap-sm p-md">
+            <motion.div key="resolutions" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.2 }} className="flex flex-col gap-3 p-6">
               {resolutions.map((r, i) => (
                 <ResolutionCard
                   key={r.resolutionId ?? i}
@@ -561,22 +584,22 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
           )}
 
           {activeTab === 'knowledge' && (
-            <motion.div key="knowledge" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.2 }} className="flex flex-col gap-sm p-md">
+            <motion.div key="knowledge" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.2 }} className="flex flex-col gap-3 p-6">
               {knData.map((k, i) => (
                 <motion.div
                   key={k.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.06 }}
-                  className="group cursor-pointer rounded-lg border border-border bg-bg-subtle/50 p-sm transition-all hover:border-warning/30 hover:shadow-sm"
+                  className="group cursor-pointer rounded-xl border border-border bg-panel p-4 transition-all hover:border-warning/40 hover:shadow-md"
                 >
-                  <div className="flex items-start gap-2">
-                    <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-warning/10 text-warning ring-1 ring-warning/20"><BookOpen className="h-4 w-4" /></span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-text group-hover:text-primary transition-colors">{k.title}</p>
-                      {k.summary && <p className="mt-0.5 text-xs text-muted line-clamp-2">{k.summary}</p>}
+                      <p className="text-sm font-semibold text-text group-hover:text-primary transition-colors">{k.title}</p>
+                      {k.summary && <p className="mt-1 text-xs text-muted line-clamp-2">{k.summary}</p>}
                     </div>
-                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-dim opacity-0 transition-opacity group-hover:opacity-100" />
+                    <ExternalLink className="h-4 w-4 shrink-0 text-dim opacity-0 transition-opacity group-hover:opacity-100" />
                   </div>
                 </motion.div>
               ))}
@@ -586,12 +609,12 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center gap-md border-t border-border px-md py-2 text-[10px] text-dim">
-        <span className="flex items-center gap-1">
+      <div className="flex items-center gap-md border-t border-border bg-bg-subtle/30 px-6 py-2.5 text-[10px] text-dim">
+        <span className="flex items-center gap-1.5">
           <Brain className="h-3 w-3 text-primary" />
           {t('brandFooter')}
         </span>
-        <span className="ml-auto flex items-center gap-1">
+        <span className="ml-auto flex items-center gap-1.5">
           <Clock className="h-3 w-3" />
           {t('poweredBy')}
         </span>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 
 export interface SelectOption<T extends string | number = number> {
@@ -17,6 +17,7 @@ export function Select<T extends string | number = number>({
   placeholder = 'Selecionar…',
   className,
   disabled,
+  loading,
 }: {
   options: SelectOption<T>[];
   value: T | null;
@@ -24,6 +25,8 @@ export function Select<T extends string | number = number>({
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** Mostra um spinner e bloqueia o controle enquanto a alteração é persistida (auto-save). */
+  loading?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -31,6 +34,7 @@ export function Select<T extends string | number = number>({
   const selected = options.find((o) => o.value === value) ?? null;
 
   const openMenu = () => {
+    if (loading) return;
     if (btnRef.current) setRect(btnRef.current.getBoundingClientRect());
     setOpen(true);
   };
@@ -61,7 +65,7 @@ export function Select<T extends string | number = number>({
       <button
         ref={btnRef}
         type="button"
-        disabled={disabled}
+        disabled={disabled || loading}
         onClick={openMenu}
         className={cn(
           'flex h-10 w-full items-center gap-sm rounded-md border border-border bg-bg-subtle pl-md pr-2.5 text-sm outline-none transition-all',
@@ -71,7 +75,9 @@ export function Select<T extends string | number = number>({
         <span className={cn('flex-1 truncate text-left', !selected && 'text-dim')}>
           {selected ? selected.label : placeholder}
         </span>
-        <ChevronDown className={cn('h-4 w-4 shrink-0 text-dim transition-transform', open && 'rotate-180')} aria-hidden />
+        {loading
+          ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" aria-hidden />
+          : <ChevronDown className={cn('h-4 w-4 shrink-0 text-dim transition-transform', open && 'rotate-180')} aria-hidden />}
       </button>
 
       {open && typeof window !== 'undefined' && createPortal(

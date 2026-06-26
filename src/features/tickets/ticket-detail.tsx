@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -13,7 +13,7 @@ import {
   FlaskConical, ListChecks, GanttChart, ArrowUpRight, ThumbsUp, ThumbsDown,
   Filter, Layers, Brain, Workflow, PieChart, Sigma, Loader2, RotateCcw
 } from 'lucide-react';
-import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi, resolutionsApi, workItemsApi, iterationsApi, tagsApi, symptomsApi, ticketSymptomsApi } from '@/shared/api/endpoints';
+import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi, resolutionsApi, workItemsApi, iterationsApi, tagsApi, symptomsApi, ticketSymptomsApi, ticketResolutionApi } from '@/shared/api/endpoints';
 import {
   TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, ApiError, EvidenceType, HypothesisStatus, RootCauseCategory,
   type TicketStatusValue, type TicketStatusName, type TicketAttachmentResponse,
@@ -40,7 +40,7 @@ import { tokenStore } from '@/shared/api/token-store';
 import { Portal } from '@/shared/ui/portal';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { RichEditor } from '@/shared/ui/rich-editor';
-import { MarkdownEditor, MarkdownContent } from '@/shared/ui/markdown-editor';
+import { MarkdownEditor, MarkdownContent, attachmentRef } from '@/shared/ui/markdown-editor';
 import { openIntelligenceModal } from './intelligence-modal';
 
 type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'investigation' | 'workItems' | 'attachments';
@@ -96,13 +96,25 @@ export function TicketDetail({ id }: { id: number }) {
     queryFn: () => ticketsApi.get(id),
   });
   const { data: sla } = useQuery({ queryKey: ['tickets', 'sla', id], queryFn: () => ticketsApi.getSla(id), enabled: !!ticket });
-  const users = useQuery({ queryKey: ['users', 'options'], queryFn: () => usersApi.list(1, 100) });
+  const users = useQuery({ queryKey: ['users', 'options', 100], queryFn: () => usersApi.list(1, 100) });
   const teams = useQuery({ queryKey: ['teams'], queryFn: () => teamsApi.list() });
 
-  const userOptions: ComboOption[] = (users.data?.items ?? []).map((u) => ({ id: u.id, label: u.name, hint: u.email }));
-  const userName = (uid: number | null) => (uid ? users.data?.items.find((u) => u.id === uid)?.name ?? tTicket('userFallback', { id: uid }) : '—');
-  const teamName = (tid: number | null) => (tid ? teams.data?.find((t) => t.id === tid)?.name ?? tTicket('teamFallback', { id: tid }) : '—');
-  const userEmail = (uid: number | null) => (uid ? users.data?.items.find((u) => u.id === uid)?.email ?? null : null);
+  const userOptions = useMemo<ComboOption[]>(
+    () => (users.data?.items ?? []).map((u) => ({ id: u.id, label: u.name, hint: u.email })),
+    [users.data],
+  );
+  const userName = useCallback(
+    (uid: number | null) => uid ? users.data?.items.find((u) => u.id === uid)?.name ?? tTicket('userFallback', { id: uid }) : '—',
+    [users.data, tTicket],
+  );
+  const teamName = useCallback(
+    (tid: number | null) => tid ? teams.data?.find((t) => t.id === tid)?.name ?? tTicket('teamFallback', { id: tid }) : '—',
+    [teams.data, tTicket],
+  );
+  const userEmail = useCallback(
+    (uid: number | null) => uid ? users.data?.items.find((u) => u.id === uid)?.email ?? null : null,
+    [users.data],
+  );
 
   const changeStatus = useMutation({
     mutationFn: (status: TicketStatusValue) => ticketsApi.changeStatus(id, status),
@@ -112,6 +124,14 @@ export function TicketDetail({ id }: { id: number }) {
     },
     onError: (err) => toast.error(apiErrorMessage(err, tTicket('statusError'))),
   });
+
+  const handleStatusChange = useCallback((v: TicketStatusValue) => {
+    if (v === TicketStatus.Resolved) {
+      setShowResolveModal(true);
+    } else {
+      changeStatus.mutate(v);
+    }
+  }, [changeStatus, setShowResolveModal]);
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState('');
@@ -130,18 +150,19 @@ export function TicketDetail({ id }: { id: number }) {
   });
 
   const uploadImage = useCallback(async (file: File): Promise<string> => {
-    // Upload to API (for attachments tab), but return base64 data URI so
-    // the editor can display the image without auth headers in <img src>.
-    ticketsApi.uploadAttachment(id, file).then(() => {
-      qc.invalidateQueries({ queryKey: ['tickets', 'detail', id] });
-    });
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    // Faz upload do anexo e devolve apenas uma referência curta `attachment:{id}`
+    // (estilo Azure DevOps). Assim o markdown não fica poluído com base64 gigante,
+    // e a imagem é resolvida com auth na hora de exibir (ver markdown-editor).
+    const att = await ticketsApi.uploadAttachment(id, file);
+    qc.invalidateQueries({ queryKey: ['tickets', 'detail', id] });
+    qc.invalidateQueries({ queryKey: ['tickets', 'attachments', id] });
+    return attachmentRef(att.id);
   }, [id, qc]);
+
+  const resolveUserTeam = useCallback(
+    (uid: number) => users.data?.items.find((u) => u.id === uid)?.teamId ?? null,
+    [users.data],
+  );
 
   if (isLoading) return <LoadingState label={tTicket('loading')} />;
   if (isError || !ticket)
@@ -200,17 +221,11 @@ export function TicketDetail({ id }: { id: number }) {
                 currentUserName={ticket.assignedUserId ? userName(ticket.assignedUserId) : null}
                 currentUserEmail={userEmail(ticket.assignedUserId)}
                 userOptions={userOptions}
-                resolveUserTeam={(uid) => users.data?.items.find((u) => u.id === uid)?.teamId ?? null}
+                resolveUserTeam={resolveUserTeam}
               />
             </Can>
             <Can permission="ticket.status">
-              <StatusPicker value={ticket.status} disabled={changeStatus.isPending} onChange={(v) => {
-                if (v === TicketStatus.Resolved) {
-                  setShowResolveModal(true);
-                } else {
-                  changeStatus.mutate(v);
-                }
-              }} />
+              <StatusPicker value={ticket.status} disabled={changeStatus.isPending} onChange={handleStatusChange} />
             </Can>
             <IterationControl ticketId={id} ticketTitle={ticket.title} ticketDescription={ticket.description ?? ''} currentIteration={ticket.iteration ?? null} currentIterationId={ticket.iterationId ?? null} />
             {ticket.status !== 'Resolved' && ticket.status !== 'Closed' && (
@@ -537,9 +552,9 @@ function StatusPicker({ value, onChange, disabled }: { value: TicketStatusName; 
   const options = [value, ...STATUS_TRANSITIONS[value]];
   return (
     <div className="relative">
-      <button type="button" onClick={() => setOpen((v) => !v)} disabled={disabled} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-panel px-2.5 text-sm hover:border-border-strong disabled:opacity-50">
+      <button type="button" onClick={() => { if (!disabled) setOpen((v) => !v); }} disabled={disabled} className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-panel px-2.5 text-sm hover:border-border-strong disabled:opacity-50">
         <StatusBadge status={value} />
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-dim" />
+        {disabled ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" /> : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-dim" />}
       </button>
       {open && (
         <>
@@ -700,8 +715,8 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
     queryFn: () => workItemsApi.byTicket(ticketId),
     retry: false,
   });
-  const users = useQuery({ queryKey: ['users', 'options'], queryFn: () => usersApi.list(1, 200) });
-  const userMap = new Map((users.data?.items ?? []).map(u => [u.id, u.name]));
+  const users = useQuery({ queryKey: ['users', 'options', 200], queryFn: () => usersApi.list(1, 200) });
+  const userMap = useMemo(() => new Map((users.data?.items ?? []).map(u => [u.id, u.name])), [users.data]);
 
   if (resolution.isLoading) {
     return (
@@ -897,7 +912,7 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
                       {wi.assignedToId && (
                         <span className="text-[10px] text-dim shrink-0">{userMap.get(wi.assignedToId) ?? ''}</span>
                       )}
-                      <span className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold', taskStatusColor(wi.status))}>
+                      <span className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold', taskStatusBadgeClass(wi.status))}>
                         {tWork(`status.${wi.status}` as 'status.Open')}
                       </span>
                     </div>
@@ -1053,10 +1068,27 @@ function RecommendationsPanel({ ticketId, onOpenIntelligence }: { ticketId: numb
   const qc = useQueryClient();
   const [handled, setHandled] = useState<Record<number, 'accepted' | 'ignored'>>({});
   const report = useQuery({ queryKey: ['tickets', 'intelligence', ticketId], queryFn: () => intelligenceApi.ticketReport(ticketId), retry: false });
-  const feedback = useMutation({
-    mutationFn: (v: { resolutionId: number; accepted: boolean }) => ticketsApi.recommendationFeedback(ticketId, { resolutionId: v.resolutionId, accepted: v.accepted, helpful: v.accepted }),
-    onSuccess: (_d, v) => { setHandled((h) => ({ ...h, [v.resolutionId]: v.accepted ? 'accepted' : 'ignored' })); qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] }); toast.success(v.accepted ? t('accepted') : t('ignored')); },
+
+  // Ignorar: apenas registra feedback negativo e some com o card.
+  const ignore = useMutation({
+    mutationFn: (resolutionId: number) => ticketsApi.recommendationFeedback(ticketId, { resolutionId, accepted: false, helpful: false }),
+    onSuccess: (_d, resolutionId) => { setHandled((h) => ({ ...h, [resolutionId]: 'ignored' })); toast.success(t('ignored')); },
     onError: (err) => toast.error(apiErrorMessage(err, t('analysisError'))),
+  });
+
+  // Aceitar (check): APLICA a solução de fato — resolve o ticket com a sugestão da IA —
+  // e registra feedback positivo para o aprendizado.
+  const apply = useMutation({
+    mutationFn: (r: { resolutionId: number; summary: string }) =>
+      ticketResolutionApi.resolveWithAi(ticketId, { rootCauseId: 0, summary: r.summary, resolutionSteps: '', notifyCustomer: true }),
+    onSuccess: (_d, r) => {
+      setHandled((h) => ({ ...h, [r.resolutionId]: 'accepted' }));
+      ticketsApi.recommendationFeedback(ticketId, { resolutionId: r.resolutionId, accepted: true, helpful: true }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+      qc.invalidateQueries({ queryKey: ['tickets'] });
+      toast.success(t('appliedSuccess'));
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, t('applyError'))),
   });
 
   const suggestions = (report.data?.resolutionSuggestions ?? []).slice(0, 3);
@@ -1080,12 +1112,21 @@ function RecommendationsPanel({ ticketId, onOpenIntelligence }: { ticketId: numb
               </div>
               {state ? (
                 <span className={cn('shrink-0 rounded px-2 py-0.5 text-xs font-semibold', state === 'accepted' ? 'bg-success/15 text-success' : 'bg-panel-2 text-dim')}>{state === 'accepted' ? t('accepted') : t('ignored')}</span>
-              ) : (
-                <div className="flex shrink-0 gap-1">
-                  <button type="button" onClick={() => feedback.mutate({ resolutionId: r.resolutionId, accepted: true })} disabled={feedback.isPending} className="grid h-7 w-7 place-items-center rounded-md text-success hover:bg-success/10" aria-label={t('accepted')}><Check className="h-4 w-4" /></button>
-                  <button type="button" onClick={() => feedback.mutate({ resolutionId: r.resolutionId, accepted: false })} disabled={feedback.isPending} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-panel-2" aria-label={t('ignored')}><X className="h-4 w-4" /></button>
-                </div>
-              )}
+              ) : (() => {
+                const applying = apply.isPending && apply.variables?.resolutionId === r.resolutionId;
+                const ignoring = ignore.isPending && ignore.variables === r.resolutionId;
+                const busy = apply.isPending || ignore.isPending;
+                return (
+                  <div className="flex shrink-0 gap-1">
+                    <button type="button" onClick={() => apply.mutate({ resolutionId: r.resolutionId, summary: r.summary })} disabled={busy} className="grid h-7 w-7 place-items-center rounded-md text-success hover:bg-success/10 disabled:opacity-50" aria-label={t('applySolution')} title={t('applySolution')}>
+                      {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    </button>
+                    <button type="button" onClick={() => ignore.mutate(r.resolutionId)} disabled={busy} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-panel-2 disabled:opacity-50" aria-label={t('ignored')} title={t('ignored')}>
+                      {ignoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
@@ -2188,13 +2229,13 @@ function AttachmentsTab({ ticketId, userName, investigations }: { ticketId: numb
     queryFn: () => ticketsApi.listAttachments(ticketId),
   });
 
-  const prevDataRef = useRef<typeof data | null>(null);
-  if (data && data !== prevDataRef.current) {
-    (prevDataRef as { current: typeof data | null }).current = data;
+  useEffect(() => {
+    if (!data) return;
     data.forEach((a) => {
       if (isImage(a.contentType)) loadThumbnail(a);
     });
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const upload = useMutation({
     mutationFn: async (files: File[]) => {
@@ -2335,26 +2376,30 @@ function AttachmentsTab({ ticketId, userName, investigations }: { ticketId: numb
                 <h3 className="text-xs font-semibold text-text">{t('evidenceSection')}</h3>
                 <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">{allEvidences.length}</span>
               </div>
-              <div className="flex flex-col gap-2">
-                {investigations.map((inv) =>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {investigations.flatMap((inv) =>
                   inv.evidences.filter(ev => ev.filePath).map((ev) => {
                     const fileName = ev.filePath?.split('/').pop() ?? ev.filePath ?? `Evidence ${ev.type}`;
+                    const displayName = ev.notes || fileName;
+                    const invLabel = inv.summary ? inv.summary.slice(0, 24) + (inv.summary.length > 24 ? '…' : '') : `Inv. #${inv.id}`;
                     return (
-                      <div key={ev.id} className="card-surface flex items-center gap-2.5 px-3 py-2 border-l-2 border-l-purple-400">
-                        <div className="shrink-0 grid h-7 w-7 place-items-center rounded-md bg-purple-50 dark:bg-purple-900/30">
-                          <FileText className="h-3.5 w-3.5 text-purple-600" />
+                      <div key={ev.id} className="card-surface overflow-hidden">
+                        <div className="flex items-center justify-center h-28 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-200/50 dark:border-purple-800/40">
+                          <div className="flex flex-col items-center gap-1.5 text-purple-500">
+                            <FlaskConical className="h-7 w-7 opacity-60" />
+                            <span className="text-[9px] font-semibold uppercase tracking-wide opacity-70">{ev.type}</span>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[11px] font-medium truncate">{ev.notes || fileName}</p>
+                        <div className="px-2.5 py-2 flex flex-col gap-1">
+                          <p className="truncate text-[11px] font-medium leading-tight" title={displayName}>{displayName}</p>
                           <p className="text-[9px] text-dim">
-                            {ev.type}
-                            {ev.fileSize > 0 ? ` · ${fmtSize(ev.fileSize)}` : ''}
+                            {ev.fileSize > 0 ? fmtSize(ev.fileSize) : '—'}
                             {ev.createdAt ? ` · ${formatDateTime(ev.createdAt, { locale, timeZone })}` : ''}
                           </p>
+                          <span className="inline-flex w-fit items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[9px] font-semibold text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                            <FlaskConical className="h-2.5 w-2.5" />{invLabel}
+                          </span>
                         </div>
-                        <span className="shrink-0 rounded-full bg-purple-100 px-2 py-0.5 text-[9px] font-semibold text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
-                          {inv.summary ? inv.summary.slice(0, 20) + (inv.summary.length > 20 ? '…' : '') : `Inv. #${inv.id}`}
-                        </span>
                       </div>
                     );
                   })
@@ -2420,12 +2465,8 @@ function EvidenceFileUpload({ investigationId, ticketId, evType, onDone }: { inv
     if (file.size > MAX_FILE_SIZE) { toast.error(`Max ${fmtSize(MAX_FILE_SIZE)}`); return; }
     setUploading(true);
     try {
-      await Promise.all([
-        investigationsApi.uploadEvidence(investigationId, file, String(evType)),
-        ticketsApi.uploadAttachment(ticketId, file),
-      ]);
+      await investigationsApi.uploadEvidence(investigationId, file, String(evType));
       qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
-      qc.invalidateQueries({ queryKey: ['tickets', 'attachments', ticketId] });
       onDone();
       toast.success(t('evidenceAdded'));
     } catch (err) {
@@ -3314,36 +3355,56 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
 /* ================================================================
    TASKS TAB (Work Items)
    ================================================================ */
-const TASK_STATUSES = ['Backlog', 'InProgress', 'Done', 'Cancelled'] as const;
-
-function taskStatusColor(s: string) {
-  switch (s) {
-    case 'Backlog': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
-    case 'InProgress': return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
-    case 'Done': return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
-    case 'Cancelled': return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
-    default: return 'bg-gray-500/10 text-gray-600 border-gray-500/20';
-  }
-}
-
-function taskStatusIcon(s: string) {
-  switch (s) {
-    case 'Done': return <Check className="h-3.5 w-3.5 text-emerald-600" />;
-    case 'InProgress': return <Loader2 className="h-3.5 w-3.5 text-amber-600 animate-spin" />;
-    case 'Cancelled': return <X className="h-3.5 w-3.5 text-slate-400" />;
-    default: return <div className="h-3.5 w-3.5 rounded-full border-2 border-blue-400" />;
-  }
-}
-
 /** Strip HTML tags to check if rich-editor has actual visible text */
 function hasEditorContent(html: string) {
   return html.replace(/<[^>]*>/g, '').trim().length > 0;
 }
 
+const TASK_STATUS_OPTIONS = [
+  { value: 'Backlog',    label: 'Backlog' },
+  { value: 'InProgress', label: 'Em Progresso' },
+  { value: 'Done',       label: 'Concluído' },
+  { value: 'Cancelled',  label: 'Cancelado' },
+] as const;
+
+type TaskStatus = typeof TASK_STATUS_OPTIONS[number]['value'];
+
+/** Ordem das colunas/grupos na lista de tasks. */
+const TASK_STATUS_ORDER: TaskStatus[] = ['InProgress', 'Backlog', 'Done', 'Cancelled'];
+const TASK_STATUS_LABELS: Record<string, string> = Object.fromEntries(
+  TASK_STATUS_OPTIONS.map((o) => [o.value, o.label]),
+);
+const TASK_STATUS_SELECT = TASK_STATUS_OPTIONS as unknown as Array<{ value: string; label: string }>;
+
+function taskStatusBadgeClass(s: string): string {
+  switch (s) {
+    case 'InProgress': return 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400';
+    case 'Done':       return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-400';
+    case 'Cancelled':  return 'bg-red-500/10 text-red-600 border-red-500/30 dark:text-red-400';
+    default:           return 'bg-slate-500/10 text-slate-600 border-slate-300 dark:text-slate-400 dark:border-slate-600';
+  }
+}
+
+function taskStatusDotClass(s: string): string {
+  switch (s) {
+    case 'InProgress': return 'bg-amber-500';
+    case 'Done':       return 'bg-emerald-500';
+    case 'Cancelled':  return 'bg-red-500';
+    default:           return 'bg-slate-400';
+  }
+}
+
+function TaskStatusBadge({ status }: { status: string }) {
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold', taskStatusBadgeClass(status))}>
+      <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', taskStatusDotClass(status))} />
+      {status}
+    </span>
+  );
+}
+
 function WorkItemsTab({ ticketId }: { ticketId: number }) {
   const t = useTranslations('workItems');
-  const locale = useLocale() as Locale;
-  const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const qc = useQueryClient();
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -3364,10 +3425,17 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
     queryFn: () => workItemsApi.byTicket(ticketId),
     retry: false,
   });
-  const users = useQuery({ queryKey: ['users', 'options'], queryFn: () => usersApi.list(1, 200) });
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['workitems', ticketId] });
-  const userOptions: ComboOption[] = (users.data?.items ?? []).map(u => ({ id: u.id, label: u.name, hint: u.email }));
-  const userMap = new Map((users.data?.items ?? []).map(u => [u.id, u.name]));
+  const users = useQuery({ queryKey: ['users', 'options', 200], queryFn: () => usersApi.list(1, 200) });
+  const invalidate = useCallback(() => qc.invalidateQueries({ queryKey: ['workitems', ticketId] }), [qc, ticketId]);
+
+  const userOptions = useMemo<ComboOption[]>(
+    () => (users.data?.items ?? []).map(u => ({ id: u.id, label: u.name, hint: u.email })),
+    [users.data],
+  );
+  const userMap = useMemo(
+    () => new Map((users.data?.items ?? []).map(u => [u.id, u.name])),
+    [users.data],
+  );
 
   const create = useMutation({
     mutationFn: () => workItemsApi.create(ticketId, { title: newTitle.trim(), technicalDescription: newDesc || undefined }),
@@ -3397,20 +3465,35 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
     onError: (err) => toast.error(apiErrorMessage(err, t('saveError'))),
   });
 
-  const allItems = list.data ?? [];
-  const doneCount = allItems.filter(i => i.status === 'Done').length;
+  const allItems = useMemo(() => list.data ?? [], [list.data]);
+  const doneCount = useMemo(() => allItems.filter(i => i.status === 'Done').length, [allItems]);
   const totalCount = allItems.length;
   const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
-  // Use pendingNew as fallback while the refetch hasn't returned the newly created item yet
   const selected = allItems.find(i => i.id === selectedId) ?? (pendingNew?.id === selectedId ? pendingNew : null);
 
+  /** Tasks agrupadas por status, na ordem das colunas. */
+  const groups = useMemo(() => {
+    const byStatus = new Map<string, EngineeringWorkItemResponse[]>();
+    for (const it of allItems) {
+      const arr = byStatus.get(it.status) ?? [];
+      arr.push(it);
+      byStatus.set(it.status, arr);
+    }
+    return TASK_STATUS_ORDER
+      .map((status) => ({ status, items: byStatus.get(status) ?? [] }))
+      .filter((g) => g.items.length > 0);
+  }, [allItems]);
+
+  const uploadTaskImage = useCallback(async (file: File): Promise<string> => {
+    const att = await ticketsApi.uploadAttachment(ticketId, file);
+    qc.invalidateQueries({ queryKey: ['tickets', 'attachments', ticketId] });
+    return attachmentRef(att.id);
+  }, [ticketId, qc]);
+
   const parseLogTime = (val: string) => {
-    const parts = val.split(':');
-    const h = parseInt(parts[0]) || 0;
-    const m = parseInt(parts[1]) || 0;
+    const [h, m] = val.split(':').map(n => parseInt(n) || 0);
     return h * 60 + m;
   };
-
   const logDuration = parseLogTime(logTimeInput);
 
   const logWorkItem = useMutation({
@@ -3429,71 +3512,59 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
     onError: (err) => toast.error(apiErrorMessage(err, t('logError'))),
   });
 
-  const selectTask = (task: typeof allItems[number]) => {
+  const selectTask = useCallback((task: typeof allItems[number]) => {
     setSelectedId(task.id);
     setEditDesc(task.technicalDescription ?? '');
     setEditAssignee(task.assignedToId ?? null);
     setLogTimeInput('0:00');
     setLogDesc('');
-  };
-
-  const handleSave = () => {
-    if (!selected) return;
-    updateItem.mutate({
-      id: selected.id,
-      body: {
-        technicalDescription: editDesc,
-        assignedToId: editAssignee,
-      },
-    });
-  };
+  }, []);
 
   const handleFileUpload = async (files: FileList | File[]) => {
     const arr = Array.from(files);
     if (!arr.length) return;
     setUploadingFile(true);
     try {
-      for (const file of arr) {
-        await ticketsApi.uploadAttachment(ticketId, file);
-      }
+      for (const file of arr) await ticketsApi.uploadAttachment(ticketId, file);
       qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
       toast.success(t('attachUploaded'));
-    } catch (err) {
-      toast.error(t('attachError'));
-    } finally {
-      setUploadingFile(false);
-    }
+    } catch { toast.error(t('attachError')); }
+    finally { setUploadingFile(false); }
   };
 
   const canCreate = newTitle.trim().length > 0 && hasEditorContent(newDesc);
   const rightMode: 'empty' | 'create' | 'detail' = selected ? 'detail' : creating ? 'create' : 'empty';
+  const hasRight = rightMode !== 'empty';
 
   return (
-    <div className="flex h-full" style={{ minHeight: 520 }}>
+    <div className="flex h-full min-h-[520px]">
 
       {/* ══ LEFT: lista ══ */}
-      <div className={cn('flex flex-col border-r border-border', rightMode !== 'empty' ? 'w-[280px] shrink-0' : 'flex-1')}>
+      <div className={cn('flex flex-col border-r border-border', hasRight ? 'w-96 shrink-0' : 'flex-1')}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-lg py-md border-b border-border shrink-0">
-          <div className="flex items-center gap-sm">
-            <span className="text-sm font-semibold text-text">Tasks</span>
+        {/* Cabeçalho */}
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-bg-subtle/40 px-4 py-3 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <ListChecks className="h-4 w-4 shrink-0 text-primary" />
+            <span className="text-sm font-semibold text-text">{t('tabLabel')}</span>
             {totalCount > 0 && (
               <>
-                <div className="w-16 h-1 overflow-hidden rounded-full bg-panel-2">
-                  <div className={cn('h-full rounded-full transition-all', progress === 100 ? 'bg-emerald-500' : 'bg-primary')} style={{ width: `${progress}%` }} />
+                <span className="shrink-0 rounded-full bg-panel-2 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-dim">
+                  {doneCount}/{totalCount}
+                </span>
+                <div className="relative h-1 w-16 shrink-0 overflow-hidden rounded-full bg-border">
+                  <div
+                    className={cn('absolute inset-y-0 left-0 rounded-full transition-all duration-500', progress === 100 ? 'bg-emerald-500' : 'bg-primary')}
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
-                <span className="text-xs text-dim tabular-nums">{doneCount}/{totalCount}</span>
               </>
             )}
           </div>
           <Can permission="ticket.update">
-            <Button
-              size="sm"
-              variant={creating && !selected ? 'primary' : 'secondary'}
-              onClick={() => { setCreating(true); setSelectedId(null); }}
-            >
-              <Plus className="h-3.5 w-3.5" />Nova task
+            <Button size="sm" variant={creating && !selected ? 'primary' : 'secondary'}
+              onClick={() => { setCreating(true); setSelectedId(null); }}>
+              <Plus className="h-3.5 w-3.5" />{t('newTask')}
             </Button>
           </Can>
         </div>
@@ -3501,58 +3572,104 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
         {/* Lista */}
         <div className="flex-1 overflow-y-auto">
           {list.isLoading ? (
-            <div className="flex items-center justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-dim" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-dim" /></div>
           ) : allItems.length === 0 ? (
-            <div className="flex flex-col items-center gap-sm py-10 px-lg text-center">
-              <ListChecks className="h-8 w-8 text-dim opacity-30" />
+            <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+              <ListChecks className="h-8 w-8 text-dim opacity-20" />
               <p className="text-sm font-medium text-text">{t('empty')}</p>
               <p className="text-xs text-dim">{t('emptyHint')}</p>
             </div>
-          ) : allItems.map((task) => {
-            const assigneeName = task.assignedToId ? userMap.get(task.assignedToId) : null;
-            const initials = assigneeName ? assigneeName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() : null;
-            const isSel = selectedId === task.id;
-            return (
-              <div
-                key={task.id}
-                onClick={() => { selectTask(task); setCreating(false); }}
-                className={cn(
-                  'group flex items-center gap-sm px-lg py-md cursor-pointer border-b border-border/40 transition-colors',
-                  isSel ? 'bg-primary/8 border-l-2 border-l-primary' : 'border-l-2 border-l-transparent hover:bg-panel-2/60',
-                )}
-              >
-                <button type="button" onClick={(e) => { e.stopPropagation(); updateStatus.mutate({ id: task.id, status: task.status === 'Done' ? 'Backlog' : 'Done' }); }} className="shrink-0">
-                  {taskStatusIcon(task.status)}
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p className={cn('text-sm truncate', task.status === 'Done' && 'line-through text-dim')}>{task.title}</p>
-                  {assigneeName && <p className="text-xs text-dim truncate mt-px">{assigneeName}</p>}
-                </div>
-                {initials && (
-                  <span className="h-6 w-6 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">
-                    {initials}
-                  </span>
-                )}
-              </div>
-            );
-          })}
+          ) : (
+            <div className="flex flex-col">
+              {groups.map((group) => (
+                <section key={group.status}>
+                  {/* Cabeçalho do grupo de status */}
+                  <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/60 bg-bg-subtle/80 px-4 py-2 backdrop-blur-sm">
+                    <span className={cn('h-2 w-2 rounded-full shrink-0', taskStatusDotClass(group.status))} />
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-dim">
+                      {TASK_STATUS_LABELS[group.status] ?? group.status}
+                    </span>
+                    <span className="ml-auto rounded-full bg-panel-2 px-1.5 text-[10px] font-semibold tabular-nums text-dim">
+                      {group.items.length}
+                    </span>
+                  </div>
+
+                  <ul className="divide-y divide-border/40">
+                    {group.items.map((task) => {
+                      const assigneeName = task.assignedToId ? userMap.get(task.assignedToId) : null;
+                      const initials = assigneeName
+                        ? assigneeName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+                        : null;
+                      const isSel = selectedId === task.id;
+                      const isDone = task.status === 'Done';
+                      const isSaving = updateStatus.isPending && updateStatus.variables?.id === task.id;
+                      return (
+                        <li key={task.id}>
+                          <button
+                            type="button"
+                            onClick={() => { selectTask(task); setCreating(false); }}
+                            className={cn(
+                              'group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors',
+                              isSel ? 'bg-primary/8 border-l-2 border-l-primary' : 'border-l-2 border-l-transparent hover:bg-panel-2/50',
+                            )}
+                          >
+                            {/* toggle done */}
+                            <span
+                              role="button"
+                              tabIndex={-1}
+                              onClick={(e) => { e.stopPropagation(); if (!isSaving) updateStatus.mutate({ id: task.id, status: isDone ? 'Backlog' : 'Done' }); }}
+                              className={cn(
+                                'grid h-4 w-4 shrink-0 place-items-center rounded-sm border transition-colors',
+                                isDone ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-border bg-panel group-hover:border-border-strong',
+                              )}
+                            >
+                              {isSaving ? <Loader2 className="h-2.5 w-2.5 animate-spin text-primary" /> : isDone && <Check className="h-2.5 w-2.5" />}
+                            </span>
+
+                            <p className={cn('min-w-0 flex-1 truncate text-sm', isDone ? 'text-dim line-through' : 'text-text')}>
+                              {task.title}
+                            </p>
+
+                            {initials ? (
+                              <span
+                                title={assigneeName ?? undefined}
+                                className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/15 text-[10px] font-bold text-primary"
+                              >
+                                {initials}
+                              </span>
+                            ) : (
+                              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-dashed border-border text-dim">
+                                <User className="h-3 w-3" />
+                              </span>
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ══ RIGHT: create form ou detalhe ══ */}
+      {/* ══ RIGHT: formulário de criação ══ */}
       {rightMode === 'create' && (
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-lg py-md border-b border-border shrink-0">
-            <span className="text-sm font-semibold text-text">Nova task</span>
-            <button type="button" onClick={() => setCreating(false)} className="grid h-7 w-7 place-items-center rounded text-dim hover:text-text hover:bg-panel-2 transition-colors">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border bg-bg-subtle/40 px-5 py-3 shrink-0">
+            <span className="text-sm font-semibold text-text">{t('newTask')}</span>
+            <button type="button" onClick={() => { setCreating(false); setNewTitle(''); setNewDesc(''); }}
+              className="grid h-7 w-7 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text">
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="flex flex-1 flex-col gap-md overflow-auto p-lg">
-            <label className="flex flex-col gap-1.5 text-sm font-medium">
-              {t('titleLabel')} <span className="text-danger font-normal">*</span>
+
+          <div className="flex flex-1 flex-col gap-4 overflow-auto p-5">
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
+              {t('titleLabel')} <span className="text-danger">*</span>
               <input
-                className={FIELD_SM + ' w-full'}
+                className={FIELD_MD + ' text-sm'}
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder={t('titlePh')}
@@ -3560,12 +3677,13 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
                 onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
               />
             </label>
-            <label className="flex flex-col gap-1.5 text-sm font-medium">
-              {t('descriptionLabel')} <span className="text-danger font-normal">*</span>
-              <MarkdownEditor value={newDesc} onChange={setNewDesc} placeholder={t('descriptionPh')} minHeight="160px" />
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
+              {t('descriptionLabel')} <span className="text-danger">*</span>
+              <MarkdownEditor value={newDesc} onChange={setNewDesc} placeholder={t('descriptionPh')} minHeight="200px" onImagePaste={uploadTaskImage} />
             </label>
           </div>
-          <div className="flex shrink-0 justify-end gap-sm border-t border-border bg-panel p-md">
+
+          <div className="flex shrink-0 justify-end gap-2 border-t border-border bg-panel/60 px-5 py-3">
             <Button variant="secondary" onClick={() => { setCreating(false); setNewTitle(''); setNewDesc(''); }}>{t('close')}</Button>
             <Button disabled={!canCreate} loading={create.isPending} onClick={() => create.mutate()}>
               <Plus className="h-4 w-4" />{t('create')}
@@ -3574,99 +3692,122 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
         </div>
       )}
 
+      {/* ══ RIGHT: detalhe da task ══ */}
       {rightMode === 'detail' && selected && (
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-          <div className="flex items-center gap-sm px-lg py-md border-b border-border shrink-0">
-            <div className="flex items-center gap-sm flex-1 min-w-0">
-              {taskStatusIcon(selected.status)}
-              <h3 className="text-sm font-semibold text-text truncate">{selected.title}</h3>
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {/* Header */}
+          <div className="flex items-start gap-3 border-b border-border bg-bg-subtle/40 px-5 py-3.5 shrink-0">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-text leading-snug">{selected.title}</p>
+              <div className="mt-1.5"><TaskStatusBadge status={selected.status} /></div>
             </div>
-            <button type="button" onClick={() => setSelectedId(null)} className="grid h-7 w-7 shrink-0 place-items-center rounded text-dim hover:text-text hover:bg-panel-2 transition-colors">
+            <button type="button" onClick={() => setSelectedId(null)}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text">
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="flex flex-1 flex-col gap-md overflow-auto p-lg">
-            <div className="flex flex-col gap-1.5 text-sm font-medium">
-              Status
-              <div className="flex flex-wrap gap-sm">
-                {TASK_STATUSES.map((s) => (
-                  <button
-                    key={s} type="button"
-                    onClick={() => updateStatus.mutate({ id: selected.id, status: s })}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-all',
-                      selected.status === s ? taskStatusColor(s) : 'border-border text-dim hover:bg-panel-2 hover:text-text',
-                    )}
-                  >
-                    {taskStatusIcon(s)}
-                    {t(`status.${s}` as 'status.Open')}
-                  </button>
-                ))}
-              </div>
+          <div className="flex flex-1 flex-col gap-5 overflow-auto p-5">
+            {/* Status — Select */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-dim">Status</label>
+              <Select<string>
+                options={TASK_STATUS_SELECT}
+                value={selected.status}
+                onChange={(s) => updateStatus.mutate({ id: selected.id, status: s })}
+                loading={updateStatus.isPending}
+              />
             </div>
 
-            <div className="flex flex-col gap-1.5 text-sm font-medium">
-              {t('assignee')}
-              <AsyncCombobox options={userOptions} value={editAssignee} onChange={setEditAssignee} placeholder={t('unassigned')} allowClear />
+            {/* Responsável */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-dim">{t('assignee')}</label>
+              <AsyncCombobox
+                options={userOptions}
+                value={editAssignee}
+                onChange={(v) => { setEditAssignee(v); updateItem.mutate({ id: selected.id, body: { assignedToId: v } }); }}
+                placeholder={t('unassigned')}
+                allowClear
+              />
             </div>
 
-            <div className="flex flex-col gap-1.5 text-sm font-medium">
-              {t('descriptionLabel')}
-              <MarkdownEditor value={editDesc} onChange={setEditDesc} placeholder={t('descriptionPh')} minHeight="150px" />
+            {/* Descrição */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-dim">{t('descriptionLabel')}</label>
+              <MarkdownEditor
+                value={editDesc}
+                onChange={setEditDesc}
+                placeholder={t('descriptionPh')}
+                minHeight="150px"
+                onImagePaste={uploadTaskImage}
+                onBlur={() => { if (editDesc !== (selected.technicalDescription ?? '')) updateItem.mutate({ id: selected.id, body: { technicalDescription: editDesc } }); }}
+              />
             </div>
 
-            <div className="flex flex-col gap-1.5 text-sm font-medium">
-              {t('logTime')}
-              <div className="flex flex-col gap-sm">
+            {/* Registrar tempo */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-dim">{t('logTime')}</label>
+              <div className="rounded-lg border border-border bg-panel/60 p-3 flex flex-col gap-2">
                 <Select value={logType} onChange={setLogType} options={worklogTypes} />
                 <input className={FIELD_SM + ' w-full'} value={logDesc} onChange={(e) => setLogDesc(e.target.value)} placeholder={t('logDescPh')} />
-                <div className="flex items-center gap-sm">
-                  <button type="button" onClick={() => { const m = Math.max(0, logDuration - 15); setLogTimeInput(`${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`); }} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border bg-panel hover:bg-panel-2 text-dim transition-colors">
-                    <Minus className="h-4 w-4" />
+                <div className="flex items-center gap-2">
+                  <button type="button"
+                    onClick={() => { const m = Math.max(0, logDuration - 15); setLogTimeInput(`${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`); }}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded border border-border bg-panel-2 text-dim hover:bg-panel transition-colors">
+                    <Minus className="h-3.5 w-3.5" />
                   </button>
                   <input
-                    className={FIELD_SM + ' flex-1 text-center font-semibold tabular-nums'}
+                    className={FIELD_SM + ' flex-1 text-center font-mono tabular-nums'}
                     value={logTimeInput}
                     onChange={(e) => setLogTimeInput(e.target.value.replace(/[^0-9:]/g, ''))}
                     onBlur={() => { const p = logTimeInput.split(':'); if (p.length !== 2 || isNaN(+p[0]) || isNaN(+p[1])) setLogTimeInput('0:00'); }}
                     placeholder="0:00"
                   />
-                  <button type="button" onClick={() => { const m = logDuration + 15; setLogTimeInput(`${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`); }} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border bg-panel hover:bg-panel-2 text-dim transition-colors">
-                    <Plus className="h-4 w-4" />
+                  <button type="button"
+                    onClick={() => { const m = logDuration + 15; setLogTimeInput(`${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`); }}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded border border-border bg-panel-2 text-dim hover:bg-panel transition-colors">
+                    <Plus className="h-3.5 w-3.5" />
                   </button>
-                  <Button disabled={logDuration === 0} loading={logWorkItem.isPending} onClick={() => logWorkItem.mutate()} variant="secondary">
-                    <Clock className="h-4 w-4" />{t('log')}
+                  <Button size="sm" variant="secondary" disabled={logDuration === 0} loading={logWorkItem.isPending} onClick={() => logWorkItem.mutate()}>
+                    <Clock className="h-3.5 w-3.5" />{t('log')}
                   </Button>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5 text-sm font-medium">
-              {t('attachments')}
-              <label
-                className={cn('flex flex-col items-center justify-center gap-sm rounded-lg border-2 border-dashed py-6 cursor-pointer transition-colors', uploadingFile ? 'opacity-50 pointer-events-none' : 'hover:border-primary/50 hover:bg-primary/5')}
+            {/* Anexos */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-dim">{t('attachments')}</label>
+              <label className={cn(
+                'flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed py-4 transition-colors',
+                uploadingFile ? 'pointer-events-none opacity-50' : 'border-border hover:border-primary/50 hover:bg-primary/5',
+              )}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files); }}
               >
                 {uploadingFile ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <UploadCloud className="h-5 w-5 text-dim" />}
-                <span className="text-sm text-dim">{uploadingFile ? t('uploading') : t('dropFiles')}</span>
-                <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => { if (e.target.files) { handleFileUpload(e.target.files); e.target.value = ''; } }} />
+                <span className="text-xs text-dim">{uploadingFile ? t('uploading') : t('dropFiles')}</span>
+                <input ref={fileInputRef} type="file" multiple className="hidden"
+                  onChange={(e) => { if (e.target.files) { handleFileUpload(e.target.files); e.target.value = ''; } }} />
               </label>
             </div>
           </div>
 
-          <div className="flex shrink-0 justify-end gap-sm border-t border-border bg-panel p-md">
-            <Button variant="secondary" onClick={() => setSelectedId(null)}>{t('close')}</Button>
-            <Button onClick={handleSave} loading={updateItem.isPending}>{t('save')}</Button>
+          <div className="flex shrink-0 items-center gap-1.5 border-t border-border bg-panel/60 px-5 py-2.5 text-[11px] text-dim">
+            {updateItem.isPending ? (
+              <><Loader2 className="h-3 w-3 animate-spin" /> {t('saving')}</>
+            ) : (
+              <><Check className="h-3 w-3 text-emerald-500" /> {t('autoSaved')}</>
+            )}
           </div>
         </div>
       )}
 
+      {/* ══ RIGHT: vazio ══ */}
       {rightMode === 'empty' && (
-        <div className="flex-1 hidden md:flex flex-col items-center justify-center gap-sm text-dim">
-          <ListChecks className="h-10 w-10 opacity-20" />
-          <p className="text-sm">{t('taskDetail')}</p>
+        <div className="hidden flex-1 flex-col items-center justify-center gap-2 text-dim md:flex">
+          <ListChecks className="h-8 w-8 opacity-20" />
+          <p className="text-sm">{t('selectTask')}</p>
         </div>
       )}
     </div>
@@ -3699,7 +3840,7 @@ function Conversation({ ticketId, comments, userName, locale, timeZone, onImageP
   };
 
   const ini = (name: string) => name.split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
-  const timeFmt = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone });
+  const timeFmt = useMemo(() => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone }), [locale, timeZone]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -3751,7 +3892,7 @@ function Conversation({ ticketId, comments, userName, locale, timeZone, onImageP
                   {time && <span className="text-[10px] text-dim ml-auto">{time}</span>}
                 </div>
                 <div className="rounded-xl rounded-tl-none border border-warning/30 bg-warning/5 px-4 py-3">
-                  <MarkdownContent content={c.message} />
+                  <MarkdownContent content={c.message} imageAsChip />
                 </div>
               </div>
             </div>
@@ -3768,7 +3909,7 @@ function Conversation({ ticketId, comments, userName, locale, timeZone, onImageP
                   <span className="text-xs font-semibold text-text">{name}</span>
                 </div>
                 <div className="max-w-[80%] rounded-xl rounded-tr-none border border-primary/20 bg-primary/10 px-4 py-3">
-                  <MarkdownContent content={c.message} />
+                  <MarkdownContent content={c.message} imageAsChip />
                 </div>
               </div>
             </div>
@@ -3785,7 +3926,7 @@ function Conversation({ ticketId, comments, userName, locale, timeZone, onImageP
                   {time && <span className="text-[10px] text-dim">{time}</span>}
                 </div>
                 <div className="max-w-[80%] rounded-xl rounded-tl-none border border-border bg-panel px-4 py-3">
-                  <MarkdownContent content={c.message} />
+                  <MarkdownContent content={c.message} imageAsChip />
                 </div>
               </div>
             </div>

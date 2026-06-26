@@ -1,21 +1,91 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Bold, Code, Eye, Hash, ImageIcon, Italic,
-  Link as LinkIcon, List, AtSign, Pencil, Quote, X,
+  Link as LinkIcon, List, AtSign, Pencil, Quote, X, Loader2,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { Portal } from '@/shared/ui/portal';
+import { tokenStore } from '@/shared/api/token-store';
+import { ticketsApi } from '@/shared/api/endpoints';
 
 const MarkdownPreview = dynamic(() => import('@uiw/react-markdown-preview'), { ssr: false });
+
+/**
+ * Referência de anexo embutida no markdown. Em vez de gravar o base64 inteiro
+ * dentro do texto (que polui o editor e trava a tela), gravamos apenas
+ * `attachment:{id}` — curto e legível, no estilo do Azure DevOps. A imagem real
+ * é buscada com o token de autenticação na hora de exibir.
+ */
+const ATTACHMENT_REF = /^attachment:(\d+)$/;
+
+export function attachmentRef(id: number): string {
+  return `attachment:${id}`;
+}
+
+async function fetchAttachmentBlob(id: number): Promise<string> {
+  const token = tokenStore.getAccessToken();
+  const res = await fetch(ticketsApi.downloadAttachmentUrl(id), {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return URL.createObjectURL(await res.blob());
+}
+
+/** Hook: resolve um src de imagem para uma URL exibível (com auth se for anexo). */
+function useResolvedImageSrc(src: string | undefined, enabled = true): { url: string | null; loading: boolean; failed: boolean } {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!src || !enabled) return;
+    const m = src.match(ATTACHMENT_REF);
+    if (!m) { setUrl(src); return; }
+    let active = true;
+    let objectUrl: string | null = null;
+    setLoading(true);
+    fetchAttachmentBlob(Number(m[1]))
+      .then((u) => { if (active) { objectUrl = u; setUrl(u); } })
+      .catch(() => { if (active) setFailed(true); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [src, enabled]);
+
+  return { url, loading, failed };
+}
+
+// ─── Imagem inline (resolve anexos com auth) ─────────────────────────────────
+function AuthedImage({ src, alt }: { src?: string; alt?: string }) {
+  const { url, failed } = useResolvedImageSrc(src);
+  if (!src) return null;
+  if (failed) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-lg border border-danger/30 bg-danger/5 px-2.5 py-1 text-xs text-danger my-1">
+        <ImageIcon className="h-3 w-3" /> {alt || 'imagem'} (indisponível)
+      </span>
+    );
+  }
+  if (!url) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs text-dim my-1">
+        <Loader2 className="h-3 w-3 animate-spin" /> carregando imagem…
+      </span>
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={url} alt={alt || 'imagem'} className="max-w-full rounded-lg border border-border my-2" />;
+}
 
 // ─── Chip de imagem: aparece no lugar da imagem nos comentários ───────────────
 function ImageChip({ src, alt }: { src?: string; alt?: string }) {
   const [open, setOpen] = useState(false);
+  const { url, loading, failed } = useResolvedImageSrc(src, open);
   if (!src) return null;
-  const label = alt || src.split('/').pop()?.split('?')[0] || 'Imagem';
+  const isAttachment = ATTACHMENT_REF.test(src);
+  const label = alt || (isAttachment ? 'Imagem' : src.split('/').pop()?.split('?')[0]) || 'Imagem';
   return (
     <>
       <button
@@ -40,12 +110,20 @@ function ImageChip({ src, alt }: { src?: string; alt?: string }) {
               >
                 <X className="h-4 w-4" />
               </button>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt={alt || 'Imagem'}
-                className="max-w-full max-h-[80vh] rounded-xl object-contain shadow-2xl"
-              />
+              {failed ? (
+                <div className="rounded-xl bg-panel px-6 py-8 text-sm text-danger">Imagem indisponível</div>
+              ) : !url || loading ? (
+                <div className="flex items-center gap-2 rounded-xl bg-panel px-6 py-8 text-sm text-dim">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+                </div>
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={url}
+                  alt={alt || 'Imagem'}
+                  className="max-w-full max-h-[80vh] rounded-xl object-contain shadow-2xl"
+                />
+              )}
             </div>
           </div>
         </Portal>
@@ -54,7 +132,12 @@ function ImageChip({ src, alt }: { src?: string; alt?: string }) {
   );
 }
 
-// Componentes para substituir imagens por chips no preview de comentários
+// Imagens resolvidas com auth (modo leitura/preview padrão)
+const IMAGE_COMPONENTS = {
+  img: ({ src, alt }: { src?: string; alt?: string }) => <AuthedImage src={src} alt={alt} />,
+};
+
+// Imagens como chips clicáveis (comentários/conversas)
 const IMAGE_AS_CHIP_COMPONENTS = {
   img: ({ src, alt }: { src?: string; alt?: string }) => <ImageChip src={src} alt={alt} />,
 };
@@ -137,6 +220,7 @@ function EditorPreview({ value, minHeight }: { value: string; minHeight: string 
         source={value}
         style={{ background: 'transparent', color: 'inherit', fontSize: '0.875rem' }}
         wrapperElement={{ 'data-color-mode': 'auto' } as React.HTMLAttributes<HTMLDivElement>}
+        components={IMAGE_COMPONENTS}
       />
     </div>
   );
@@ -156,20 +240,50 @@ interface MarkdownEditorProps {
   className?: string;
   /** Modo compacto: esconde o botão "Dividido" e usa write por padrão */
   compact?: boolean;
+  /** Disparado quando o textarea perde o foco (útil para auto-save). */
+  onBlur?: () => void;
 }
 
 export function MarkdownEditor({
   value, onChange, placeholder, onImagePaste,
   onMentionSearch, onTicketSearch,
-  minHeight = '120px', className, compact = false,
+  minHeight = '120px', className, compact = false, onBlur,
 }: MarkdownEditorProps) {
   const [mode, setMode] = useState<EditorMode>(compact ? 'write' : 'live');
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [suggestions, setSuggestions] = useState<MentionSuggestion[]>([]);
   const [mentionTrigger, setMentionTrigger] = useState<'@' | '#' | null>(null);
+  const [uploading, setUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const mentionQueryRef = useRef('');
+  // Mantém o valor mais recente para reconciliar após o upload assíncrono.
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
+  /**
+   * Insere um placeholder visível enquanto o upload acontece e, ao terminar,
+   * troca pelo markdown real. Dá feedback de loading e evita perder edições
+   * concorrentes (usa valueRef em vez do value capturado no closure).
+   */
+  const runImageUpload = useCallback(async (file: File) => {
+    if (!onImagePaste) return;
+    const placeholder = `![⏳ enviando ${file.name}…]()`;
+    const el = textareaRef.current;
+    const start = el?.selectionStart ?? valueRef.current.length;
+    const withPlaceholder = valueRef.current.slice(0, start) + placeholder + valueRef.current.slice(start);
+    valueRef.current = withPlaceholder;
+    onChange(withPlaceholder);
+    setUploading(true);
+    try {
+      const url = await onImagePaste(file);
+      onChange(valueRef.current.replace(placeholder, `![${file.name}](${url})`));
+    } catch {
+      onChange(valueRef.current.replace(placeholder, ''));
+    } finally {
+      setUploading(false);
+    }
+  }, [onImagePaste, onChange]);
 
   const insert = useCallback((before: string, after = '') => {
     const el = textareaRef.current;
@@ -234,25 +348,22 @@ export function MarkdownEditor({
     e.preventDefault();
     const file = img.getAsFile();
     if (!file) return;
-    const url = await onImagePaste(file);
-    const el = textareaRef.current;
-    const start = el?.selectionStart ?? value.length;
-    onChange(value.slice(0, start) + `![imagem](${url})` + value.slice(start));
-  }, [onImagePaste, value, onChange]);
+    await runImageUpload(file);
+  }, [onImagePaste, runImageUpload]);
 
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLTextAreaElement>) => {
     if (!onImagePaste) return;
     const img = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/'));
     if (!img) return;
     e.preventDefault();
-    onChange(value + `\n![imagem](${await onImagePaste(img)})\n`);
-  }, [onImagePaste, value, onChange]);
+    await runImageUpload(img);
+  }, [onImagePaste, runImageUpload]);
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!onImagePaste || !e.target.files?.[0]) return;
-    onChange(value + `\n![imagem](${await onImagePaste(e.target.files[0])})\n`);
+    await runImageUpload(e.target.files[0]);
     e.target.value = '';
-  }, [onImagePaste, value, onChange]);
+  }, [onImagePaste, runImageUpload]);
 
   const toolBtns = [
     { icon: Bold, title: 'Negrito (Ctrl+B)', before: '**', after: '**' },
@@ -275,6 +386,7 @@ export function MarkdownEditor({
         onPaste={handlePaste}
         onDrop={handleDrop}
         onKeyDown={e => { if (suggestions.length > 0 && e.key === 'Escape') { setSuggestions([]); setMentionTrigger(null); } }}
+        onBlur={onBlur}
         placeholder={placeholder ?? 'Escreva seu texto… use a barra de ferramentas para formatar'}
         className="w-full resize-none bg-transparent px-3 py-2.5 text-sm text-text placeholder:text-dim outline-none font-mono leading-relaxed"
         style={{ minHeight }}
@@ -328,8 +440,15 @@ export function MarkdownEditor({
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
           </div>
 
-          {/* Seletor de modo */}
-          <div className="flex items-center rounded-md border border-border overflow-hidden text-[11px] font-medium shrink-0">
+          <div className="flex items-center gap-2">
+            {uploading && (
+              <span className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                <Loader2 className="h-3 w-3 animate-spin" /> enviando imagem…
+              </span>
+            )}
+
+            {/* Seletor de modo */}
+            <div className="flex items-center rounded-md border border-border overflow-hidden text-[11px] font-medium shrink-0">
             <button type="button" onClick={() => setMode('write')}
               className={cn('flex items-center gap-1 px-2 py-1 transition-colors', mode === 'write' ? 'bg-primary text-primary-fg' : 'text-dim hover:text-text')}>
               <Pencil className="h-3 w-3" />Editar
@@ -344,6 +463,7 @@ export function MarkdownEditor({
               className={cn('flex items-center gap-1 px-2 py-1 transition-colors', mode === 'preview' ? 'bg-primary text-primary-fg' : 'text-dim hover:text-text')}>
               <Eye className="h-3 w-3" />Ver
             </button>
+            </div>
           </div>
         </div>
 
@@ -395,7 +515,7 @@ export function MarkdownContent({ content, className, imageAsChip = false }: Mar
         source={content}
         style={{ background: 'transparent', color: 'inherit', fontSize: '0.875rem' }}
         wrapperElement={{ 'data-color-mode': 'auto' } as React.HTMLAttributes<HTMLDivElement>}
-        components={imageAsChip ? IMAGE_AS_CHIP_COMPONENTS : undefined}
+        components={imageAsChip ? IMAGE_AS_CHIP_COMPONENTS : IMAGE_COMPONENTS}
       />
     </div>
   );

@@ -212,7 +212,7 @@ function TimelineItem({
                 <span className="h-1.5 w-1.5 rounded-full bg-warning" />{ev.title}
               </span>
             )}
-            <MarkdownContent content={ev.detail ?? ''} />
+            <MarkdownContent content={ev.detail ?? ''} imageAsChip />
           </div>
         )}
 

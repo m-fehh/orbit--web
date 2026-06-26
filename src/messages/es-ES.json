@@ -345,6 +345,9 @@
     "appliedSuccess": "Solucion aplicada con exito",
     "applyError": "Error al aplicar solucion",
     "feedbackSent": "Feedback registrado",
+    "wasHelpful": "¿Fue útil?",
+    "helpfulYes": "Útil",
+    "helpfulNo": "No ayudó",
     "feedbackError": "Error al registrar feedback",
     "smartRecommendations": "Recomendaciones",
     "viewFullAnalysis": "Ver análisis completo",
@@ -1107,6 +1110,9 @@
     "insert": "Insertar"
   },
   "workItems": {
+    "tabLabel": "Tareas",
+    "newTask": "Nueva Tarea",
+    "selectTask": "Selecciona una tarea para ver los detalles",
     "newWorkItem": "Nueva Tarea",
     "newWorkItemHint": "Cree tareas necesarias para la resolución.",
     "titlePh": "Nueva tarea...",
@@ -1142,6 +1148,8 @@
     "attachError": "Error al cargar archivo",
     "saved": "Cambios guardados",
     "saveError": "Error al guardar cambios",
+    "saving": "Guardando…",
+    "autoSaved": "Guardado automáticamente",
     "logTime": "Registrar tiempo",
     "logDescPh": "Descripción del trabajo (opcional)...",
     "timeLogged": "Tiempo registrado",
