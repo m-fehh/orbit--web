@@ -53,7 +53,10 @@
     "deactivated": "Usuário desativado.",
     "genericError": "Não foi possível entrar. Tente novamente.",
     "emailRequired": "Informe um e-mail válido.",
-    "passwordRequired": "Informe a senha."
+    "passwordRequired": "Informe a senha.",
+    "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar senha",
+    "securityNote": "Conexão segura · Acesso protegido por MFA"
   },
   "mfa": {
     "verifyTitle": "Verificação em duas etapas",
@@ -1165,6 +1168,40 @@
       "InProgress": "Em andamento",
       "Done": "Concluído",
       "Cancelled": "Cancelado"
+    }
+  },
+  "resetPassword": {
+    "forgotTitle": "Esqueci minha senha",
+    "forgotSubtitle": "Informe seu e-mail e enviaremos um código para redefinir sua senha.",
+    "email": "E-mail",
+    "emailRequired": "Informe um e-mail válido.",
+    "sendCode": "Enviar código",
+    "sending": "Enviando...",
+    "sentTitle": "Verifique seu e-mail",
+    "sentBody": "Se {email} estiver cadastrado, enviamos um código para redefinir sua senha.",
+    "haveCode": "Já tenho um código",
+    "backToLogin": "Voltar para o login",
+    "genericError": "Não foi possível processar a solicitação.",
+    "resetTitle": "Redefinir senha",
+    "resetSubtitle": "Use o código recebido por e-mail e defina uma nova senha.",
+    "code": "Código de verificação",
+    "codePlaceholder": "Cole o código recebido",
+    "codeHint": "Enviado para o seu e-mail. Acesso protegido por verificação.",
+    "newPassword": "Nova senha",
+    "confirmPassword": "Confirmar senha",
+    "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar senha",
+    "mismatch": "As senhas não coincidem.",
+    "resetCta": "Redefinir senha",
+    "resetting": "Redefinindo...",
+    "resetSuccess": "Senha redefinida com sucesso. Faça login.",
+    "resetError": "Código inválido ou expirado.",
+    "rules": {
+      "len": "Mínimo 8 caracteres",
+      "upper": "Uma letra maiúscula",
+      "lower": "Uma letra minúscula",
+      "number": "Um número",
+      "special": "Um caractere especial"
     }
   }
 }

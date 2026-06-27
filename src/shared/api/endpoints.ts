@@ -100,6 +100,8 @@ export const authApi = {
     api.post<void>('/auth/change-password', { currentPassword, newPassword }),
   forgotPassword: (email: string) =>
     api.post<void>('/auth/forgot-password', { email }, { anonymous: true }),
+  resetPassword: (email: string, token: string, newPassword: string) =>
+    api.post<void>('/auth/reset-password', { email, token, newPassword }, { anonymous: true }),
 };
 
 /** Endpoints de MFA. Todos exigem o usuário autenticado. */

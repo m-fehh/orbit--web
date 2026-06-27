@@ -53,7 +53,10 @@
     "deactivated": "User deactivated.",
     "genericError": "Could not sign in. Please try again.",
     "emailRequired": "Enter a valid email.",
-    "passwordRequired": "Enter your password."
+    "passwordRequired": "Enter your password.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "securityNote": "Secure connection · Access protected by MFA"
   },
   "mfa": {
     "verifyTitle": "Two-factor verification",
@@ -1165,6 +1168,40 @@
       "InProgress": "In Progress",
       "Done": "Done",
       "Cancelled": "Cancelled"
+    }
+  },
+  "resetPassword": {
+    "forgotTitle": "Forgot password",
+    "forgotSubtitle": "Enter your email and we will send a code to reset your password.",
+    "email": "Email",
+    "emailRequired": "Enter a valid email.",
+    "sendCode": "Send code",
+    "sending": "Sending...",
+    "sentTitle": "Check your email",
+    "sentBody": "If {email} is registered, we sent a code to reset your password.",
+    "haveCode": "I already have a code",
+    "backToLogin": "Back to login",
+    "genericError": "Could not process the request.",
+    "resetTitle": "Reset password",
+    "resetSubtitle": "Use the code from your email and set a new password.",
+    "code": "Verification code",
+    "codePlaceholder": "Paste the code you received",
+    "codeHint": "Sent to your email. Access protected by verification.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "mismatch": "Passwords do not match.",
+    "resetCta": "Reset password",
+    "resetting": "Resetting...",
+    "resetSuccess": "Password reset successfully. Please sign in.",
+    "resetError": "Invalid or expired code.",
+    "rules": {
+      "len": "At least 8 characters",
+      "upper": "One uppercase letter",
+      "lower": "One lowercase letter",
+      "number": "One number",
+      "special": "One special character"
     }
   }
 }

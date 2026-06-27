@@ -53,7 +53,10 @@
     "deactivated": "Usuario desactivado.",
     "genericError": "No se pudo entrar. Inténtalo de nuevo.",
     "emailRequired": "Introduce un correo válido.",
-    "passwordRequired": "Introduce tu contraseña."
+    "passwordRequired": "Introduce tu contraseña.",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña",
+    "securityNote": "Conexión segura · Acceso protegido por MFA"
   },
   "mfa": {
     "verifyTitle": "Verificación en dos pasos",
@@ -1165,6 +1168,40 @@
       "InProgress": "En progreso",
       "Done": "Completado",
       "Cancelled": "Cancelado"
+    }
+  },
+  "resetPassword": {
+    "forgotTitle": "Olvidé mi contraseña",
+    "forgotSubtitle": "Ingresa tu correo y te enviaremos un código para restablecer tu contraseña.",
+    "email": "Correo",
+    "emailRequired": "Ingresa un correo válido.",
+    "sendCode": "Enviar código",
+    "sending": "Enviando...",
+    "sentTitle": "Revisa tu correo",
+    "sentBody": "Si {email} está registrado, enviamos un código para restablecer tu contraseña.",
+    "haveCode": "Ya tengo un código",
+    "backToLogin": "Volver al inicio de sesión",
+    "genericError": "No se pudo procesar la solicitud.",
+    "resetTitle": "Restablecer contraseña",
+    "resetSubtitle": "Usa el código recibido por correo y define una nueva contraseña.",
+    "code": "Código de verificación",
+    "codePlaceholder": "Pega el código recibido",
+    "codeHint": "Enviado a tu correo. Acceso protegido por verificación.",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña",
+    "mismatch": "Las contraseñas no coinciden.",
+    "resetCta": "Restablecer contraseña",
+    "resetting": "Restableciendo...",
+    "resetSuccess": "Contraseña restablecida con éxito. Inicia sesión.",
+    "resetError": "Código inválido o expirado.",
+    "rules": {
+      "len": "Mínimo 8 caracteres",
+      "upper": "Una letra mayúscula",
+      "lower": "Una letra minúscula",
+      "number": "Un número",
+      "special": "Un carácter especial"
     }
   }
 }
