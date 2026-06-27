@@ -24,7 +24,6 @@ const STEPS: TourStep[] = [
   { key: 'search', target: '[data-tour="search"]', placement: 'bottom' },
   { key: 'notifications', target: '[data-tour="notifications"]', placement: 'bottom' },
   { key: 'language', target: '[data-tour="language"]', placement: 'bottom' },
-  { key: 'theme', target: '[data-tour="theme"]', placement: 'bottom' },
   { key: 'user', target: '[data-tour="user"]', placement: 'bottom' },
   { key: 'done', placement: 'center' },
 ];
@@ -128,13 +127,11 @@ export function ProductTour() {
     if (prev !== -1) setStep(prev);
   }
 
-  // Posição do card.
+  // Posição do card (apenas quando há alvo; centralizado usa flex).
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  let cardStyle: React.CSSProperties;
-  if (!rect) {
-    cardStyle = { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' };
-  } else {
+  let cardStyle: React.CSSProperties | undefined;
+  if (rect) {
     const below = rect.bottom + 12;
     const placeBelow = below + 180 < vh;
     const top = placeBelow ? below : Math.max(12, rect.top - 12 - 180);
@@ -143,35 +140,8 @@ export function ProductTour() {
     cardStyle = { left, top, width: CARD_W };
   }
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9998]" role="dialog" aria-modal="true" aria-label={t('aria')}>
-      {/* Spotlight: hole via box-shadow quando há alvo, senão backdrop simples */}
-      {rect ? (
-        <div
-          className="pointer-events-none absolute rounded-xl transition-all duration-300"
-          style={{
-            left: rect.left - PAD,
-            top: rect.top - PAD,
-            width: rect.width + PAD * 2,
-            height: rect.height + PAD * 2,
-            boxShadow: '0 0 0 9999px rgba(2, 6, 23, 0.66)',
-            outline: '2px solid var(--orbit-color-primary)',
-            outlineOffset: '2px',
-          }}
-        />
-      ) : (
-        <div className="absolute inset-0 bg-[rgba(2,6,23,0.66)]" />
-      )}
-
-      {/* Camada clicável para fechar ao clicar fora (não cobre o card) */}
-      <button type="button" className="absolute inset-0 cursor-default" aria-hidden tabIndex={-1} onClick={() => stop()} />
-
-      {/* Card */}
-      <div
-        className="absolute z-10 w-[340px] max-w-[calc(100vw-24px)] rounded-2xl border border-border bg-panel p-5 shadow-2xl animate-rise"
-        style={cardStyle}
-        onClick={(e) => e.stopPropagation()}
-      >
+  const cardBody = (
+    <>
         <div className="mb-2 flex items-center justify-between">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
             <Sparkles className="h-3 w-3" /> {t('badge')}
@@ -226,7 +196,50 @@ export function ProductTour() {
             </button>
           </div>
         </div>
-      </div>
+    </>
+  );
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9998]" role="dialog" aria-modal="true" aria-label={t('aria')}>
+      {/* Spotlight: recorte via box-shadow quando há alvo, senão backdrop simples */}
+      {rect ? (
+        <div
+          className="pointer-events-none absolute rounded-xl transition-all duration-300"
+          style={{
+            left: rect.left - PAD,
+            top: rect.top - PAD,
+            width: rect.width + PAD * 2,
+            height: rect.height + PAD * 2,
+            boxShadow: '0 0 0 9999px rgba(2, 6, 23, 0.66)',
+            outline: '2px solid var(--orbit-color-primary)',
+            outlineOffset: '2px',
+          }}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-[rgba(2,6,23,0.66)]" />
+      )}
+
+      {/* Camada clicável para fechar ao clicar fora */}
+      <button type="button" className="absolute inset-0 cursor-default" aria-hidden tabIndex={-1} onClick={() => stop()} />
+
+      {rect ? (
+        <div
+          className="absolute z-10 w-[340px] max-w-[calc(100vw-24px)] rounded-2xl border border-border bg-panel p-5 shadow-2xl animate-rise"
+          style={cardStyle}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {cardBody}
+        </div>
+      ) : (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
+          <div
+            className="pointer-events-auto w-[340px] max-w-[calc(100vw-24px)] rounded-2xl border border-border bg-panel p-5 shadow-2xl animate-rise"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {cardBody}
+          </div>
+        </div>
+      )}
     </div>,
     document.body,
   );

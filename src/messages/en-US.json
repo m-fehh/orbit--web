@@ -86,7 +86,9 @@
     "recoveryDone": "I saved my codes",
     "status": "MFA status",
     "statusEnabled": "Enabled",
-    "statusDisabled": "Disabled"
+    "statusDisabled": "Disabled",
+    "disableIntro": "Enter a code from your authenticator app to confirm disabling.",
+    "cancel": "Cancel"
   },
   "search": {
     "placeholder": "Search or type a command…",
@@ -1250,5 +1252,59 @@
       "title": "All set!",
       "body": "You know the essentials now. Need a refresher? Just click the help icon at the top."
     }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your account and preferences.",
+    "securityTitle": "Security",
+    "securityDesc": "Password and two-factor authentication (MFA).",
+    "a11yTitle": "Accessibility",
+    "a11yDesc": "Text size, contrast, motion and reading.",
+    "mfaOn": "MFA on",
+    "mfaOff": "MFA off",
+    "notifTitle": "Notifications",
+    "notifDesc": "Desktop alerts and sound on arrival."
+  },
+  "a11y": {
+    "title": "Accessibility",
+    "subtitle": "Tune the interface for a more comfortable experience.",
+    "fontSize": "Text size",
+    "fontSizeDesc": "Increase text to make reading easier.",
+    "fontSizeBase": "Default",
+    "fontSizeLg": "Large",
+    "fontSizeXl": "Larger",
+    "highContrast": "High contrast",
+    "highContrastDesc": "Strengthens text and borders for readability.",
+    "reduceMotion": "Reduce motion",
+    "reduceMotionDesc": "Minimizes on-screen transitions and movement.",
+    "underlineLinks": "Underline links",
+    "underlineLinksDesc": "Highlights links with an underline to identify them.",
+    "readableSpacing": "Reading spacing",
+    "readableSpacingDesc": "Increases spacing between lines, letters and words.",
+    "preview": "Preview",
+    "previewText": "This is sample text with a",
+    "previewLink": "sample link",
+    "reset": "Restore defaults"
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "subtitle": "Move around the system faster.",
+    "close": "Close",
+    "general": "General",
+    "navigation": "Navigation",
+    "openSearch": "Open search",
+    "showHelp": "Show shortcuts",
+    "then": "then"
+  },
+  "notifPrefs": {
+    "title": "Notifications",
+    "subtitle": "Choose how you want to be alerted.",
+    "desktop": "Desktop notifications",
+    "desktopDesc": "Shows a browser alert even when the tab is in the background.",
+    "sound": "Notification sound",
+    "soundDesc": "Plays a short sound when a new notification arrives.",
+    "test": "Test",
+    "denied": "Permission blocked in your browser settings.",
+    "unsupported": "Your browser does not support notifications."
   }
 }

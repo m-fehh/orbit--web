@@ -225,7 +225,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
           <div
             className={cn(
-              'group relative flex items-center gap-2 overflow-hidden',
+              'group relative flex items-center gap-3 overflow-hidden',
               sizeClasses[inputSize],
               variantClasses[variant],
               disabled && 'opacity-40 cursor-not-allowed pointer-events-none saturate-0',

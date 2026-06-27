@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { notificationsApi } from '@/shared/api/endpoints';
 import { useSignalR } from '@/features/notifications/use-signalr';
+import { useNotifPrefs, playNotificationSound, showDesktopNotification } from '@/features/notifications/notification-prefs';
 import { useAuthStore } from '@/features/auth/auth-store';
 import { formatRelative } from '@/shared/lib/datetime';
 import type { Locale } from '@/shared/i18n/config';
@@ -48,11 +49,16 @@ export function NotificationCenter() {
     onSuccess: invalidate,
   });
 
-  // Tempo real: ao receber, atualiza contadores/lista e mostra um toast.
+  // Tempo real: ao receber, atualiza contadores/lista, mostra toast e — conforme as
+  // preferências do usuário — toca um som e/ou exibe uma notificação nativa do navegador.
   const { connected } = useSignalR(
     'ReceiveNotification',
     (message) => {
+      const text = typeof message === 'string' ? message : t('title');
       if (typeof message === 'string') toast(message);
+      const prefs = useNotifPrefs.getState();
+      if (prefs.sound) playNotificationSound();
+      if (prefs.desktop) showDesktopNotification(t('title'), text);
       invalidate();
     },
     authenticated,

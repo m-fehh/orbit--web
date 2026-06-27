@@ -11,7 +11,7 @@ import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { OtpInput } from '@/shared/ui/otp-input';
 
-type Stage = 'idle' | 'setup' | 'recovery';
+type Stage = 'idle' | 'setup' | 'recovery' | 'disable';
 
 /** Setup/gestão de MFA na tela de Segurança. */
 export default function SecurityPage() {
@@ -58,14 +58,13 @@ export default function SecurityPage() {
     }
   }
 
-  async function disable() {
-    const value = window.prompt(t('confirmCode'));
-    if (!value) return;
+  async function confirmDisable() {
     setBusy(true);
     try {
-      await mfaApi.disable(value);
+      await mfaApi.disable(code);
       if (user) setUser({ ...user, twoFactorEnabled: false });
       setStage('idle');
+      setCode('');
       toast.success(t('disabled'));
     } catch (err) {
       toast.error(apiErrorMessage(err, t('invalidCode')));
@@ -87,9 +86,11 @@ export default function SecurityPage() {
             </p>
           </div>
           {enabled ? (
-            <Button variant="danger" size="sm" onClick={disable} loading={busy}>
-              {t('disable')}
-            </Button>
+            stage !== 'disable' && (
+              <Button variant="danger" size="sm" onClick={() => { setCode(''); setStage('disable'); }} loading={busy}>
+                {t('disable')}
+              </Button>
+            )
           ) : (
             stage === 'idle' && (
               <Button size="sm" onClick={startSetup} loading={busy}>
@@ -98,6 +99,21 @@ export default function SecurityPage() {
             )
           )}
         </div>
+
+        {stage === 'disable' && (
+          <div className="mt-lg flex flex-col gap-md border-t border-border pt-lg">
+            <p className="text-sm text-muted">{t('disableIntro')}</p>
+            <OtpInput value={code} onChange={setCode} disabled={busy} />
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => { setStage('idle'); setCode(''); }} className="flex-1 justify-center">
+                {t('cancel')}
+              </Button>
+              <Button variant="danger" onClick={confirmDisable} loading={busy} disabled={code.length < 6} className="flex-1 justify-center">
+                {t('disable')}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {stage === 'setup' && (
           <div className="mt-lg flex flex-col gap-md border-t border-border pt-lg">

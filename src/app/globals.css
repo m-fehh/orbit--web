@@ -38,6 +38,50 @@
   }
 }
 
+/* ─── Acessibilidade (preferências aplicadas na raiz <html>) ─────────────── */
+/* Alto contraste: reforça texto e bordas; aro de foco mais visível. */
+html.a11y-high-contrast {
+  --orbit-color-text: #000000;
+  --orbit-color-muted: #1a1a1a;
+  --orbit-color-dim: #333333;
+  --orbit-color-border: #000000;
+  --orbit-color-border-strong: #000000;
+}
+html.a11y-high-contrast.dark {
+  --orbit-color-text: #ffffff;
+  --orbit-color-muted: #ededed;
+  --orbit-color-dim: #cfcfcf;
+  --orbit-color-border: #ffffff;
+  --orbit-color-border-strong: #ffffff;
+}
+html.a11y-high-contrast :focus-visible {
+  outline: 3px solid var(--orbit-color-primary);
+  outline-offset: 2px;
+}
+
+/* Reduzir animações/transições para quem tem sensibilidade a movimento. */
+html.a11y-reduce-motion *,
+html.a11y-reduce-motion *::before,
+html.a11y-reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Sublinhar links para distingui-los do texto comum. */
+html.a11y-underline-links a {
+  text-decoration: underline !important;
+  text-underline-offset: 2px;
+}
+
+/* Espaçamento de leitura (ajuda dislexia/baixa visão). */
+html.a11y-readable-spacing body {
+  line-height: 1.8 !important;
+  letter-spacing: 0.02em;
+  word-spacing: 0.08em;
+}
+
 @layer components {
   /* Superfície de vidro (glassmorphism) reutilizável. */
   .glass {

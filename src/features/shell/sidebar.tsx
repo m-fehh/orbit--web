@@ -4,22 +4,23 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   LayoutDashboard,
-  LayoutGrid,
+  Ticket,
   BookOpen,
   BarChart3,
   Users as UsersIcon,
-  ShieldCheck,
-  ScrollText,
+  UserCog,
+  History,
   ChevronLeft,
   ChevronRight,
   X,
-  Repeat,
+  Milestone,
   Brain,
   type LucideIcon,
 } from 'lucide-react';
 import { useUiStore } from '@/features/shell/ui-store';
 import { useTabStore, currentLocation, type TabLocation } from '@/features/workspace/tab-store';
 import { usePermissions } from '@/features/auth/use-permissions';
+import { UserMenu } from '@/features/shell/user-menu';
 import { cn } from '@/shared/lib/utils';
 
 type NavLabel = 'dashboard' | 'tickets' | 'knowledge' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence';
@@ -41,10 +42,10 @@ const SECTIONS: NavSection[] = [
     titleKey: 'secOperation',
     items: [
       { loc: { kind: 'dashboard', params: {}, title: 'Dashboard', icon: 'dashboard' }, labelKey: 'dashboard', icon: LayoutDashboard, perm: ['analytics.dashboard'] },
-      { loc: { kind: 'tickets', params: {}, title: 'Central de Tickets', icon: 'tickets' }, labelKey: 'tickets', icon: LayoutGrid, perm: ['ticket.view'] },
+      { loc: { kind: 'tickets', params: {}, title: 'Central de Tickets', icon: 'tickets' }, labelKey: 'tickets', icon: Ticket, perm: ['ticket.view'] },
 
       { loc: { kind: 'knowledge', params: {}, title: 'Conhecimento', icon: 'knowledge' }, labelKey: 'knowledge', icon: BookOpen, perm: ['knowledge.view'] },
-      { loc: { kind: 'iterations', params: {}, title: 'Iterações', icon: 'tickets' }, labelKey: 'iterations', icon: Repeat, perm: ['ticket.view'] },
+      { loc: { kind: 'iterations', params: {}, title: 'Iterações', icon: 'tickets' }, labelKey: 'iterations', icon: Milestone, perm: ['ticket.view'] },
     ],
   },
   {
@@ -58,8 +59,8 @@ const SECTIONS: NavSection[] = [
     titleKey: 'secAdmin',
     items: [
       { loc: { kind: 'users', params: {}, title: 'Usuários', icon: 'users' }, labelKey: 'users', icon: UsersIcon, perm: ['admin.users.view'] },
-      { loc: { kind: 'admin', params: {}, title: 'Perfis', icon: 'admin' }, labelKey: 'admin', icon: ShieldCheck, perm: ['role.view', 'admin.users.view'] },
-      { loc: { kind: 'audit', params: {}, title: 'Logs de auditoria', icon: 'audit' }, labelKey: 'audit', icon: ScrollText, perm: ['auditlog.view'] },
+      { loc: { kind: 'admin', params: {}, title: 'Perfis', icon: 'admin' }, labelKey: 'admin', icon: UserCog, perm: ['role.view', 'admin.users.view'] },
+      { loc: { kind: 'audit', params: {}, title: 'Logs de auditoria', icon: 'audit' }, labelKey: 'audit', icon: History, perm: ['auditlog.view'] },
     ],
   },
 ];
@@ -93,6 +94,9 @@ export function Sidebar() {
           {collapsed ? <ChevronRight className="h-3.5 w-3.5" aria-hidden /> : <ChevronLeft className="h-3.5 w-3.5" aria-hidden />}
         </button>
         <SidebarNav collapsed={collapsed} />
+        <div data-tour="user" className="border-t border-border p-2">
+          <UserMenu variant="sidebar" collapsed={collapsed} />
+        </div>
       </nav>
 
       {/* Mobile drawer */}
@@ -115,6 +119,9 @@ export function Sidebar() {
               </button>
             </div>
             <SidebarNav collapsed={false} onNavigate={() => setMobileNav(false)} />
+            <div className="border-t border-border p-2">
+              <UserMenu variant="sidebar" />
+            </div>
           </nav>
         </div>
       )}
@@ -158,13 +165,23 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
                   aria-current={active ? 'page' : undefined}
                   title={collapsed ? t(labelKey) : undefined}
                   className={cn(
-                    'flex items-center gap-sm rounded-md px-md py-2 text-sm transition-colors',
-                    active ? 'bg-primary-soft font-medium text-primary' : 'text-muted hover:bg-panel-2 hover:text-text',
+                    'group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
+                    active ? 'bg-primary/10 font-semibold text-primary' : 'text-muted hover:bg-panel-2 hover:text-text',
                     collapsed && 'justify-center px-0',
                   )}
                 >
-                  <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                  {!collapsed && <span>{t(labelKey)}</span>}
+                  {active && !collapsed && (
+                    <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" aria-hidden />
+                  )}
+                  <span
+                    className={cn(
+                      'grid h-7 w-7 shrink-0 place-items-center rounded-lg transition-colors',
+                      active ? 'bg-primary/15 text-primary' : 'text-current group-hover:bg-panel',
+                    )}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden />
+                  </span>
+                  {!collapsed && <span className="truncate">{t(labelKey)}</span>}
                 </button>
               );
             })}

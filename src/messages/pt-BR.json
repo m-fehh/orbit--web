@@ -86,7 +86,9 @@
     "recoveryDone": "Já salvei meus códigos",
     "status": "Status do MFA",
     "statusEnabled": "Ativado",
-    "statusDisabled": "Desativado"
+    "statusDisabled": "Desativado",
+    "disableIntro": "Digite um código do seu app autenticador para confirmar a desativação.",
+    "cancel": "Cancelar"
   },
   "search": {
     "placeholder": "Buscar ou digitar um comando…",
@@ -1250,5 +1252,59 @@
       "title": "Tudo pronto!",
       "body": "Você já conhece o essencial. Precisar rever, é só clicar no ícone de ajuda no topo."
     }
+  },
+  "settings": {
+    "title": "Configurações",
+    "subtitle": "Gerencie sua conta e preferências.",
+    "securityTitle": "Segurança",
+    "securityDesc": "Senha e verificação em duas etapas (MFA).",
+    "a11yTitle": "Acessibilidade",
+    "a11yDesc": "Tamanho do texto, contraste, movimento e leitura.",
+    "mfaOn": "MFA ativo",
+    "mfaOff": "MFA inativo",
+    "notifTitle": "Notificações",
+    "notifDesc": "Alertas no desktop e som ao receber."
+  },
+  "a11y": {
+    "title": "Acessibilidade",
+    "subtitle": "Ajuste a interface para uma experiência mais confortável.",
+    "fontSize": "Tamanho do texto",
+    "fontSizeDesc": "Aumente o texto para facilitar a leitura.",
+    "fontSizeBase": "Padrão",
+    "fontSizeLg": "Grande",
+    "fontSizeXl": "Maior",
+    "highContrast": "Alto contraste",
+    "highContrastDesc": "Reforça texto e bordas para melhor legibilidade.",
+    "reduceMotion": "Reduzir animações",
+    "reduceMotionDesc": "Minimiza transições e movimentos na tela.",
+    "underlineLinks": "Sublinhar links",
+    "underlineLinksDesc": "Destaca links com sublinhado para identificá-los.",
+    "readableSpacing": "Espaçamento de leitura",
+    "readableSpacingDesc": "Aumenta o espaço entre linhas, letras e palavras.",
+    "preview": "Pré-visualização",
+    "previewText": "Este é um texto de exemplo com um",
+    "previewLink": "link de exemplo",
+    "reset": "Restaurar padrões"
+  },
+  "shortcuts": {
+    "title": "Atalhos de teclado",
+    "subtitle": "Navegue mais rápido pelo sistema.",
+    "close": "Fechar",
+    "general": "Geral",
+    "navigation": "Navegação",
+    "openSearch": "Abrir busca",
+    "showHelp": "Mostrar atalhos",
+    "then": "depois"
+  },
+  "notifPrefs": {
+    "title": "Notificações",
+    "subtitle": "Como você quer ser avisado de novidades.",
+    "desktop": "Notificações no desktop",
+    "desktopDesc": "Exibe um alerta do navegador mesmo com a aba em segundo plano.",
+    "sound": "Som de notificação",
+    "soundDesc": "Toca um som curto ao receber uma nova notificação.",
+    "test": "Testar",
+    "denied": "Permissão bloqueada nas configurações do navegador.",
+    "unsupported": "Seu navegador não suporta notificações."
   }
 }
