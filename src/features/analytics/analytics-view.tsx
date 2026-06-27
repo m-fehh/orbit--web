@@ -207,11 +207,11 @@ function TrendChart({ data, t }: TrendChartProps) {
 
       {/* Legend */}
       <circle cx={PAD_L + 10} cy={H - 28} r={4} fill="var(--color-primary)" />
-      <text x={PAD_L + 20} y={H - 24} fontSize={11} fill="var(--color-text)">
+      <text x={PAD_L + 20} y={H - 24} fontSize={11} fill="var(--orbit-color-text)">
         {t('opened')}
       </text>
       <circle cx={PAD_L + 100} cy={H - 28} r={4} fill="var(--color-success)" />
-      <text x={PAD_L + 110} y={H - 24} fontSize={11} fill="var(--color-text)">
+      <text x={PAD_L + 110} y={H - 24} fontSize={11} fill="var(--orbit-color-text)">
         {t('closed')}
       </text>
     </svg>

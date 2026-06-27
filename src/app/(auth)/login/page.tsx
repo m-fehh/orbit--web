@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -7,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Mail, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
 import { authApi } from '@/shared/api/endpoints';
 import { apiErrorMessage } from '@/shared/api/types';
 import { useAuthStore } from '@/features/auth/auth-store';
@@ -16,6 +17,7 @@ import { Logo } from '@/features/shell/logo';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { PasswordInput } from '@/shared/ui/password-input';
+import { AuthSplit } from '@/features/auth/auth-split';
 
 const schema = z.object({
   email: z.string().email(),
@@ -23,12 +25,16 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-/** Tela de Login. */
+/** Tela de Login — split-screen: painel de marca + formulário. */
 export default function LoginPage() {
   const t = useTranslations('login');
   const router = useRouter();
   const setSessionFromLogin = useAuthStore((s) => s.setSessionFromLogin);
   const branding = useBrandingStore((s) => s.branding);
+
+  // Mantém o feedback de loading durante a navegação pós-login (a rota destino
+  // leva alguns segundos para montar). Esta página desmonta ao navegar.
+  const [redirecting, setRedirecting] = useState(false);
 
   const {
     register,
@@ -40,37 +46,34 @@ export default function LoginPage() {
     try {
       const auth = await authApi.login(values.email, values.password);
       setSessionFromLogin(auth);
+      setRedirecting(true);
       router.replace(auth.user.twoFactorEnabled ? '/mfa-verify' : '/workspace');
     } catch (err) {
       toast.error(apiErrorMessage(err, t('genericError')));
     }
   }
 
-  return (
-    <div className="glass top-hairline relative overflow-hidden rounded-2xl border border-border/60 p-xl shadow-2xl">
-      {/* brilho superior */}
-      <div
-        className="pointer-events-none absolute inset-x-0 -top-px h-px"
-        style={{ background: 'linear-gradient(90deg, transparent, var(--orbit-color-primary), transparent)' }}
-        aria-hidden
-      />
+  const busy = isSubmitting || redirecting;
 
-      <div className="mb-xl flex flex-col items-center text-center">
-        <div className="relative">
-          <div className="absolute inset-0 -z-10 rounded-2xl blur-2xl" style={{ background: 'var(--orbit-color-primary-soft)' }} aria-hidden />
-          <Logo size={44} showWordmark={!branding?.hasWhitelabel} className="animate-float" />
+  return (
+    <AuthSplit
+      overlay={redirecting && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-bg/85 backdrop-blur-sm">
+          <Loader2 className="h-7 w-7 animate-spin text-primary" />
+          <p className="text-sm font-medium text-text">{t('redirecting')}</p>
         </div>
-        <h1 className="mt-lg text-2xl font-bold gradient-text">{t('title')}</h1>
-        <p className="mt-1.5 text-sm text-muted">{t('subtitle')}</p>
-        {branding?.name && (
-          <span className="mt-md inline-flex items-center gap-1.5 rounded-full border border-border bg-panel-2/60 px-md py-1 text-xs text-muted">
-            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-            {branding.name}
-          </span>
-        )}
+      )}
+    >
+      {/* Cabeçalho (logo só aparece no mobile, já que o painel some) */}
+      <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">
+        <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl border border-border bg-bg-subtle shadow-sm lg:hidden">
+          <Logo size={32} showWordmark={false} />
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-text">{t('title')}</h1>
+        <p className="mt-2 text-sm text-muted">{t('subtitle')}</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-md" noValidate>
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5" noValidate>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="email" className="text-sm font-medium text-text">{t('email')}</label>
           <Input
@@ -110,15 +113,10 @@ export default function LoginPage() {
           {errors.password && <span className="text-xs text-danger">{t('passwordRequired')}</span>}
         </div>
 
-        <Button type="submit" loading={isSubmitting} className="mt-sm h-12 w-full justify-center gap-2 text-base">
-          {isSubmitting ? t('submitting') : (<>{t('submit')} <ArrowRight className="h-4 w-4" /></>)}
+        <Button type="submit" loading={busy} className="mt-sm h-12 w-full justify-center gap-2 text-base">
+          {busy ? t('submitting') : (<>{t('submit')} <ArrowRight className="h-4 w-4" /></>)}
         </Button>
       </form>
-
-      <p className="mt-lg flex items-center justify-center gap-1.5 text-center text-[11px] text-dim">
-        <ShieldCheck className="h-3 w-3" />
-        {t('securityNote')}
-      </p>
-    </div>
+    </AuthSplit>
   );
 }

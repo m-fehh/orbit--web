@@ -76,6 +76,7 @@ export function Sidebar() {
     <>
       {/* Desktop */}
       <nav
+        data-tour="nav"
         aria-label="Primary"
         className={cn(
           'relative hidden shrink-0 flex-col border-r border-border bg-bg-subtle/40 transition-all md:flex',

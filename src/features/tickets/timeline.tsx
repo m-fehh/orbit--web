@@ -33,19 +33,19 @@ interface TimelineEvent {
 
 // ─── Metadados usando variáveis do tema ────────────────
 const KIND_META: Record<TimelineKind, { icon: typeof Activity; tone: string; bg: string; ring: string }> = {
-  created:       { icon: FilePlus,      tone: 'text-primary',           bg: 'bg-primary/10',           ring: 'ring-primary/10' },
-  status:        { icon: ArrowRight,    tone: 'text-info',              bg: 'bg-info/10',              ring: 'ring-info/10' },
-  priority:      { icon: Tag,           tone: 'text-warning',           bg: 'bg-warning/10',           ring: 'ring-warning/10' },
-  assignee:      { icon: UserPlus,      tone: 'text-primary',           bg: 'bg-primary/10',           ring: 'ring-primary/10' },
-  team:          { icon: Users,         tone: 'text-primary',           bg: 'bg-primary/10',           ring: 'ring-primary/10' },
-  comment:       { icon: MessageSquare, tone: 'text-text',              bg: 'bg-panel',                ring: 'ring-border' },
-  attachment:    { icon: Paperclip,     tone: 'text-muted',             bg: 'bg-muted/10',             ring: 'ring-muted/10' },
-  worklog:       { icon: Timer,         tone: 'text-success',           bg: 'bg-success/10',           ring: 'ring-success/10' },
-  investigation: { icon: Sparkles,      tone: 'text-info',              bg: 'bg-info/10',              ring: 'ring-info/10' },
-  resolution:    { icon: Wrench,        tone: 'text-success',           bg: 'bg-success/10',           ring: 'ring-success/10' },
-  reopened:      { icon: AlertCircle,   tone: 'text-warning',           bg: 'bg-warning/10',           ring: 'ring-warning/10' },
-  sla:           { icon: ShieldAlert,   tone: 'text-danger',            bg: 'bg-danger/10',            ring: 'ring-danger/10' },
-  audit:         { icon: Activity,      tone: 'text-muted',             bg: 'bg-muted/10',             ring: 'ring-muted/10' },
+  created: { icon: FilePlus, tone: 'text-primary', bg: 'bg-primary/10', ring: 'ring-primary/10' },
+  status: { icon: ArrowRight, tone: 'text-info', bg: 'bg-info/10', ring: 'ring-info/10' },
+  priority: { icon: Tag, tone: 'text-warning', bg: 'bg-warning/10', ring: 'ring-warning/10' },
+  assignee: { icon: UserPlus, tone: 'text-primary', bg: 'bg-primary/10', ring: 'ring-primary/10' },
+  team: { icon: Users, tone: 'text-primary', bg: 'bg-primary/10', ring: 'ring-primary/10' },
+  comment: { icon: MessageSquare, tone: 'text-text', bg: 'bg-panel', ring: 'ring-border' },
+  attachment: { icon: Paperclip, tone: 'text-muted', bg: 'bg-muted/10', ring: 'ring-muted/10' },
+  worklog: { icon: Timer, tone: 'text-success', bg: 'bg-success/10', ring: 'ring-success/10' },
+  investigation: { icon: Sparkles, tone: 'text-info', bg: 'bg-info/10', ring: 'ring-info/10' },
+  resolution: { icon: Wrench, tone: 'text-success', bg: 'bg-success/10', ring: 'ring-success/10' },
+  reopened: { icon: AlertCircle, tone: 'text-warning', bg: 'bg-warning/10', ring: 'ring-warning/10' },
+  sla: { icon: ShieldAlert, tone: 'text-danger', bg: 'bg-danger/10', ring: 'ring-danger/10' },
+  audit: { icon: Activity, tone: 'text-muted', bg: 'bg-muted/10', ring: 'ring-muted/10' },
 };
 
 // ─── Mapeamento de campos de auditoria para keys i18n ──
@@ -100,13 +100,13 @@ function fromAudit(
 
   const kind: TimelineKind =
     knownField.fieldName === 'Status' ? 'status' :
-    knownField.fieldName === 'Priority' ? 'priority' :
-    knownField.fieldName === 'AssignedUserId' ? 'assignee' :
-    knownField.fieldName === 'AssignedTeamId' ? 'team' :
-    knownField.fieldName === 'IterationId' ? 'audit' :
-    knownField.fieldName === 'EstimateMinutes' ? 'worklog' :
-    knownField.fieldName === 'SlaBreachNotifiedAt' ? 'sla' :
-    'audit';
+      knownField.fieldName === 'Priority' ? 'priority' :
+        knownField.fieldName === 'AssignedUserId' ? 'assignee' :
+          knownField.fieldName === 'AssignedTeamId' ? 'team' :
+            knownField.fieldName === 'IterationId' ? 'audit' :
+              knownField.fieldName === 'EstimateMinutes' ? 'worklog' :
+                knownField.fieldName === 'SlaBreachNotifiedAt' ? 'sla' :
+                  'audit';
 
   const fieldLabel = t(AUDIT_FIELD_KEY[knownField.fieldName]);
   const oldVal = formatFieldValue(knownField.fieldName, knownField.oldValue);
@@ -178,15 +178,22 @@ function TimelineItem({
       {/* Ícone na linha */}
       <span
         className={cn(
-          'absolute -left-[15px] top-0 z-[1] flex h-7 w-7 items-center justify-center rounded-full border-2 border-bg',
-          meta.bg,
+          'absolute -left-[15px] top-0 z-[1] flex h-7 w-7 items-center justify-center rounded-full border-2 border-border bg-panel',
         )}
-        title={ev.actor ?? t('timeline.system')}
       >
-        {isComment
-          ? <span className={cn('text-[10px] font-bold', meta.tone)}>{actorInitials(ev.actor)}</span>
-          : <Icon className={cn('h-3.5 w-3.5', meta.tone)} aria-hidden />
-        }
+        <span
+          className={cn(
+            'absolute inset-1 rounded-full',
+            meta.bg,
+          )}
+        />
+        {isComment ? (
+          <span className={cn('relative z-10 text-[10px] font-bold', meta.tone)}>
+            {actorInitials(ev.actor)}
+          </span>
+        ) : (
+          <Icon className={cn('relative z-10 h-3.5 w-3.5', meta.tone)} />
+        )}
       </span>
 
       {/* Conteúdo */}

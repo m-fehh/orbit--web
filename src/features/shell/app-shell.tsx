@@ -3,6 +3,7 @@
 import { Header } from './header';
 import { Sidebar } from './sidebar';
 import { WindowHost } from '@/features/windows/window-host';
+import { ProductTour } from '@/features/tour/product-tour';
 
 /**
  * Application Shell: header (topo) + sidebar (esquerda) + área central.
@@ -22,6 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       <WindowHost />
+      <ProductTour />
     </div>
   );
 }

@@ -40,8 +40,8 @@
     "logout": "Sign out"
   },
   "login": {
-    "title": "Sign in to Orbit",
-    "subtitle": "Access the resolution platform",
+    "title": "Welcome back",
+    "subtitle": "Sign in to your account to continue.",
     "email": "Email",
     "password": "Password",
     "submit": "Sign in",
@@ -56,7 +56,13 @@
     "passwordRequired": "Enter your password.",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
-    "securityNote": "Secure connection · Access protected by MFA"
+    "securityNote": "Secure connection · Access protected by MFA",
+    "redirecting": "Signing you in…",
+    "brandHeadline": "Intelligence to resolve faster",
+    "brandSubcopy": "Centralize tickets, investigate root causes and apply AI-powered solutions — all in one place.",
+    "feature1": "AI-guided investigation",
+    "feature2": "Reusable root causes and solutions",
+    "feature3": "SLA and real-time collaboration"
   },
   "mfa": {
     "verifyTitle": "Two-factor verification",
@@ -1202,6 +1208,47 @@
       "lower": "One lowercase letter",
       "number": "One number",
       "special": "One special character"
+    }
+  },
+  "tour": {
+    "badge": "Tour",
+    "aria": "Product tour",
+    "start": "Product tour",
+    "next": "Next",
+    "back": "Back",
+    "skip": "Skip",
+    "finish": "Done",
+    "welcome": {
+      "title": "Welcome to Orbit",
+      "body": "Let us quickly show you how to get around the platform. It takes less than a minute."
+    },
+    "nav": {
+      "title": "Navigation",
+      "body": "Reach every area of the system: tickets, knowledge, iterations, analytics and administration."
+    },
+    "search": {
+      "title": "Global search",
+      "body": "Find tickets, knowledge and more. Tip: open it anytime with Ctrl/Cmd + K."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "body": "Keep up with real-time updates on your tickets and assignments."
+    },
+    "language": {
+      "title": "Language",
+      "body": "Switch the interface language between Portuguese, English and Spanish."
+    },
+    "theme": {
+      "title": "Theme",
+      "body": "Toggle between light and dark mode to your preference."
+    },
+    "user": {
+      "title": "Your account",
+      "body": "Manage your profile, enable two-factor authentication (MFA) and sign out securely."
+    },
+    "done": {
+      "title": "All set!",
+      "body": "You know the essentials now. Need a refresher? Just click the help icon at the top."
     }
   }
 }

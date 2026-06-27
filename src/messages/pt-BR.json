@@ -40,8 +40,8 @@
     "logout": "Sair"
   },
   "login": {
-    "title": "Entrar no Orbit",
-    "subtitle": "Acesse a plataforma de resolução",
+    "title": "Bem-vindo de volta",
+    "subtitle": "Entre na sua conta para continuar.",
     "email": "E-mail",
     "password": "Senha",
     "submit": "Entrar",
@@ -56,7 +56,13 @@
     "passwordRequired": "Informe a senha.",
     "showPassword": "Mostrar senha",
     "hidePassword": "Ocultar senha",
-    "securityNote": "Conexão segura · Acesso protegido por MFA"
+    "securityNote": "Conexão segura · Acesso protegido por MFA",
+    "redirecting": "Entrando no sistema…",
+    "brandHeadline": "Inteligência para resolver mais rápido",
+    "brandSubcopy": "Centralize tickets, investigue causas raiz e aplique soluções com IA — tudo em um só lugar.",
+    "feature1": "Investigação guiada por IA",
+    "feature2": "Causas raiz e soluções reaproveitáveis",
+    "feature3": "SLA e colaboração em tempo real"
   },
   "mfa": {
     "verifyTitle": "Verificação em duas etapas",
@@ -1202,6 +1208,47 @@
       "lower": "Uma letra minúscula",
       "number": "Um número",
       "special": "Um caractere especial"
+    }
+  },
+  "tour": {
+    "badge": "Tour",
+    "aria": "Tour do produto",
+    "start": "Tour do produto",
+    "next": "Próximo",
+    "back": "Voltar",
+    "skip": "Pular",
+    "finish": "Concluir",
+    "welcome": {
+      "title": "Bem-vindo ao Orbit",
+      "body": "Vamos te mostrar rapidinho como navegar pela plataforma. Leva menos de um minuto."
+    },
+    "nav": {
+      "title": "Navegação",
+      "body": "Acesse as áreas do sistema: tickets, conhecimento, iterações, analytics e administração."
+    },
+    "search": {
+      "title": "Busca global",
+      "body": "Encontre tickets, conhecimento e mais. Dica: abra a qualquer momento com Ctrl/Cmd + K."
+    },
+    "notifications": {
+      "title": "Notificações",
+      "body": "Acompanhe atualizações em tempo real dos seus tickets e atribuições."
+    },
+    "language": {
+      "title": "Idioma",
+      "body": "Troque o idioma da interface entre português, inglês e espanhol."
+    },
+    "theme": {
+      "title": "Tema",
+      "body": "Alterne entre os modos claro e escuro conforme sua preferência."
+    },
+    "user": {
+      "title": "Sua conta",
+      "body": "Gerencie seu perfil, ative a verificação em duas etapas (MFA) e saia com segurança."
+    },
+    "done": {
+      "title": "Tudo pronto!",
+      "body": "Você já conhece o essencial. Precisar rever, é só clicar no ícone de ajuda no topo."
     }
   }
 }

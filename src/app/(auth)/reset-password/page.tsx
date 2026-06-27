@@ -12,6 +12,7 @@ import { Logo } from '@/features/shell/logo';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { PasswordInput } from '@/shared/ui/password-input';
+import { AuthSplit } from '@/features/auth/auth-split';
 import { cn } from '@/shared/lib/utils';
 
 /** Regras de caracteres aplicadas à nova senha. */
@@ -58,20 +59,16 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="glass top-hairline relative overflow-hidden rounded-2xl border border-border/60 p-xl shadow-2xl">
-      <div
-        className="pointer-events-none absolute inset-x-0 -top-px h-px"
-        style={{ background: 'linear-gradient(90deg, transparent, var(--orbit-color-primary), transparent)' }}
-        aria-hidden
-      />
-
-      <div className="mb-lg flex flex-col items-center text-center">
-        <Logo size={40} className="animate-float" />
-        <h1 className="mt-lg text-2xl font-bold gradient-text">{t('resetTitle')}</h1>
-        <p className="mt-1.5 max-w-xs text-sm text-muted">{t('resetSubtitle')}</p>
+    <AuthSplit>
+      <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">
+        <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl border border-border bg-bg-subtle shadow-sm lg:hidden">
+          <Logo size={32} showWordmark={false} />
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-text">{t('resetTitle')}</h1>
+        <p className="mt-2 text-sm text-muted">{t('resetSubtitle')}</p>
       </div>
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-md" noValidate>
+      <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="email" className="text-sm font-medium text-text">{t('email')}</label>
           <Input
@@ -146,7 +143,7 @@ function ResetPasswordForm() {
       <Link href="/login" className="mt-lg inline-flex w-full items-center justify-center gap-1.5 text-sm text-muted hover:text-text">
         <ArrowLeft className="h-3.5 w-3.5" /> {t('backToLogin')}
       </Link>
-    </div>
+    </AuthSplit>
   );
 }
 

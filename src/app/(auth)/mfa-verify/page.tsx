@@ -51,7 +51,8 @@ export default function MfaVerifyPage() {
   }, [code, recovery]);
 
   return (
-    <div className="rounded-lg border border-border bg-panel p-xl shadow">
+    <div className="flex min-h-screen items-center justify-center px-md py-xl">
+     <div className="w-full max-w-[440px] animate-rise rounded-2xl border border-border bg-panel/95 p-8 shadow-xl backdrop-blur-sm sm:p-10">
       <h1 className="text-xl font-bold">{t('verifyTitle')}</h1>
       <p className="mb-lg mt-sm text-sm text-muted">{t('verifySubtitle')}</p>
 
@@ -98,6 +99,7 @@ export default function MfaVerifyPage() {
       >
         {recovery ? t('useTotp') : t('useRecovery')}
       </button>
+     </div>
     </div>
   );
 }

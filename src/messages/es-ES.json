@@ -40,8 +40,8 @@
     "logout": "Salir"
   },
   "login": {
-    "title": "Entrar en Orbit",
-    "subtitle": "Accede a la plataforma de resolución",
+    "title": "Bienvenido de nuevo",
+    "subtitle": "Inicia sesión en tu cuenta para continuar.",
     "email": "Correo electrónico",
     "password": "Contraseña",
     "submit": "Entrar",
@@ -56,7 +56,13 @@
     "passwordRequired": "Introduce tu contraseña.",
     "showPassword": "Mostrar contraseña",
     "hidePassword": "Ocultar contraseña",
-    "securityNote": "Conexión segura · Acceso protegido por MFA"
+    "securityNote": "Conexión segura · Acceso protegido por MFA",
+    "redirecting": "Entrando al sistema…",
+    "brandHeadline": "Inteligencia para resolver más rápido",
+    "brandSubcopy": "Centraliza tickets, investiga causas raíz y aplica soluciones con IA — todo en un solo lugar.",
+    "feature1": "Investigación guiada por IA",
+    "feature2": "Causas raíz y soluciones reutilizables",
+    "feature3": "SLA y colaboración en tiempo real"
   },
   "mfa": {
     "verifyTitle": "Verificación en dos pasos",
@@ -1202,6 +1208,47 @@
       "lower": "Una letra minúscula",
       "number": "Un número",
       "special": "Un carácter especial"
+    }
+  },
+  "tour": {
+    "badge": "Tour",
+    "aria": "Tour del producto",
+    "start": "Tour del producto",
+    "next": "Siguiente",
+    "back": "Atrás",
+    "skip": "Omitir",
+    "finish": "Listo",
+    "welcome": {
+      "title": "Bienvenido a Orbit",
+      "body": "Te mostramos rápidamente cómo moverte por la plataforma. Toma menos de un minuto."
+    },
+    "nav": {
+      "title": "Navegación",
+      "body": "Accede a todas las áreas: tickets, conocimiento, iteraciones, analítica y administración."
+    },
+    "search": {
+      "title": "Búsqueda global",
+      "body": "Encuentra tickets, conocimiento y más. Tip: ábrela cuando quieras con Ctrl/Cmd + K."
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "body": "Sigue las actualizaciones en tiempo real de tus tickets y asignaciones."
+    },
+    "language": {
+      "title": "Idioma",
+      "body": "Cambia el idioma de la interfaz entre portugués, inglés y español."
+    },
+    "theme": {
+      "title": "Tema",
+      "body": "Alterna entre modo claro y oscuro según tu preferencia."
+    },
+    "user": {
+      "title": "Tu cuenta",
+      "body": "Gestiona tu perfil, activa la verificación en dos pasos (MFA) y cierra sesión con seguridad."
+    },
+    "done": {
+      "title": "¡Todo listo!",
+      "body": "Ya conoces lo esencial. ¿Necesitas repasar? Haz clic en el icono de ayuda arriba."
     }
   }
 }

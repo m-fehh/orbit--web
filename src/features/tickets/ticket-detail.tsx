@@ -472,7 +472,7 @@ function TimeTrackingCard({ ticketId, estimateMinutes, completedMinutes, remaini
                     style={{ transition: 'stroke-dashoffset .4s ease' }}
                   />
                 )}
-                <text x="28" y="32" textAnchor="middle" fontSize="9" fontWeight="700" fill={over ? 'var(--color-danger)' : 'var(--color-text)'}>
+                <text x="28" y="32" textAnchor="middle" fontSize="9" fontWeight="700" fill={over ? 'var(--color-danger)' : 'var(--orbit-color-text)'}>
                   {fmtMin(completedMinutes)}
                 </text>
               </svg>
@@ -2012,7 +2012,7 @@ function WorklogsTab({ ticketId, worklogs, userName, estimateMinutesServer, rema
                           style={{ transition: 'stroke-dashoffset .4s ease' }}
                         />
                       )}
-                      <text x="36" y="40" textAnchor="middle" fontSize="11" fontWeight="700" fill={over ? 'var(--color-danger)' : 'var(--color-text)'}>
+                      <text x="36" y="40" textAnchor="middle" fontSize="11" fontWeight="700" fill={over ? 'var(--color-danger)' : 'var(--orbit-color-text)'}>
                         {fmtMin(totalMin)}
                       </text>
                     </svg>
