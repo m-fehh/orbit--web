@@ -409,7 +409,8 @@
     "placeholderPublic": "Escribe un comentario…",
     "placeholderInternal": "Comentario interno (sólo el equipo)…",
     "internalToggle": "Comentario interno",
-    "submit": "Comentar"
+    "submit": "Comentar",
+    "whatsappBanner": "Conversación por WhatsApp ({contact}). Las respuestas públicas se envían al cliente; las notas internas quedan aquí."
   },
   "attachments": {
     "title": "Adjuntos",
@@ -1263,7 +1264,11 @@
     "mfaOn": "MFA activo",
     "mfaOff": "MFA inactivo",
     "notifTitle": "Notificaciones",
-    "notifDesc": "Alertas en el escritorio y sonido al recibir."
+    "notifDesc": "Alertas en el escritorio y sonido al recibir.",
+    "channelsTitle": "Canales",
+    "channelsDesc": "Registra WhatsApp y correo para recibir y responder.",
+    "catalogsTitle": "Catálogos",
+    "catalogsDesc": "Gestiona tipos de worklog, estados de tarea, evidencia y causa raíz."
   },
   "a11y": {
     "title": "Accesibilidad",
@@ -1306,5 +1311,50 @@
     "test": "Probar",
     "denied": "Permiso bloqueado en los ajustes del navegador.",
     "unsupported": "Tu navegador no admite notificaciones."
+  },
+  "channels": {
+    "title": "Canales de comunicación",
+    "subtitle": "Registra tus canales de WhatsApp y correo de atención.",
+    "add": "Nuevo canal",
+    "edit": "Editar canal",
+    "none": "Ningún canal registrado",
+    "noneHint": "Agrega un canal de WhatsApp o correo para empezar.",
+    "type": "Tipo",
+    "typeWhatsApp": "WhatsApp",
+    "typeEmail": "Correo",
+    "name": "Nombre",
+    "namePh": "Ej.: Soporte WhatsApp",
+    "identifier": "Identificador",
+    "identifierWaPh": "Número (ej.: +34 600 000 000)",
+    "identifierEmailPh": "soporte@empresa.com",
+    "endpoint": "Endpoint del gateway",
+    "endpointDesc": "URL del servicio de envío (svc-whatsapp/proveedor).",
+    "apiKey": "Clave de API",
+    "apiKeyKeep": "Déjalo en blanco para mantener la actual",
+    "active": "Activo",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar este canal?",
+    "created": "Canal registrado",
+    "updated": "Canal actualizado",
+    "removed": "Canal eliminado",
+    "error": "No se pudo guardar el canal",
+    "statusActive": "Activo",
+    "statusInactive": "Inactivo",
+    "secretSet": "clave definida",
+    "metaIntro": "Este es el número de WhatsApp de TU EMPRESA (no por usuario). Todos los agentes responden por él. Usa Meta WhatsApp Cloud API.",
+    "displayNumber": "Número mostrado",
+    "displayNumberHint": "El teléfono de WhatsApp de la empresa, como lo ve el cliente.",
+    "phoneNumberId": "Phone Number ID",
+    "phoneNumberIdHint": "En el panel de Meta: WhatsApp → API Setup.",
+    "accessToken": "Token de acceso",
+    "verifyToken": "Verify Token",
+    "verifyTokenHint": "Tú lo defines. Usa el MISMO valor al configurar el webhook en Meta.",
+    "appSecret": "App Secret",
+    "appSecretHint": "Para validar la firma del webhook de entrada.",
+    "keepBlank": "Déjalo en blanco para mantener el actual.",
+    "webhookUrl": "URL del webhook (pégala en Meta)",
+    "incomplete": "Incompleto"
   }
 }

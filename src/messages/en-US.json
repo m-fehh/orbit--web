@@ -409,7 +409,8 @@
     "placeholderPublic": "Write a comment…",
     "placeholderInternal": "Internal comment (team only)…",
     "internalToggle": "Internal comment",
-    "submit": "Comment"
+    "submit": "Comment",
+    "whatsappBanner": "WhatsApp conversation ({contact}). Public replies are sent to the customer; internal notes stay here."
   },
   "attachments": {
     "title": "Attachments",
@@ -1263,7 +1264,11 @@
     "mfaOn": "MFA on",
     "mfaOff": "MFA off",
     "notifTitle": "Notifications",
-    "notifDesc": "Desktop alerts and sound on arrival."
+    "notifDesc": "Desktop alerts and sound on arrival.",
+    "channelsTitle": "Channels",
+    "channelsDesc": "Register WhatsApp and email to receive and reply.",
+    "catalogsTitle": "Catalogs",
+    "catalogsDesc": "Manage worklog types, task statuses, evidence and root cause."
   },
   "a11y": {
     "title": "Accessibility",
@@ -1306,5 +1311,50 @@
     "test": "Test",
     "denied": "Permission blocked in your browser settings.",
     "unsupported": "Your browser does not support notifications."
+  },
+  "channels": {
+    "title": "Communication channels",
+    "subtitle": "Register your WhatsApp and email support channels.",
+    "add": "New channel",
+    "edit": "Edit channel",
+    "none": "No channels registered",
+    "noneHint": "Add a WhatsApp or email channel to get started.",
+    "type": "Type",
+    "typeWhatsApp": "WhatsApp",
+    "typeEmail": "Email",
+    "name": "Name",
+    "namePh": "e.g. WhatsApp Support",
+    "identifier": "Identifier",
+    "identifierWaPh": "Number (e.g. +1 555 123 4567)",
+    "identifierEmailPh": "support@company.com",
+    "endpoint": "Gateway endpoint",
+    "endpointDesc": "URL of the sending service (svc-whatsapp/provider).",
+    "apiKey": "API key",
+    "apiKeyKeep": "Leave blank to keep current",
+    "active": "Active",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Remove",
+    "deleteConfirm": "Remove this channel?",
+    "created": "Channel created",
+    "updated": "Channel updated",
+    "removed": "Channel removed",
+    "error": "Could not save the channel",
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "secretSet": "key set",
+    "metaIntro": "This is YOUR COMPANY WhatsApp number (not per user). All agents reply through it. Uses Meta WhatsApp Cloud API.",
+    "displayNumber": "Display number",
+    "displayNumberHint": "The company WhatsApp phone, as the customer sees it.",
+    "phoneNumberId": "Phone Number ID",
+    "phoneNumberIdHint": "In Meta dashboard: WhatsApp → API Setup.",
+    "accessToken": "Access token",
+    "verifyToken": "Verify Token",
+    "verifyTokenHint": "You choose it. Use the SAME value when configuring the webhook in Meta.",
+    "appSecret": "App Secret",
+    "appSecretHint": "To validate the inbound webhook signature.",
+    "keepBlank": "Leave blank to keep current.",
+    "webhookUrl": "Webhook URL (paste in Meta)",
+    "incomplete": "Incomplete"
   }
 }

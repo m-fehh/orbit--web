@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Shield, Accessibility, Bell, ChevronRight, type LucideIcon, Settings as SettingsIcon } from 'lucide-react';
+import { Shield, Accessibility, Bell, Radio, Library, ChevronRight, type LucideIcon, Settings as SettingsIcon } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/auth-store';
 
 interface SettingsCard {
@@ -21,6 +21,7 @@ export default function SettingsPage() {
     { href: '/settings/security', icon: Shield, titleKey: 'securityTitle', descKey: 'securityDesc', badgeKey: user?.twoFactorEnabled ? 'mfaOn' : 'mfaOff' },
     { href: '/settings/accessibility', icon: Accessibility, titleKey: 'a11yTitle', descKey: 'a11yDesc' },
     { href: '/settings/notifications', icon: Bell, titleKey: 'notifTitle', descKey: 'notifDesc' },
+    { href: '/settings/channels', icon: Radio, titleKey: 'channelsTitle', descKey: 'channelsDesc' },
   ];
 
   return (

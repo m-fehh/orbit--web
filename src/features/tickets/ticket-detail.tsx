@@ -42,6 +42,7 @@ import { Checkbox } from '@/shared/ui/checkbox';
 import { RichEditor } from '@/shared/ui/rich-editor';
 import { MarkdownEditor, MarkdownContent, attachmentRef } from '@/shared/ui/markdown-editor';
 import { openIntelligenceModal } from './intelligence-modal';
+import { useSignalRGroup } from '@/features/notifications/use-signalr';
 
 type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'investigation' | 'workItems' | 'attachments';
 
@@ -90,6 +91,13 @@ export function TicketDetail({ id }: { id: number }) {
   const qc = useQueryClient();
   const [sub, setSub] = useState<SubTab>('overview');
   const [showResolveModal, setShowResolveModal] = useState(false);
+
+  // Tempo real: atualiza a conversa quando chega/sai mensagem (ex.: WhatsApp do cliente).
+  useSignalRGroup(`ticket:${id}`, (eventName) => {
+    if (eventName === 'ConversationUpdated') {
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', id] });
+    }
+  }, true);
 
   const { data: ticket, isLoading, isError, refetch } = useQuery({
     queryKey: ['tickets', 'detail', id],
@@ -383,7 +391,7 @@ export function TicketDetail({ id }: { id: number }) {
 
         {sub === 'timeline' && <TicketTimeline ticket={ticket} userName={userName} teamName={teamName} />}
 
-        {sub === 'conversation' && <Conversation ticketId={id} comments={ticket.comments} userName={userName} locale={locale} timeZone={timeZone} onImagePaste={uploadImage} />}
+        {sub === 'conversation' && <Conversation ticketId={id} comments={ticket.comments} userName={userName} locale={locale} timeZone={timeZone} onImagePaste={uploadImage} whatsapp={ticket.source === 'WhatsApp'} contact={ticket.contactHandle ?? undefined} />}
 
         {sub === 'worklogs' && (
           <WorklogsTab
@@ -3816,7 +3824,7 @@ function WorkItemsTab({ ticketId }: { ticketId: number }) {
 
 type CommentFilter = 'all' | 'public' | 'internal';
 
-function Conversation({ ticketId, comments, userName, locale, timeZone, onImagePaste }: { ticketId: number; comments: { id: number; userId: number; message: string; isInternal: boolean; createdAt: string | null }[]; userName: (id: number | null) => string; locale: Locale; timeZone: string; onImagePaste?: (file: File) => Promise<string> }) {
+function Conversation({ ticketId, comments, userName, locale, timeZone, onImagePaste, whatsapp = false, contact }: { ticketId: number; comments: { id: number; userId: number; message: string; isInternal: boolean; createdAt: string | null }[]; userName: (id: number | null) => string; locale: Locale; timeZone: string; onImagePaste?: (file: File) => Promise<string>; whatsapp?: boolean; contact?: string }) {
   const t = useTranslations('comments');
   const qc = useQueryClient();
   const meId = useAuthStore((s) => s.user?.id);
@@ -3845,6 +3853,12 @@ function Conversation({ ticketId, comments, userName, locale, timeZone, onImageP
 
   return (
     <div className="flex flex-1 min-h-0 w-full flex-col overflow-hidden">
+      {whatsapp && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
+          <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+          <span>{t('whatsappBanner', { contact: contact ?? 'WhatsApp' })}</span>
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="flex items-center gap-1.5 pb-3 shrink-0">

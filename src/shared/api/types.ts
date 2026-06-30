@@ -241,6 +241,10 @@ export interface TicketDetailResponse {
   iterationId?: number | null;
   iteration?: IterationResponse | null;
   tags?: TagResponse[];
+  /** Canal de origem do ticket (Web, Email, WhatsApp, Api). */
+  source?: string;
+  /** Contato do cliente no canal (telefone/e-mail). */
+  contactHandle?: string | null;
 }
 
 export interface IntakeRecommendation {
@@ -291,6 +295,80 @@ export interface SlaSnapshotResponse {
   status: SlaStatus;
   dueAt: string | null;
   minutesRemaining: number | null;
+}
+
+/* ---- Catálogos configuráveis (taxonomias que substituem enums) ---- */
+export interface CatalogItemResponse {
+  id: number;
+  catalogKey: string;
+  value: string;
+  label: string;
+  color: string | null;
+  sortOrder: number;
+  active: boolean;
+  isSystem: boolean;
+}
+
+export interface CatalogGroupResponse {
+  key: string;
+  items: CatalogItemResponse[];
+}
+
+export interface CreateCatalogItemRequest {
+  catalogKey: string;
+  value?: string;
+  label: string;
+  color?: string | null;
+  sortOrder?: number;
+  active?: boolean;
+}
+
+export interface UpdateCatalogItemRequest {
+  value?: string;
+  label: string;
+  color?: string | null;
+  sortOrder?: number;
+  active?: boolean;
+}
+
+/* ---- Canais de comunicação (cadastro WhatsApp/e-mail) ---- */
+export const ChannelType = { Email: 1, WhatsApp: 2 } as const;
+export type ChannelTypeValue = (typeof ChannelType)[keyof typeof ChannelType];
+
+export interface ChannelResponse {
+  id: number;
+  type: ChannelTypeValue;
+  name: string;
+  identifier: string | null;
+  endpoint: string | null;
+  phoneNumberId: string | null;
+  verifyToken: string | null;
+  hasApiKey: boolean;
+  hasAppSecret: boolean;
+  active: boolean;
+}
+
+export interface CreateChannelRequest {
+  type: ChannelTypeValue;
+  name: string;
+  identifier?: string | null;
+  endpoint?: string | null;
+  apiKey?: string | null;
+  phoneNumberId?: string | null;
+  verifyToken?: string | null;
+  appSecret?: string | null;
+  active: boolean;
+}
+
+export interface UpdateChannelRequest {
+  name: string;
+  identifier?: string | null;
+  endpoint?: string | null;
+  apiKey?: string | null;
+  phoneNumberId?: string | null;
+  verifyToken?: string | null;
+  appSecret?: string | null;
+  active: boolean;
 }
 
 export interface TicketAttachmentResponse {

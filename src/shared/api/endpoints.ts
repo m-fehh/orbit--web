@@ -22,6 +22,9 @@ import type {
   UpdateTicketRequest,
   UpdateTicketTrackingRequest,
   RecommendationFeedbackRequest,
+  ChannelResponse,
+  CreateChannelRequest,
+  UpdateChannelRequest,
   InvestigationResponse,
   EvidenceResponse,
   HypothesisResponse,
@@ -342,6 +345,14 @@ export const ticketSymptomsApi = {
 };
 
 /** Intelligent ticket resolution via AI suggestions. */
+/** Cadastro de canais de comunicação (WhatsApp/e-mail). */
+export const channelRegistryApi = {
+  list: () => api.get<ChannelResponse[]>('/channels/registry'),
+  create: (body: CreateChannelRequest) => api.post<ChannelResponse>('/channels/registry', body),
+  update: (id: number, body: UpdateChannelRequest) => api.put<ChannelResponse>(`/channels/registry/${id}`, body),
+  remove: (id: number) => api.delete<void>(`/channels/registry/${id}`),
+};
+
 export const ticketResolutionApi = {
   resolveWithAi: (ticketId: number, body: { rootCauseId: number; summary: string; resolutionSteps: string; notifyCustomer?: boolean }) =>
     api.post<TicketResponse>(`/tickets/${ticketId}/resolve-with-ai`, body),
