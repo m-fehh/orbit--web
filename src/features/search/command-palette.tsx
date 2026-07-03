@@ -59,7 +59,6 @@ interface QuickAction {
 const ACTIONS: QuickAction[] = [
   { id: 'nav-dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'navigation', action: (r) => r.push('/workspace') },
   { id: 'nav-tickets', label: 'Tickets', icon: FileText, section: 'navigation', action: (r) => r.push('/workspace') },
-  { id: 'nav-knowledge', label: 'Knowledge Base', icon: BookOpen, section: 'navigation', action: (r) => r.push('/knowledge') },
   { id: 'nav-analytics', label: 'Analytics', icon: BarChart3, section: 'navigation', action: (r) => r.push('/analytics') },
   { id: 'nav-admin', label: 'Admin', icon: Shield, section: 'navigation', action: (r) => r.push('/workspace') },
   { id: 'nav-tags', label: 'Tags', icon: Tag, section: 'navigation', action: (r) => r.push('/tags') },

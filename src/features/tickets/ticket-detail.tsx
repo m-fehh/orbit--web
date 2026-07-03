@@ -943,7 +943,7 @@ function pct(v: number | null | undefined): string {
   return `${Math.round(v * 100)}%`;
 }
 
-/** Painel "Caminho das pedras": consome o mesmo relatório de inteligência (cache compartilhado). */
+/** Painel "Playbook de Resolução": consome o mesmo relatório de inteligência (cache compartilhado). */
 function PlaybookQuickView({ ticketId }: { ticketId: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ['tickets', 'intelligence', ticketId],
@@ -3999,6 +3999,7 @@ function Conversation({ ticketId, comments, userName, locale, timeZone, onImageP
             placeholder={internal ? t('placeholderInternal') : t('placeholderPublic')}
             minHeight="80px"
             onImagePaste={onImagePaste}
+            className="border-0 rounded-none bg-transparent focus-within:ring-0"
           />
           <div className="flex items-center justify-between gap-2 border-t border-border/50 px-3 py-2">
             <Checkbox

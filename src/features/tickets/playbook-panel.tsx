@@ -249,7 +249,7 @@ function PlaybookCard({
 }
 
 /**
- * Painel "Caminho das pedras" — mostra o melhor roteiro de resolução sugerido pelo TaaS,
+ * Painel "Playbook de Resolução" — mostra o melhor roteiro de resolução sugerido pelo TaaS,
  * com passos check-off, sintomas casados, rascunho copiável (GuideWithDraft) e feedback.
  * Estado vazio honesto quando nenhum roteiro confiável foi casado.
  */

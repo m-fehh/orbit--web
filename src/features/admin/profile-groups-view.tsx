@@ -21,6 +21,7 @@ export function ProfileGroupsView() {
   const t = useTranslations('admin.profiles');
   const qc = useQueryClient();
   const [draft, setDraft] = useState<Draft>(emptyDraft());
+  const [active, setActive] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [query, setQuery] = useState('');
   const [onlySelected, setOnlySelected] = useState(false);
@@ -43,6 +44,7 @@ export function ProfileGroupsView() {
       administrator: g.administrator,
       selected: new Set(g.accessRules.map((r) => r.id)),
     });
+    setActive(true);
   }
 
   const save = useMutation({
@@ -70,7 +72,7 @@ export function ProfileGroupsView() {
       <aside className="flex w-72 shrink-0 flex-col border-r border-border">
         <div className="flex items-center justify-between border-b border-border p-md">
           <h1 className="text-sm font-bold">{t('title')}</h1>
-          <Button size="sm" onClick={() => setDraft(emptyDraft())}>
+          <Button size="sm" onClick={() => { setDraft(emptyDraft()); setActive(true); }}>
             <Plus className="h-4 w-4" /> {t('new')}
           </Button>
         </div>
@@ -114,7 +116,7 @@ export function ProfileGroupsView() {
 
       {/* Editor */}
       <section className="flex min-w-0 flex-1 flex-col">
-        {draft.id === null && !draft.name.trim() ? (
+        {!active ? (
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center">
               <ShieldCheck className="mx-auto h-12 w-12 text-dim/40" />

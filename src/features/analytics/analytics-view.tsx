@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { motion } from 'framer-motion';
 import {
   RefreshCw,
   BarChart3,
@@ -11,262 +12,66 @@ import {
   ShieldCheck,
   Target,
   RotateCcw,
-  TrendingUp,
-  TrendingDown,
   AlertTriangle,
+  Users,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { analyticsApi } from '@/shared/api/endpoints';
-import type {
-  DashboardSummary,
-  TicketTrendPoint,
-  TeamMetrics,
-  SlaViolation,
-} from '@/shared/api/types';
-import { DataGrid, type ColumnDef } from '@/shared/ui/data-grid';
+import type { TeamMetrics } from '@/shared/api/types';
+import {
+  ChartCard,
+  DonutChart,
+  HBarChart,
+  LineChart,
+  ProgressBar,
+  formatHours,
+  formatMinutes,
+  formatPct,
+  formatShortDate,
+  healthColor,
+  healthTextClass,
+  SERIES_PALETTE,
+} from '@/shared/ui/charts';
 
-// ---------------------------------------------------------------------------
-// Period & Granularity
-// ---------------------------------------------------------------------------
-
-type PeriodDays = 7 | 30 | 90;
+type PeriodDays = 30 | 90 | 180;
 type Granularity = 'Daily' | 'Weekly' | 'Monthly';
 
-// ---------------------------------------------------------------------------
-// KPI Card
-// ---------------------------------------------------------------------------
-
-interface KpiCardProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  subtitle?: string;
-  className?: string;
-}
-
-function KpiCard({ icon, label, value, subtitle, className }: KpiCardProps) {
-  return (
-    <div
-      className={cn(
-        'rounded-lg border border-border bg-panel p-4 flex flex-col gap-1',
-        className,
-      )}
-    >
-      <div className="flex items-center gap-2 text-muted text-xs font-medium uppercase tracking-wide">
-        {icon}
-        {label}
-      </div>
-      <div className="text-2xl font-bold text-text">{value}</div>
-      {subtitle && <div className="text-xs text-muted">{subtitle}</div>}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Horizontal Bar
-// ---------------------------------------------------------------------------
-
-interface HBarProps {
-  items: { label: string; value: number; color: string }[];
-}
-
-function HBar({ items }: HBarProps) {
-  const max = Math.max(...items.map((i) => i.value), 1);
-  return (
-    <div className="flex flex-col gap-2">
-      {items.map((item) => (
-        <div key={item.label} className="flex items-center gap-2">
-          <span className="text-xs text-muted w-28 truncate text-right">{item.label}</span>
-          <div className="flex-1 h-5 bg-surface rounded overflow-hidden">
-            <div
-              className="h-full rounded transition-all"
-              style={{
-                width: `${Math.max((item.value / max) * 100, 2)}%`,
-                backgroundColor: item.color,
-              }}
-            />
-          </div>
-          <span className="text-xs font-medium text-text w-10 text-right">{item.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// SVG Trend Chart
-// ---------------------------------------------------------------------------
-
-interface TrendChartProps {
-  data: TicketTrendPoint[];
-  t: ReturnType<typeof useTranslations>;
-}
-
-function TrendChart({ data, t }: TrendChartProps) {
-  if (!data.length) {
-    return (
-      <div className="flex items-center justify-center h-48 text-muted text-sm">
-        {t('noData')}
-      </div>
-    );
-  }
-
-  const W = 700;
-  const H = 260;
-  const PAD_L = 40;
-  const PAD_R = 16;
-  const PAD_T = 16;
-  const PAD_B = 50;
-  const chartW = W - PAD_L - PAD_R;
-  const chartH = H - PAD_T - PAD_B;
-
-  const maxVal = Math.max(...data.flatMap((d) => [d.opened, d.closed]), 1);
-  const yTicks = 5;
-
-  const xStep = data.length > 1 ? chartW / (data.length - 1) : chartW / 2;
-
-  function toX(i: number) {
-    return PAD_L + (data.length > 1 ? i * xStep : chartW / 2);
-  }
-  function toY(v: number) {
-    return PAD_T + chartH - (v / maxVal) * chartH;
-  }
-
-  function polyline(key: 'opened' | 'closed') {
-    return data.map((d, i) => `${toX(i)},${toY(d[key])}`).join(' ');
-  }
-
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return `${d.getDate()}/${d.getMonth() + 1}`;
-  };
-
-  // Show at most ~10 labels on X axis
-  const labelStep = Math.max(1, Math.floor(data.length / 10));
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" style={{ maxHeight: 300 }}>
-      {/* Y grid lines */}
-      {Array.from({ length: yTicks + 1 }).map((_, i) => {
-        const yVal = (maxVal / yTicks) * i;
-        const y = toY(yVal);
-        return (
-          <g key={i}>
-            <line
-              x1={PAD_L}
-              y1={y}
-              x2={W - PAD_R}
-              y2={y}
-              stroke="var(--color-border)"
-              strokeDasharray="3 3"
-            />
-            <text x={PAD_L - 6} y={y + 4} textAnchor="end" fontSize={10} fill="var(--color-muted)">
-              {Math.round(yVal)}
-            </text>
-          </g>
-        );
-      })}
-
-      {/* X labels */}
-      {data.map((d, i) =>
-        i % labelStep === 0 ? (
-          <text
-            key={i}
-            x={toX(i)}
-            y={H - 8}
-            textAnchor="middle"
-            fontSize={10}
-            fill="var(--color-muted)"
-          >
-            {formatDate(d.date)}
-          </text>
-        ) : null,
-      )}
-
-      {/* Lines */}
-      <polyline
-        fill="none"
-        stroke="var(--color-primary)"
-        strokeWidth={2}
-        points={polyline('opened')}
-      />
-      <polyline
-        fill="none"
-        stroke="var(--color-success)"
-        strokeWidth={2}
-        points={polyline('closed')}
-      />
-
-      {/* Dots */}
-      {data.map((d, i) => (
-        <g key={i}>
-          <circle cx={toX(i)} cy={toY(d.opened)} r={3} fill="var(--color-primary)" />
-          <circle cx={toX(i)} cy={toY(d.closed)} r={3} fill="var(--color-success)" />
-        </g>
-      ))}
-
-      {/* Legend */}
-      <circle cx={PAD_L + 10} cy={H - 28} r={4} fill="var(--color-primary)" />
-      <text x={PAD_L + 20} y={H - 24} fontSize={11} fill="var(--orbit-color-text)">
-        {t('opened')}
-      </text>
-      <circle cx={PAD_L + 100} cy={H - 28} r={4} fill="var(--color-success)" />
-      <text x={PAD_L + 110} y={H - 24} fontSize={11} fill="var(--orbit-color-text)">
-        {t('closed')}
-      </text>
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Color maps
-// ---------------------------------------------------------------------------
-
 const PRIORITY_COLORS: Record<string, string> = {
-  Low: 'var(--color-success)',
-  Medium: 'var(--color-warning)',
+  Low: 'var(--orbit-color-success)',
+  Medium: 'var(--orbit-color-warning)',
   High: '#f97316',
-  Critical: 'var(--color-danger)',
+  Critical: 'var(--orbit-color-danger)',
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  New: 'var(--color-info)',
+  New: 'var(--orbit-color-info)',
   Assigned: '#8b5cf6',
-  InProgress: 'var(--color-primary)',
-  PendingCustomer: 'var(--color-warning)',
+  InProgress: 'var(--orbit-color-primary)',
+  PendingCustomer: 'var(--orbit-color-warning)',
   PendingInternal: '#f97316',
-  Resolved: 'var(--color-success)',
-  Closed: 'var(--color-muted)',
-  Cancelled: '#6b7280',
+  Resolved: 'var(--orbit-color-success)',
+  Validated: 'var(--orbit-color-success)',
+  Closed: 'var(--orbit-color-dim)',
+  Cancelled: 'var(--orbit-color-dim)',
 };
-
-// ---------------------------------------------------------------------------
-// Main Component
-// ---------------------------------------------------------------------------
 
 export function AnalyticsView() {
   const t = useTranslations('analytics');
+  const locale = useLocale();
   const [days, setDays] = useState<PeriodDays>(30);
   const [granularity, setGranularity] = useState<Granularity>('Daily');
 
-  const {
-    data: dashboard,
-    isLoading,
-    isError,
-    refetch,
-    isFetching,
-  } = useQuery({
+  const { data: dashboard, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['analytics-dashboard', days],
     queryFn: () => analyticsApi.dashboard(days),
     staleTime: 60_000,
   });
-
   const { data: trendData } = useQuery({
     queryKey: ['analytics-trends', days, granularity],
     queryFn: () => analyticsApi.trends(days, granularity),
     staleTime: 60_000,
   });
-
   const { data: slaData } = useQuery({
     queryKey: ['analytics-sla', days],
     queryFn: () => analyticsApi.slaCompliance(days),
@@ -278,110 +83,38 @@ export function AnalyticsView() {
   const teams = dashboard?.teams ?? [];
   const violations = slaData?.violations ?? [];
 
-  // ---- Distribution items ----
   const priorityItems = useMemo(
     () =>
       Object.entries(dashboard?.ticketsByPriority ?? {}).map(([label, value]) => ({
         label,
         value,
-        color: PRIORITY_COLORS[label] ?? 'var(--color-muted)',
+        color: PRIORITY_COLORS[label] ?? 'var(--orbit-color-muted)',
       })),
     [dashboard],
   );
-
   const statusItems = useMemo(
     () =>
-      Object.entries(dashboard?.ticketsByStatus ?? {}).map(([label, value]) => ({
-        label,
-        value,
-        color: STATUS_COLORS[label] ?? 'var(--color-muted)',
-      })),
+      Object.entries(dashboard?.ticketsByStatus ?? {})
+        .sort((a, b) => b[1] - a[1])
+        .map(([label, value]) => ({ label, value, color: STATUS_COLORS[label] ?? 'var(--orbit-color-muted)' })),
     [dashboard],
   );
-
-  const rootCauseItems = useMemo(
+  const rootCauseSlices = useMemo(
     () =>
-      Object.entries(dashboard?.rootCausesByCategory ?? {}).map(([label, value], i) => ({
-        label,
-        value,
-        color: ['var(--color-primary)', 'var(--color-warning)', 'var(--color-success)', '#8b5cf6', '#f97316', 'var(--color-info)'][i % 6],
-      })),
+      Object.entries(dashboard?.rootCausesByCategory ?? {})
+        .sort((a, b) => b[1] - a[1])
+        .map(([label, value], i) => ({ label, value, color: SERIES_PALETTE[i % SERIES_PALETTE.length] })),
     [dashboard],
   );
 
-  // ---- Teams grid columns ----
-  const teamColumns: ColumnDef<TeamMetrics>[] = useMemo(
-    () => [
-      { field: 'teamName', header: t('teamName'), sortable: true, minWidth: 140 },
-      { field: 'totalTickets', header: t('totalTickets'), sortable: true, width: 100, align: 'right' as const },
-      { field: 'resolvedTickets', header: t('resolved'), sortable: true, width: 100, align: 'right' as const },
-      {
-        field: 'resolutionRate',
-        header: t('resolutionRate'),
-        sortable: true,
-        width: 120,
-        align: 'right' as const,
-        render: (v: number) => `${(v * 100).toFixed(1)}%`,
-      },
-      {
-        field: 'avgMttrHours',
-        header: t('avgMttr'),
-        sortable: true,
-        width: 110,
-        align: 'right' as const,
-        render: (v: number) => `${v.toFixed(1)}h`,
-      },
-      {
-        field: 'slaComplianceRate',
-        header: t('slaCompliance'),
-        sortable: true,
-        width: 120,
-        align: 'right' as const,
-        render: (v: number) => `${(v * 100).toFixed(1)}%`,
-      },
-    ],
-    [t],
-  );
-
-  // ---- SLA Violations grid columns ----
-  const violationColumns: ColumnDef<SlaViolation>[] = useMemo(
-    () => [
-      { field: 'ticketNumber', header: t('ticketNumber'), sortable: true, width: 120 },
-      { field: 'priority', header: t('priority'), sortable: true, width: 100 },
-      {
-        field: 'minutesOverdue',
-        header: t('minutesOverdue'),
-        sortable: true,
-        width: 130,
-        align: 'right' as const,
-        render: (v: number) => {
-          const h = Math.floor(v / 60);
-          const m = v % 60;
-          return h > 0 ? `${h}h ${m}m` : `${m}m`;
-        },
-      },
-      {
-        field: 'dueAt',
-        header: t('dueAt'),
-        sortable: true,
-        width: 160,
-        render: (v: string) => new Date(v).toLocaleString(),
-      },
-    ],
-    [t],
-  );
-
-  // ---- Render ----
+  const maxTeamTickets = Math.max(1, ...teams.map((tm) => tm.totalTickets));
 
   if (isError) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted">
+      <div className="flex h-64 flex-col items-center justify-center gap-3 text-muted">
         <AlertTriangle size={32} />
         <p>{t('error')}</p>
-        <button
-          onClick={() => refetch()}
-          className="px-4 py-2 rounded bg-primary text-white text-sm hover:opacity-90 transition"
-        >
+        <button onClick={() => refetch()} className="btn-primary rounded-md px-4 py-2 text-sm">
           {t('retry')}
         </button>
       </div>
@@ -389,145 +122,270 @@ export function AnalyticsView() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 max-w-[1400px] mx-auto h-full overflow-y-auto">
-      {/* ---- Toolbar ---- */}
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-bold text-text mr-auto">{t('title')}</h1>
+    <div className="flex h-full flex-col">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-sm border-b border-border p-md">
+        <div>
+          <h1 className="text-lg font-bold">{t('title')}</h1>
+          <p className="text-xs text-muted">{t('subtitle')}</p>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-sm">
+          <div className="flex overflow-hidden rounded-md border border-border text-sm">
+            {([30, 90, 180] as PeriodDays[]).map((d) => (
+              <button
+                key={d}
+                onClick={() => setDays(d)}
+                className={cn(
+                  'px-3 py-1.5 transition-colors',
+                  days === d ? 'btn-primary' : 'bg-panel text-text hover:bg-panel-2',
+                )}
+              >
+                {t('daysShort', { days: d })}
+              </button>
+            ))}
+          </div>
+          <select
+            value={granularity}
+            onChange={(e) => setGranularity(e.target.value as Granularity)}
+            className="rounded-md border border-border bg-panel px-2 py-1.5 text-sm text-text"
+            aria-label={t('granularity')}
+          >
+            <option value="Daily">{t('daily')}</option>
+            <option value="Weekly">{t('weekly')}</option>
+            <option value="Monthly">{t('monthly')}</option>
+          </select>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="grid h-9 w-9 place-items-center rounded-md border border-border text-muted transition-colors hover:text-text disabled:opacity-50"
+            aria-label={t('retry')}
+          >
+            <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
+          </button>
+        </div>
+      </div>
 
-        {/* Period presets */}
-        <div className="flex rounded-lg border border-border overflow-hidden text-sm">
-          {([7, 30, 90] as PeriodDays[]).map((d) => (
-            <button
-              key={d}
-              onClick={() => setDays(d)}
-              className={cn(
-                'px-3 py-1.5 transition',
-                days === d
-                  ? 'bg-primary text-white'
-                  : 'bg-panel text-text hover:bg-surface',
+      <div className="min-h-0 flex-1 overflow-auto p-lg">
+        <div className="mx-auto flex max-w-[1400px] flex-col gap-lg">
+          {/* KPIs */}
+          {isLoading ? (
+            <div className="grid grid-cols-2 gap-md lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-24 animate-pulse rounded-lg border border-border bg-panel" />
+              ))}
+            </div>
+          ) : kpis ? (
+            <div className="grid grid-cols-2 gap-md lg:grid-cols-3">
+              <KpiCard icon={<BarChart3 size={14} />} label={t('totalTickets')} value={String(kpis.totalTickets)} delay={0} />
+              <KpiCard
+                icon={<CheckCircle2 size={14} />}
+                label={t('resolved')}
+                value={String(kpis.resolvedTickets)}
+                subtitle={t('resolutionRateValue', { value: formatPct(kpis.resolutionRate) })}
+                delay={0.05}
+              />
+              <KpiCard icon={<Clock size={14} />} label={t('mttr')} value={formatHours(kpis.mttrHours)} subtitle={t('mttrSubtitle')} delay={0.1} />
+              <KpiCard
+                icon={<ShieldCheck size={14} />}
+                label={t('slaCompliance')}
+                value={formatPct(kpis.slaComplianceRate)}
+                accentColor={healthColor(kpis.slaComplianceRate)}
+                valueClass={healthTextClass(kpis.slaComplianceRate)}
+                delay={0.15}
+              />
+              <KpiCard icon={<Target size={14} />} label={t('resolutionRate')} value={formatPct(kpis.resolutionRate)} delay={0.2} />
+              <KpiCard
+                icon={<RotateCcw size={14} />}
+                label={t('recurrenceRate')}
+                value={formatPct(kpis.recurrenceRate)}
+                valueClass={kpis.recurrenceRate > 0.2 ? 'text-warning' : undefined}
+                delay={0.25}
+              />
+            </div>
+          ) : null}
+
+          {/* Tendência */}
+          <ChartCard title={t('trendTitle')} icon={<TrendingUp className="h-4 w-4 text-primary" />}>
+            {trend.length < 2 ? (
+              <p className="py-8 text-center text-sm text-dim">{t('noData')}</p>
+            ) : (
+              <LineChart
+                labels={trend.map((p) => formatShortDate(p.date, locale))}
+                series={[
+                  { key: 'opened', label: t('opened'), color: 'var(--orbit-color-primary)', values: trend.map((p) => p.opened) },
+                  { key: 'closed', label: t('closed'), color: 'var(--orbit-color-success)', values: trend.map((p) => p.closed) },
+                ]}
+              />
+            )}
+          </ChartCard>
+
+          {/* Distribuições */}
+          <div className="grid grid-cols-1 gap-lg md:grid-cols-3">
+            <ChartCard title={t('byPriority')}>
+              {priorityItems.length ? <HBarChart items={priorityItems} /> : <p className="text-xs text-dim">{t('noData')}</p>}
+            </ChartCard>
+            <ChartCard title={t('byStatus')}>
+              {statusItems.length ? <HBarChart items={statusItems} /> : <p className="text-xs text-dim">{t('noData')}</p>}
+            </ChartCard>
+            <ChartCard title={t('byRootCause')}>
+              {rootCauseSlices.length ? (
+                <DonutChart slices={rootCauseSlices} size={140} centerLabel={t('total')} />
+              ) : (
+                <p className="text-xs text-dim">{t('noData')}</p>
               )}
-            >
-              {d}d
-            </button>
-          ))}
+            </ChartCard>
+          </div>
+
+          {/* Conformidade SLA */}
+          <ChartCard
+            title={t('slaCompliance')}
+            icon={<ShieldCheck className="h-4 w-4 text-primary" />}
+            action={
+              slaData ? (
+                <span className={cn('text-sm font-bold', healthTextClass(slaData.complianceRate))}>
+                  {formatPct(slaData.complianceRate)}
+                </span>
+              ) : null
+            }
+          >
+            {slaData ? (
+              <div className="flex flex-col gap-md">
+                <ProgressBar value={slaData.complianceRate} color={healthColor(slaData.complianceRate)} className="h-2" />
+                <div className="flex flex-wrap gap-lg text-sm">
+                  <span className="text-muted">{t('slaEvaluated', { count: slaData.totalEvaluated })}</span>
+                  <span className={slaData.breached > 0 ? 'font-medium text-danger' : 'text-muted'}>
+                    {t('slaBreached', { count: slaData.breached })}
+                  </span>
+                </div>
+
+                <div className="mt-1">
+                  <p className="mb-sm flex items-center gap-1.5 text-sm font-semibold">
+                    <AlertTriangle size={14} className="text-warning" />
+                    {t('slaViolationsTitle')}
+                  </p>
+                  {violations.length === 0 ? (
+                    <p className="text-xs text-dim">{t('noViolations')}</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-dim">
+                            <th className="px-3 py-2 font-semibold">{t('ticketNumber')}</th>
+                            <th className="px-3 py-2 font-semibold">{t('priority')}</th>
+                            <th className="px-3 py-2 text-right font-semibold">{t('minutesOverdue')}</th>
+                            <th className="px-3 py-2 font-semibold">{t('dueAt')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {violations.slice(0, 12).map((v) => (
+                            <tr key={v.ticketId} className="border-t border-border/60">
+                              <td className="px-3 py-2 font-medium">{v.ticketNumber}</td>
+                              <td className="px-3 py-2">
+                                <span
+                                  className="inline-flex items-center gap-1.5 text-muted"
+                                  style={{ color: PRIORITY_COLORS[v.priority] }}
+                                >
+                                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PRIORITY_COLORS[v.priority] ?? 'var(--orbit-color-muted)' }} />
+                                  {v.priority}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-right font-semibold text-danger tabular-nums">
+                                {formatMinutes(v.minutesOverdue)}
+                              </td>
+                              <td className="px-3 py-2 text-muted">{new Date(v.dueAt).toLocaleString(locale)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="py-6 text-center text-sm text-dim">{t('noData')}</p>
+            )}
+          </ChartCard>
+
+          {/* Métricas por equipe */}
+          <ChartCard title={t('teamsTitle')} icon={<Users className="h-4 w-4 text-primary" />}>
+            {teams.length === 0 ? (
+              <p className="py-6 text-center text-sm text-dim">{t('noTeamData')}</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-dim">
+                      <th className="px-3 py-2 font-semibold">{t('teamName')}</th>
+                      <th className="px-3 py-2 font-semibold">{t('totalTickets')}</th>
+                      <th className="px-3 py-2 text-right font-semibold">{t('resolutionRate')}</th>
+                      <th className="px-3 py-2 text-right font-semibold">{t('avgMttr')}</th>
+                      <th className="px-3 py-2 text-right font-semibold">{t('slaCompliance')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teams.map((tm: TeamMetrics) => (
+                      <tr key={tm.teamId} className="border-t border-border/60">
+                        <td className="px-3 py-2 font-medium">{tm.teamName}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-8 tabular-nums text-muted">{tm.totalTickets}</span>
+                            <div className="h-2 w-24 overflow-hidden rounded-full bg-panel-2">
+                              <div
+                                className="h-full rounded-full bg-primary"
+                                style={{ width: `${(tm.totalTickets / maxTeamTickets) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-muted">{formatPct(tm.resolutionRate)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-muted">{formatHours(tm.avgMttrHours)}</td>
+                        <td className={cn('px-3 py-2 text-right font-semibold tabular-nums', healthTextClass(tm.slaComplianceRate))}>
+                          {formatPct(tm.slaComplianceRate)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </ChartCard>
         </div>
-
-        {/* Granularity */}
-        <select
-          value={granularity}
-          onChange={(e) => setGranularity(e.target.value as Granularity)}
-          className="text-sm border border-border rounded-lg px-2 py-1.5 bg-panel text-text"
-        >
-          <option value="Daily">{t('daily')}</option>
-          <option value="Weekly">{t('weekly')}</option>
-          <option value="Monthly">{t('monthly')}</option>
-        </select>
-
-        {/* Refresh */}
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="p-1.5 rounded-lg border border-border bg-panel text-muted hover:text-text hover:bg-surface transition disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
-        </button>
-      </div>
-
-      {/* ---- KPI Cards ---- */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-lg border border-border bg-panel animate-pulse" />
-          ))}
-        </div>
-      ) : kpis ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <KpiCard
-            icon={<BarChart3 size={14} />}
-            label={t('totalTickets')}
-            value={String(kpis.totalTickets)}
-          />
-          <KpiCard
-            icon={<CheckCircle2 size={14} />}
-            label={t('resolved')}
-            value={String(kpis.resolvedTickets)}
-          />
-          <KpiCard
-            icon={<Clock size={14} />}
-            label={t('mttr')}
-            value={`${kpis.mttrHours.toFixed(1)}h`}
-            subtitle={t('mttrSubtitle')}
-          />
-          <KpiCard
-            icon={<ShieldCheck size={14} />}
-            label={t('slaCompliance')}
-            value={`${(kpis.slaComplianceRate * 100).toFixed(1)}%`}
-          />
-          <KpiCard
-            icon={<Target size={14} />}
-            label={t('resolutionRate')}
-            value={`${(kpis.resolutionRate * 100).toFixed(1)}%`}
-          />
-          <KpiCard
-            icon={<RotateCcw size={14} />}
-            label={t('recurrenceRate')}
-            value={`${(kpis.recurrenceRate * 100).toFixed(1)}%`}
-          />
-        </div>
-      ) : null}
-
-      {/* ---- Trend Chart ---- */}
-      <div className="rounded-lg border border-border bg-panel p-4">
-        <h2 className="text-sm font-semibold text-text mb-3">{t('trendTitle')}</h2>
-        <TrendChart data={trend} t={t} />
-      </div>
-
-      {/* ---- Distribution Panels ---- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-lg border border-border bg-panel p-4">
-          <h2 className="text-sm font-semibold text-text mb-3">{t('byPriority')}</h2>
-          {priorityItems.length ? <HBar items={priorityItems} /> : <p className="text-xs text-muted">{t('noData')}</p>}
-        </div>
-        <div className="rounded-lg border border-border bg-panel p-4">
-          <h2 className="text-sm font-semibold text-text mb-3">{t('byStatus')}</h2>
-          {statusItems.length ? <HBar items={statusItems} /> : <p className="text-xs text-muted">{t('noData')}</p>}
-        </div>
-        <div className="rounded-lg border border-border bg-panel p-4">
-          <h2 className="text-sm font-semibold text-text mb-3">{t('byRootCause')}</h2>
-          {rootCauseItems.length ? <HBar items={rootCauseItems} /> : <p className="text-xs text-muted">{t('noData')}</p>}
-        </div>
-      </div>
-
-      {/* ---- Teams DataGrid ---- */}
-      <div className="rounded-lg border border-border bg-panel p-4">
-        <h2 className="text-sm font-semibold text-text mb-3">{t('teamsTitle')}</h2>
-        <DataGrid<TeamMetrics>
-          gridId="analytics-teams"
-          columns={teamColumns}
-          data={teams}
-          rowKey="teamId"
-          loading={isLoading}
-        />
-      </div>
-
-      {/* ---- SLA Violations ---- */}
-      <div className="rounded-lg border border-border bg-panel p-4">
-        <h2 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
-          <AlertTriangle size={14} className="text-warning" />
-          {t('slaViolationsTitle')}
-        </h2>
-        {violations.length === 0 && !isLoading ? (
-          <p className="text-xs text-muted">{t('noViolations')}</p>
-        ) : (
-          <DataGrid<SlaViolation>
-            gridId="analytics-sla-violations"
-            columns={violationColumns}
-            data={violations}
-            rowKey="ticketId"
-            loading={isLoading}
-          />
-        )}
       </div>
     </div>
+  );
+}
+
+function KpiCard({
+  icon,
+  label,
+  value,
+  subtitle,
+  accentColor,
+  valueClass,
+  delay = 0,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  subtitle?: string;
+  accentColor?: string;
+  valueClass?: string;
+  delay?: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.35 }}
+      className="card-surface relative flex flex-col gap-1 overflow-hidden p-lg"
+    >
+      {accentColor && <span className="absolute inset-y-0 left-0 w-1 rounded-r" style={{ backgroundColor: accentColor }} />}
+      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-dim">
+        {icon}
+        {label}
+      </div>
+      <div className={cn('text-2xl font-bold text-text', valueClass)}>{value}</div>
+      {subtitle && <div className="text-xs text-muted">{subtitle}</div>}
+    </motion.div>
   );
 }

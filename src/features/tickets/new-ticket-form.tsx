@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
-  Sparkles, Lightbulb, ArrowRight, Loader2,
+  Sparkles, Lightbulb, ArrowRight,
   Target, Zap,
 } from 'lucide-react';
 import { ticketsApi, usersApi, iterationsApi, tagsApi } from '@/shared/api/endpoints';
@@ -317,11 +317,7 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
             {t('cancel')}
           </Button>
           <Button type="submit" loading={submitting} disabled={!canSubmit}>
-            {submitting ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> {t('analyzing')}</>
-            ) : (
-              t('submit')
-            )}
+            {submitting ? t('analyzing') : t('submit')}
           </Button>
         </div>
       </div>

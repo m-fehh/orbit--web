@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, ThumbsUp, ThumbsDown, Check, BookOpen, Target, Lightbulb, Sparkles,
-  Zap, ExternalLink, BarChart3, Clock, FileText, ArrowRight, Layers,
+  Zap, BarChart3, Clock, FileText, ArrowRight, Layers,
   ArrowUpRight,
 } from 'lucide-react';
 import { intelligenceApi, ticketsApi } from '@/shared/api/endpoints';
@@ -15,7 +15,6 @@ import { ticketResolutionApi } from '@/shared/api/endpoints';
 import { apiErrorMessage } from '@/shared/api/types';
 import type { RootCauseCandidate, ResolutionSuggestion } from '@/shared/api/types';
 import { useWindowStore } from '@/features/windows/window-store';
-import { useTabStore } from '@/features/workspace/tab-store';
 import { openTicketTab } from './ticket-actions';
 import { Button } from '@/shared/ui/button';
 import { PulseDot } from '@/shared/ui/motion';
@@ -334,7 +333,6 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
   const [feedback, setFeedback] = useState<FeedbackState>({});
   const [activeTab, setActiveTab] = useState<'overview' | 'causes' | 'resolutions' | 'knowledge'>('overview');
 
-  const openTab = useTabStore((s) => s.openTab);
 
   const report = useQuery({
     queryKey: ['tickets', 'intelligence', ticketId],
@@ -584,21 +582,12 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
           {activeTab === 'knowledge' && (
             <motion.div key="knowledge" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.2 }} className="flex flex-col gap-3 p-6">
               {knData.map((k, i) => (
-                <motion.button
+                <motion.div
                   key={k.assetId}
-                  type="button"
-                  onClick={() =>
-                    openTab({
-                      kind: 'knowledge-article',
-                      params: { id: k.assetId },
-                      title: k.title,
-                      icon: 'knowledge',
-                    })
-                  }
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.06 }}
-                  className="group w-full cursor-pointer rounded-xl border border-border bg-panel p-4 text-left transition-all hover:border-warning/40 hover:shadow-md"
+                  className="group w-full rounded-xl border border-border bg-panel p-4 text-left"
                 >
                   <div className="flex items-start gap-3">
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-warning/10 text-warning ring-1 ring-warning/20"><BookOpen className="h-4 w-4" /></span>
@@ -618,9 +607,8 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
                         </div>
                       )}
                     </div>
-                    <ExternalLink className="h-4 w-4 shrink-0 text-dim opacity-0 transition-opacity group-hover:opacity-100" />
                   </div>
-                </motion.button>
+                </motion.div>
               ))}
               {knData.length === 0 && <p className="py-lg text-center text-xs text-dim">{t('noKnowledge')}</p>}
             </motion.div>

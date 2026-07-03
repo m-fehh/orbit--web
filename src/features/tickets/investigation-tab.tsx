@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Plus, FlaskConical, GitBranch, CheckCircle2, Lightbulb, FileText, Link2, Upload, Loader } from 'lucide-react';
+import { Plus, FlaskConical, GitBranch, CheckCircle2, Lightbulb, FileText, Link2, Upload } from 'lucide-react';
 import { investigationsApi, rootCausesApi } from '@/shared/api/endpoints';
 import {
   apiErrorMessage, EvidenceType, HypothesisStatus, RootCauseCategory,
@@ -370,7 +370,7 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
                       onClick={() => uploadEvidenceMutation.mutate(uploadFile)}
                     >
                       {uploadEvidenceMutation.isPending ? (
-                        <><Loader className="h-3.5 w-3.5 animate-spin" /> {t('uploading')}</>
+                        t('uploading')
                       ) : (
                         <><Upload className="h-3.5 w-3.5" /> {t('upload')}</>
                       )}

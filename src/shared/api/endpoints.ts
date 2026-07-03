@@ -52,10 +52,6 @@ import type {
   ResolveTicketRequest,
   ResolveTicketResponse,
   ResolutionPatternResponse,
-  KnowledgeAssetResponse,
-  KnowledgeAssetVersionResponse,
-  CreateKnowledgeAssetRequest,
-  UpdateKnowledgeAssetRequest,
   EngineeringWorkItemResponse,
   WebhookSubscriptionResponse,
   KpiSnapshot,
@@ -76,6 +72,8 @@ import type {
   IntelligenceRootCauseSuggestion,
   IntelligenceResolutionSuggestion,
   AutomationOpportunity,
+  PatternSignal,
+  IntelligenceOverview,
   IterationResponse,
   CreateIterationRequest,
   UpdateIterationRequest,
@@ -83,7 +81,10 @@ import type {
   CreateTagRequest,
   UpdateTagRequest,
   PlaybookResponse,
-  SavePlaybookRequest,
+  PlaybookSuggestion,
+  CopilotAnswerResponse,
+  ProblemResponse,
+  ProblemDetailResponse,
 } from './types';
 
 /** Branding público do tenant, resolvido pelo subdomínio (pré-login, anônimo). */
@@ -245,23 +246,6 @@ export const rootCausesApi = {
   remove: (id: number) => api.delete<void>(`/rootcauses/${id}`),
 };
 
-/** Knowledge assets */
-export const knowledgeApi = {
-  list: (params?: { page?: number; pageSize?: number; search?: string; category?: string }) =>
-    api.get<PagedResponse<KnowledgeAssetResponse>>('/knowledgeassets', {
-      params: { page: 1, pageSize: 20, ...params } as Record<string, string | number | boolean>,
-    }),
-  get: (id: number) => api.get<KnowledgeAssetResponse>(`/knowledgeassets/${id}`),
-  create: (body: CreateKnowledgeAssetRequest) => api.post<KnowledgeAssetResponse>('/knowledgeassets', body),
-  update: (id: number, body: UpdateKnowledgeAssetRequest) => api.put<KnowledgeAssetResponse>(`/knowledgeassets/${id}`, body),
-  publish: (id: number) => api.patch<void>(`/knowledgeassets/${id}/publish`),
-  archive: (id: number) => api.patch<void>(`/knowledgeassets/${id}/archive`),
-  incrementReuse: (id: number) => api.patch<void>(`/knowledgeassets/${id}/reuse`),
-  versions: (id: number) => api.get<KnowledgeAssetVersionResponse[]>(`/knowledgeassets/${id}/versions`),
-  version: (id: number, versionId: number) => api.get<KnowledgeAssetVersionResponse>(`/knowledgeassets/${id}/versions/${versionId}`),
-  rollback: (id: number, versionId: number) => api.post<KnowledgeAssetResponse>(`/knowledgeassets/${id}/rollback/${versionId}`),
-};
-
 /** Resolution patterns */
 export const resolutionPatternsApi = {
   create: (body: { rootCauseId: number; name: string }) => api.post<ResolutionPatternResponse>('/resolutionpatterns', body),
@@ -289,20 +273,61 @@ export const intelligenceApi = {
     api.get<IntelligenceReport>(`/intelligence/tickets/${ticketId}/report`, { params: { maxResults } }),
   ticketRootCauses: (ticketId: number) => api.get<IntelligenceRootCauseSuggestion[]>(`/intelligence/tickets/${ticketId}/root-causes`),
   ticketResolutions: (ticketId: number) => api.get<IntelligenceResolutionSuggestion[]>(`/intelligence/tickets/${ticketId}/resolutions`),
+  /** Visão consolidada: cobertura de playbooks, confiabilidade, causas raiz, automação. */
+  overview: (days = 90) =>
+    api.get<IntelligenceOverview>('/intelligence/overview', { params: { days } }),
+  /** Padrões minerados (antecedente → consequente) com suporte/confiança/lift. */
+  patternSignals: (minSupport = 0.02, maxResults = 20) =>
+    api.get<PatternSignal[]>('/intelligence/patterns', { params: { minSupport, maxResults } }),
   patterns: () => api.get<ResolutionPatternResponse[]>('/intelligence/patterns'),
-  automationOpportunities: () => api.get<AutomationOpportunity[]>('/intelligence/automation-opportunities'),
+  automationOpportunities: (lookbackDays = 90, maxResults = 20) =>
+    api.get<AutomationOpportunity[]>('/intelligence/automation-opportunities', {
+      params: { lookbackDays, maxResults },
+    }),
   /** Confiabilidade do assistente (calibração da confiança + playbooks mais efetivos). */
   reliability: (days = 90) =>
     api.get<TaasReliabilityResponse>('/intelligence/reliability', { params: { days } }),
+  /** Copiloto de Conhecimento: pergunta em texto livre → resposta + soluções comprovadas. */
+  ask: (q: string, maxResults = 5) =>
+    api.get<CopilotAnswerResponse>('/intelligence/ask', { params: { q, maxResults } }),
 };
 
-/** Playbooks (roteiros de resolução — "caminho das pedras"). Curadoria/CRUD. */
+/**
+ * Radar de Recorrência — problemas que o motor agrupa a partir de tickets similares.
+ */
+export const problemsApi = {
+  /** Lista problemas, opcionalmente filtrados por status (1=Open,2=Monitoring,3=Resolved,4=Dismissed). */
+  list: (status?: number) =>
+    api.get<ProblemResponse[]>('/problems', {
+      params: (status ? { status } : {}) as Record<string, string | number | boolean>,
+    }),
+  get: (id: number) => api.get<ProblemDetailResponse>(`/problems/${id}`),
+  /** Atualiza o status de um problema. */
+  updateStatus: (id: number, status: number) =>
+    api.patch<ProblemResponse>(`/problems/${id}/status`, { status }),
+  /** Dispara uma varredura para (re)detectar recorrências. */
+  detect: () => api.post<void>('/problems/detect'),
+};
+
+/**
+ * Base de Soluções — soluções que o motor minera do histórico e o humano cura.
+ * Não há mais cadastro manual (create/update/remove sumiram).
+ */
 export const playbooksApi = {
-  list: () => api.get<PlaybookResponse[]>('/playbooks'),
+  /** Biblioteca: soluções publicadas (busca opcional por texto). */
+  library: (search?: string) =>
+    api.get<PlaybookResponse[]>('/playbooks', {
+      params: (search ? { search } : {}) as Record<string, string | number | boolean>,
+    }),
+  /** Fila de revisão: rascunhos minerados aguardando curadoria. */
+  review: () => api.get<PlaybookResponse[]>('/playbooks/review'),
   get: (id: number) => api.get<PlaybookResponse>(`/playbooks/${id}`),
-  create: (body: SavePlaybookRequest) => api.post<PlaybookResponse>('/playbooks', body),
-  update: (id: number, body: SavePlaybookRequest) => api.put<PlaybookResponse>(`/playbooks/${id}`, body),
-  remove: (id: number) => api.delete<void>(`/playbooks/${id}`),
+  /** Aprova um rascunho (passa a integrar a biblioteca). */
+  approve: (id: number) => api.post<PlaybookResponse>(`/playbooks/${id}/approve`),
+  /** Descarta um rascunho. */
+  discard: (id: number) => api.post<void>(`/playbooks/${id}/discard`),
+  /** Dispara a mineração do histórico, populando a fila de revisão. */
+  mine: () => api.post<void>('/playbooks/mine'),
 };
 
 /** Usuários */

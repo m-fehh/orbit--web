@@ -6,8 +6,6 @@ export type ViewKind =
   | 'ticket'
   | 'dashboard'
   | 'users'
-  | 'knowledge'
-  | 'knowledge-article'
   | 'investigations'
   | 'analytics'
   | 'admin'
@@ -15,6 +13,8 @@ export type ViewKind =
   | 'intelligence'
   | 'playbooks'
   | 'reliability'
+  | 'copilot'
+  | 'problems'
   | 'iterations'
   | 'tags';
 

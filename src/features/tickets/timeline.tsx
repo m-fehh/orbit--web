@@ -1,14 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import {
-  Activity, AlertCircle, ArrowRight, ChevronDown, ChevronRight, FilePlus,
+  Activity, AlertCircle, ArrowRight, FilePlus,
   MessageSquare, Paperclip, ShieldAlert, Sparkles, Tag, Timer, UserPlus, Users, Wrench,
 } from 'lucide-react';
 import type { Locale } from '@/shared/i18n/config';
 import { auditApi, ticketsApi, iterationsApi } from '@/shared/api/endpoints';
+import { tokenStore } from '@/shared/api/token-store';
 import type { AuditLogResponse, TicketCommentResponse, TicketDetailResponse, WorklogResponse } from '@/shared/api/types';
 import { LoadingState } from '@/shared/ui/states';
 import { MarkdownContent } from '@/shared/ui/markdown-editor';
@@ -29,6 +30,24 @@ interface TimelineEvent {
   title: string;
   detail?: string;
   internal?: boolean;
+  attachmentId?: number;
+}
+
+/** Baixa o anexo via blob autenticado (o endpoint exige Bearer; link direto daria 401). */
+async function downloadAttachment(id: number, fileName: string) {
+  const token = tokenStore.getAccessToken();
+  const res = await fetch(ticketsApi.downloadAttachmentUrl(id), {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) return;
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName || 'anexo';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 // ─── Metadados usando variáveis do tema ────────────────
@@ -167,7 +186,6 @@ function TimelineItem({
   timeFmt: Intl.DateTimeFormat;
   t: ReturnType<typeof useTranslations>;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const meta = KIND_META[ev.kind];
   const Icon = meta.icon;
   const isComment = ev.kind === 'comment';
@@ -226,12 +244,12 @@ function TimelineItem({
         {isAttachment && ev.detail && (
           <button
             type="button"
-            onClick={() => setExpanded(p => !p)}
+            onClick={() => ev.attachmentId != null && void downloadAttachment(ev.attachmentId, ev.detail!)}
             className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs text-dim hover:bg-panel-2 hover:text-text transition-colors self-start"
+            title={ev.detail}
           >
             <Paperclip className="h-3 w-3" />
             <span className="max-w-[200px] truncate">{ev.detail}</span>
-            {expanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
           </button>
         )}
 
@@ -393,6 +411,7 @@ export function TicketTimeline({
           actor: userName(a.uploadedById),
           title: t('timeline.attachmentAdded'),
           detail: a.fileName,
+          attachmentId: a.id,
         });
       }
     });

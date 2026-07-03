@@ -12,7 +12,7 @@ import { useShortcutsStore } from './shortcuts-store';
 const NAV_TARGETS: { char: string; kind: ViewKind; icon: IconKey; navKey: string }[] = [
   { char: 'd', kind: 'dashboard', icon: 'dashboard', navKey: 'dashboard' },
   { char: 't', kind: 'tickets', icon: 'tickets', navKey: 'tickets' },
-  { char: 'k', kind: 'knowledge', icon: 'knowledge', navKey: 'knowledge' },
+  { char: 'k', kind: 'playbooks', icon: 'analytics', navKey: 'playbooks' },
   { char: 'i', kind: 'intelligence', icon: 'analytics', navKey: 'intelligence' },
   { char: 'a', kind: 'analytics', icon: 'analytics', navKey: 'analytics' },
   { char: 'u', kind: 'users', icon: 'users', navKey: 'users' },

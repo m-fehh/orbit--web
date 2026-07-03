@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import {
   LayoutDashboard,
   Ticket,
-  BookOpen,
+  Library,
   BarChart3,
   Users as UsersIcon,
   UserCog,
@@ -15,8 +15,9 @@ import {
   X,
   Milestone,
   Brain,
-  Route,
   ShieldCheck,
+  Sparkles,
+  Radar,
   type LucideIcon,
 } from 'lucide-react';
 import { useUiStore } from '@/features/shell/ui-store';
@@ -25,7 +26,7 @@ import { usePermissions } from '@/features/auth/use-permissions';
 import { UserMenu } from '@/features/shell/user-menu';
 import { cn } from '@/shared/lib/utils';
 
-type NavLabel = 'dashboard' | 'tickets' | 'knowledge' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability';
+type NavLabel = 'dashboard' | 'tickets' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability' | 'copilot' | 'problems';
 
 interface NavItem {
   loc: TabLocation;
@@ -45,8 +46,6 @@ const SECTIONS: NavSection[] = [
     items: [
       { loc: { kind: 'dashboard', params: {}, title: 'Dashboard', icon: 'dashboard' }, labelKey: 'dashboard', icon: LayoutDashboard, perm: ['analytics.dashboard'] },
       { loc: { kind: 'tickets', params: {}, title: 'Central de Tickets', icon: 'tickets' }, labelKey: 'tickets', icon: Ticket, perm: ['ticket.view'] },
-
-      { loc: { kind: 'knowledge', params: {}, title: 'Conhecimento', icon: 'knowledge' }, labelKey: 'knowledge', icon: BookOpen, perm: ['knowledge.view'] },
       { loc: { kind: 'iterations', params: {}, title: 'Iterações', icon: 'tickets' }, labelKey: 'iterations', icon: Milestone, perm: ['ticket.view'] },
     ],
   },
@@ -54,7 +53,9 @@ const SECTIONS: NavSection[] = [
     titleKey: 'secInsights',
     items: [
       { loc: { kind: 'intelligence', params: {}, title: 'Intelligence', icon: 'analytics' }, labelKey: 'intelligence', icon: Brain, perm: ['intelligence.view'] },
-      { loc: { kind: 'playbooks', params: {}, title: 'Playbooks', icon: 'analytics' }, labelKey: 'playbooks', icon: Route, perm: ['intelligence.view'] },
+      { loc: { kind: 'copilot', params: {}, title: 'Copiloto de Conhecimento', icon: 'analytics' }, labelKey: 'copilot', icon: Sparkles, perm: ['intelligence.view'] },
+      { loc: { kind: 'problems', params: {}, title: 'Radar de Recorrência', icon: 'analytics' }, labelKey: 'problems', icon: Radar, perm: ['intelligence.view'] },
+      { loc: { kind: 'playbooks', params: {}, title: 'Base de Soluções', icon: 'analytics' }, labelKey: 'playbooks', icon: Library, perm: ['intelligence.view'] },
       { loc: { kind: 'reliability', params: {}, title: 'Confiabilidade', icon: 'analytics' }, labelKey: 'reliability', icon: ShieldCheck, perm: ['intelligence.view'] },
       { loc: { kind: 'analytics', params: {}, title: 'Analytics', icon: 'analytics' }, labelKey: 'analytics', icon: BarChart3, perm: ['analytics.dashboard', 'analytics.kpis'] },
     ],
