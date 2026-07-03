@@ -20,6 +20,8 @@ const SECTION_NAV_KEY: Record<ViewKind, string> = {
   admin: 'admin',
   audit: 'audit',
   intelligence: 'intelligence',
+  playbooks: 'playbooks',
+  reliability: 'reliability',
   iterations: 'iterations',
   tags: 'tags',
 };
@@ -36,6 +38,8 @@ const SECTION_META: Record<ViewKind, { indexKind: ViewKind; icon: TabLocation['i
   admin: { indexKind: 'admin', icon: 'admin' },
   audit: { indexKind: 'audit', icon: 'audit' },
   intelligence: { indexKind: 'intelligence', icon: 'analytics' },
+  playbooks: { indexKind: 'playbooks', icon: 'analytics' },
+  reliability: { indexKind: 'reliability', icon: 'analytics' },
   iterations: { indexKind: 'iterations', icon: 'tickets' },
   tags: { indexKind: 'tags', icon: 'admin' },
 };

@@ -8,11 +8,8 @@ import { useTranslations } from 'next-intl';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Save, Send, Archive, RotateCcw, History, ChevronRight } from 'lucide-react';
 import { knowledgeApi } from '@/shared/api/endpoints';
-import { rootCausesApi } from '@/shared/api/endpoints';
 import type {
-  KnowledgeAssetResponse,
   KnowledgeAssetVersionResponse,
-  RootCauseResponse,
 } from '@/shared/api/types';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -29,7 +26,8 @@ function createArticleSchema(t: (key: string) => string) {
     title: z.string().min(1, t('titleRequired')),
     summary: z.string().min(1, t('summaryRequired')),
     content: z.string().min(1, t('contentRequired')),
-    rootCauseId: z.number().nullable().optional(),
+    category: z.string().optional(),
+    tags: z.string().optional(),
   });
 }
 
@@ -66,13 +64,6 @@ export function KnowledgeEditor({ id }: KnowledgeEditorProps) {
     enabled: !isNew && showVersions,
   });
 
-  // --- Fetch root causes for combobox ---
-  const { data: rootCausesData } = useQuery({
-    queryKey: ['rootcauses', 'list-all'],
-    queryFn: () => rootCausesApi.list({ pageSize: 200 }),
-  });
-  const rootCauses: RootCauseResponse[] = rootCausesData?.items ?? [];
-
   // --- Form ---
   const articleSchema = createArticleSchema(t);
   const {
@@ -84,7 +75,7 @@ export function KnowledgeEditor({ id }: KnowledgeEditorProps) {
     formState: { errors, isDirty },
   } = useForm<ArticleFormData>({
     resolver: zodResolver(articleSchema),
-    defaultValues: { title: '', summary: '', content: '', rootCauseId: null },
+    defaultValues: { title: '', summary: '', content: '', category: '', tags: '' },
   });
 
   useEffect(() => {
@@ -93,7 +84,8 @@ export function KnowledgeEditor({ id }: KnowledgeEditorProps) {
         title: article.title,
         summary: article.summary,
         content: article.content,
-        rootCauseId: article.rootCauseId,
+        category: article.category ?? '',
+        tags: article.tags ?? '',
       });
     }
   }, [article, reset]);
@@ -105,7 +97,8 @@ export function KnowledgeEditor({ id }: KnowledgeEditorProps) {
         title: data.title,
         summary: data.summary,
         content: data.content,
-        rootCauseId: data.rootCauseId ?? null,
+        category: data.category?.trim() || null,
+        tags: data.tags?.trim() || null,
       }),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['knowledge'] });
@@ -125,6 +118,8 @@ export function KnowledgeEditor({ id }: KnowledgeEditorProps) {
         title: data.title,
         summary: data.summary,
         content: data.content,
+        category: data.category?.trim() || null,
+        tags: data.tags?.trim() || null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['knowledge'] });
@@ -163,6 +158,12 @@ export function KnowledgeEditor({ id }: KnowledgeEditorProps) {
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
+  const tagsValue = watch('tags') ?? '';
+  const tagChips = tagsValue
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
   if (!isNew && isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -170,8 +171,6 @@ export function KnowledgeEditor({ id }: KnowledgeEditorProps) {
       </div>
     );
   }
-
-  const currentRootCauseId = watch('rootCauseId');
 
   return (
     <div className="flex h-full">
@@ -230,27 +229,41 @@ export function KnowledgeEditor({ id }: KnowledgeEditorProps) {
             )}
           </div>
 
-          {/* Root cause link */}
-          <div className="flex flex-col gap-1">
-            <label htmlFor="rootCauseId" className="text-xs font-medium text-muted">
-              {t('rootCause')}
-            </label>
-            <select
-              id="rootCauseId"
-              value={currentRootCauseId ?? ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                setValue('rootCauseId', val ? Number(val) : null, { shouldDirty: true });
-              }}
-              className="h-9 rounded-md border border-border bg-panel px-3 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">{t('noRootCause')}</option>
-              {rootCauses.map((rc) => (
-                <option key={rc.id} value={rc.id}>
-                  {rc.title}
-                </option>
-              ))}
-            </select>
+          {/* Category + Tags */}
+          <div className="grid grid-cols-1 gap-lg sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="category" className="text-xs font-medium text-muted">
+                {t('category')}
+              </label>
+              <Input
+                id="category"
+                {...register('category')}
+                placeholder={t('categoryPlaceholder')}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="tags" className="text-xs font-medium text-muted">
+                {t('tags')}
+              </label>
+              <Input
+                id="tags"
+                {...register('tags')}
+                placeholder={t('tagsPlaceholder')}
+              />
+              {tagChips.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {tagChips.map((tag, i) => (
+                    <span
+                      key={`${tag}-${i}`}
+                      className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Content */}

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { ticketsApi, usersApi, teamsApi, intelligenceApi, worklogsApi, investigationsApi, rootCausesApi, resolutionsApi, workItemsApi, iterationsApi, tagsApi, symptomsApi, ticketSymptomsApi, ticketResolutionApi } from '@/shared/api/endpoints';
 import {
-  TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, ApiError, EvidenceType, HypothesisStatus, RootCauseCategory,
+  TicketStatus, STATUS_TRANSITIONS, apiErrorMessage, ApiError, EvidenceType, HypothesisStatus, RootCauseCategory, CONFIDENCE_TO_NUMBER,
   type TicketStatusValue, type TicketStatusName, type TicketAttachmentResponse,
   type InvestigationResponse, type HypothesisStatusValue, type EvidenceTypeValue, type RootCauseCategoryValue,
   type IterationResponse, type TagResponse, type SymptomTagResponse, type EngineeringWorkItemResponse,
@@ -42,6 +42,7 @@ import { Checkbox } from '@/shared/ui/checkbox';
 import { RichEditor } from '@/shared/ui/rich-editor';
 import { MarkdownEditor, MarkdownContent, attachmentRef } from '@/shared/ui/markdown-editor';
 import { openIntelligenceModal } from './intelligence-modal';
+import { PlaybookPanel } from './playbook-panel';
 import { useSignalRGroup } from '@/features/notifications/use-signalr';
 
 type SubTab = 'overview' | 'timeline' | 'conversation' | 'worklogs' | 'investigation' | 'workItems' | 'attachments';
@@ -349,6 +350,7 @@ export function TicketDetail({ id }: { id: number }) {
               ) : (
                 <>
                   <IntelligenceQuickView ticketId={id} onExpand={() => openIntelligenceModal(id, ticket.title, tIntelMain('modalTitle', { title: ticket.title }))} />
+                  <PlaybookQuickView ticketId={id} />
                   <RecommendationsPanel ticketId={id} onOpenIntelligence={() => openIntelligenceModal(id, ticket.title, tIntelMain('modalTitle', { title: ticket.title }))} />
                 </>
               )}
@@ -939,6 +941,26 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
 function pct(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return '—';
   return `${Math.round(v * 100)}%`;
+}
+
+/** Painel "Caminho das pedras": consome o mesmo relatório de inteligência (cache compartilhado). */
+function PlaybookQuickView({ ticketId }: { ticketId: number }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['tickets', 'intelligence', ticketId],
+    queryFn: () => intelligenceApi.ticketReport(ticketId),
+    retry: false,
+  });
+
+  // Enquanto o relatório carrega, o IntelligenceQuickView já exibe o estado de análise.
+  if (isLoading || !data) return null;
+
+  return (
+    <PlaybookPanel
+      ticketId={ticketId}
+      playbooks={data.playbooks}
+      recommendedAction={data.recommendedAction}
+    />
+  );
 }
 
 function IntelligenceQuickView({ ticketId, onExpand }: { ticketId: number; onExpand: () => void }) {
@@ -1571,6 +1593,9 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
   const rootCauses = useQuery({ queryKey: ['rootcauses', ticketId], queryFn: () => rootCausesApi.byTicket(ticketId) });
   const report = useQuery({ queryKey: ['tickets', 'intelligence', ticketId], queryFn: () => intelligenceApi.ticketReport(ticketId), retry: false });
 
+  // Fecha o loop de aprendizado: se o TaaS ofertou um roteiro, registra qual foi usado + sua confiança.
+  const offeredPlaybook = report.data?.playbooks?.[0] ?? null;
+
   const resolve = useMutation({
     mutationFn: () =>
       ticketsApi.resolve(ticketId, {
@@ -1582,6 +1607,12 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
         actions: actions.map((a, i) => ({ order: i + 1, actionType: a.actionType, detail: a.detail.trim() || null })),
         symptomTagIds: selectedSymptomIds,
         isRecurring,
+        ...(offeredPlaybook
+          ? {
+              usedPlaybookId: offeredPlaybook.playbookId,
+              offeredConfidence: CONFIDENCE_TO_NUMBER[offeredPlaybook.confidence],
+            }
+          : {}),
       }),
     onSuccess: () => { toast.success(t('resolvedOk')); onResolved(); },
     onError: (err) => toast.error(apiErrorMessage(err, t('resolveError'))),
@@ -3137,7 +3168,11 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
   const [isRecurring, setIsRecurring] = useState(false);
 
   const rootCauses = useQuery({ queryKey: ['rootcauses', ticketId], queryFn: () => rootCausesApi.byTicket(ticketId) });
+  const report = useQuery({ queryKey: ['tickets', 'intelligence', ticketId], queryFn: () => intelligenceApi.ticketReport(ticketId), retry: false });
   const [selectedRootCauseId, setSelectedRootCauseId] = useState<number | null>(null);
+
+  // Fecha o loop de aprendizado: se o TaaS ofertou um roteiro, registra qual foi usado + sua confiança.
+  const offeredPlaybook = report.data?.playbooks?.[0] ?? null;
 
   const resolve = useMutation({
     mutationFn: () =>
@@ -3150,6 +3185,12 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
         actions: [],
         symptomTagIds: [],
         isRecurring,
+        ...(offeredPlaybook
+          ? {
+              usedPlaybookId: offeredPlaybook.playbookId,
+              offeredConfidence: CONFIDENCE_TO_NUMBER[offeredPlaybook.confidence],
+            }
+          : {}),
       }),
     onSuccess: () => {
       toast.success(t('resolvedOk'));

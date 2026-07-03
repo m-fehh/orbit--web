@@ -5,7 +5,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Pencil, ThumbsUp, BookOpen, ArrowLeft, Clock,
-  TrendingUp, Target,
+  TrendingUp, Tag, FolderOpen,
 } from 'lucide-react';
 import { knowledgeApi } from '@/shared/api/endpoints';
 import type { Locale } from '@/shared/i18n/config';
@@ -56,8 +56,8 @@ export function KnowledgeDetail({ id }: KnowledgeDetailProps) {
   });
 
   const { data: relatedData } = useQuery({
-    queryKey: ['knowledge', 'list', 'related', article?.rootCauseId],
-    queryFn: () => knowledgeApi.list({ pageSize: 5 }),
+    queryKey: ['knowledge', 'list', 'related', article?.category],
+    queryFn: () => knowledgeApi.list({ pageSize: 5, category: article?.category ?? undefined }),
     enabled: !!article,
   });
 
@@ -76,6 +76,15 @@ export function KnowledgeDetail({ id }: KnowledgeDetailProps) {
   const contentWithIds = useMemo(
     () => (article?.content ? injectHeadingIds(article.content) : ''),
     [article?.content],
+  );
+
+  const tagChips = useMemo(
+    () =>
+      (article?.tags ?? '')
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    [article?.tags],
   );
 
   const relatedArticles = useMemo(() => {
@@ -155,10 +164,10 @@ export function KnowledgeDetail({ id }: KnowledgeDetailProps) {
             <TrendingUp className="h-3 w-3" aria-hidden />
             {t('reuseCount')}: {article.reuseCount}
           </span>
-          {article.rootCauseId && (
-            <span className="flex items-center gap-1">
-              <Target className="h-3 w-3" aria-hidden />
-              {t('rootCause')}: #{article.rootCauseId}
+          {article.category && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+              <FolderOpen className="h-3 w-3" aria-hidden />
+              {article.category}
             </span>
           )}
           {article.updatedAt && (
@@ -168,6 +177,21 @@ export function KnowledgeDetail({ id }: KnowledgeDetailProps) {
             </span>
           )}
         </div>
+
+        {/* Tags */}
+        {tagChips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-lg py-sm">
+            <Tag className="h-3 w-3 text-dim" aria-hidden />
+            {tagChips.map((tag, i) => (
+              <span
+                key={`${tag}-${i}`}
+                className="inline-flex items-center rounded-full bg-panel-2 px-2 py-0.5 text-[11px] font-medium text-muted"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Article content */}
         <div className="flex-1 px-lg py-md max-w-4xl">

@@ -22,9 +22,6 @@ import type {
   UpdateTicketRequest,
   UpdateTicketTrackingRequest,
   RecommendationFeedbackRequest,
-  ChannelResponse,
-  CreateChannelRequest,
-  UpdateChannelRequest,
   InvestigationResponse,
   EvidenceResponse,
   HypothesisResponse,
@@ -50,6 +47,7 @@ import type {
   CreateRoleRequest,
   UpdateRoleRequest,
   IntelligenceReport,
+  TaasReliabilityResponse,
   ResolutionResponse,
   ResolveTicketRequest,
   ResolveTicketResponse,
@@ -70,8 +68,6 @@ import type {
   UpdateTeamRequest,
   SlaPolicyResponse,
   SaveSlaPolicyRequest,
-  EmailInboundRequest,
-  WhatsAppInboundRequest,
   TenantResponse,
   CreateTenantRequest,
   UpdateTenantRequest,
@@ -86,6 +82,8 @@ import type {
   TagResponse,
   CreateTagRequest,
   UpdateTagRequest,
+  PlaybookResponse,
+  SavePlaybookRequest,
 } from './types';
 
 /** Branding público do tenant, resolvido pelo subdomínio (pré-login, anônimo). */
@@ -249,7 +247,7 @@ export const rootCausesApi = {
 
 /** Knowledge assets */
 export const knowledgeApi = {
-  list: (params?: { page?: number; pageSize?: number; search?: string }) =>
+  list: (params?: { page?: number; pageSize?: number; search?: string; category?: string }) =>
     api.get<PagedResponse<KnowledgeAssetResponse>>('/knowledgeassets', {
       params: { page: 1, pageSize: 20, ...params } as Record<string, string | number | boolean>,
     }),
@@ -293,6 +291,18 @@ export const intelligenceApi = {
   ticketResolutions: (ticketId: number) => api.get<IntelligenceResolutionSuggestion[]>(`/intelligence/tickets/${ticketId}/resolutions`),
   patterns: () => api.get<ResolutionPatternResponse[]>('/intelligence/patterns'),
   automationOpportunities: () => api.get<AutomationOpportunity[]>('/intelligence/automation-opportunities'),
+  /** Confiabilidade do assistente (calibração da confiança + playbooks mais efetivos). */
+  reliability: (days = 90) =>
+    api.get<TaasReliabilityResponse>('/intelligence/reliability', { params: { days } }),
+};
+
+/** Playbooks (roteiros de resolução — "caminho das pedras"). Curadoria/CRUD. */
+export const playbooksApi = {
+  list: () => api.get<PlaybookResponse[]>('/playbooks'),
+  get: (id: number) => api.get<PlaybookResponse>(`/playbooks/${id}`),
+  create: (body: SavePlaybookRequest) => api.post<PlaybookResponse>('/playbooks', body),
+  update: (id: number, body: SavePlaybookRequest) => api.put<PlaybookResponse>(`/playbooks/${id}`, body),
+  remove: (id: number) => api.delete<void>(`/playbooks/${id}`),
 };
 
 /** Usuários */
@@ -345,14 +355,6 @@ export const ticketSymptomsApi = {
 };
 
 /** Intelligent ticket resolution via AI suggestions. */
-/** Cadastro de canais de comunicação (WhatsApp/e-mail). */
-export const channelRegistryApi = {
-  list: () => api.get<ChannelResponse[]>('/channels/registry'),
-  create: (body: CreateChannelRequest) => api.post<ChannelResponse>('/channels/registry', body),
-  update: (id: number, body: UpdateChannelRequest) => api.put<ChannelResponse>(`/channels/registry/${id}`, body),
-  remove: (id: number) => api.delete<void>(`/channels/registry/${id}`),
-};
-
 export const ticketResolutionApi = {
   resolveWithAi: (ticketId: number, body: { rootCauseId: number; summary: string; resolutionSteps: string; notifyCustomer?: boolean }) =>
     api.post<TicketResponse>(`/tickets/${ticketId}/resolve-with-ai`, body),
@@ -387,12 +389,6 @@ export const webhooksApi = {
   create: (body: { name: string; url: string; events: string[] }) => api.post<WebhookSubscriptionResponse>('/webhooks', body),
   update: (id: number, body: { name: string; url: string; events: string[] }) => api.put<WebhookSubscriptionResponse>(`/webhooks/${id}`, body),
   remove: (id: number) => api.delete<void>(`/webhooks/${id}`),
-};
-
-/** Canais de intake (e-mail/WhatsApp). */
-export const channelsApi = {
-  emailInbound: (body: EmailInboundRequest) => api.post<void>('/channels/email/inbound', body, { anonymous: true }),
-  whatsAppInbound: (body: WhatsAppInboundRequest) => api.post<void>('/channels/whatsapp/inbound', body, { anonymous: true }),
 };
 
 /** Administração interna (tenants, perfis, regras de acesso, sistema). */

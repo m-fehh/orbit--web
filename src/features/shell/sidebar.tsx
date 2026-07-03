@@ -15,6 +15,8 @@ import {
   X,
   Milestone,
   Brain,
+  Route,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 import { useUiStore } from '@/features/shell/ui-store';
@@ -23,7 +25,7 @@ import { usePermissions } from '@/features/auth/use-permissions';
 import { UserMenu } from '@/features/shell/user-menu';
 import { cn } from '@/shared/lib/utils';
 
-type NavLabel = 'dashboard' | 'tickets' | 'knowledge' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence';
+type NavLabel = 'dashboard' | 'tickets' | 'knowledge' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability';
 
 interface NavItem {
   loc: TabLocation;
@@ -52,6 +54,8 @@ const SECTIONS: NavSection[] = [
     titleKey: 'secInsights',
     items: [
       { loc: { kind: 'intelligence', params: {}, title: 'Intelligence', icon: 'analytics' }, labelKey: 'intelligence', icon: Brain, perm: ['intelligence.view'] },
+      { loc: { kind: 'playbooks', params: {}, title: 'Playbooks', icon: 'analytics' }, labelKey: 'playbooks', icon: Route, perm: ['intelligence.view'] },
+      { loc: { kind: 'reliability', params: {}, title: 'Confiabilidade', icon: 'analytics' }, labelKey: 'reliability', icon: ShieldCheck, perm: ['intelligence.view'] },
       { loc: { kind: 'analytics', params: {}, title: 'Analytics', icon: 'analytics' }, labelKey: 'analytics', icon: BarChart3, perm: ['analytics.dashboard', 'analytics.kpis'] },
     ],
   },

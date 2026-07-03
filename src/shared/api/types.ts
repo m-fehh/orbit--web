@@ -116,9 +116,13 @@ export interface UpdateTicketTrackingRequest {
 /** Feedback sobre uma recomendação do motor de inteligência (fecha o loop de aprendizado). */
 export interface RecommendationFeedbackRequest {
   resolutionId?: number | null;
+  /** Playbook (roteiro) associado ao feedback, quando o feedback é sobre um "caminho das pedras". */
+  playbookId?: number | null;
   accepted: boolean;
   helpful: boolean;
   note?: string | null;
+  /** Confiança ofertada no momento da sugestão (1=Low, 2=Medium, 3=High) — alimenta a calibração. */
+  offeredConfidence?: number | null;
 }
 
 /** Transições de status permitidas (espelha TicketStateMachine do backend, RN-003). */
@@ -273,12 +277,164 @@ export interface ResolutionSuggestion {
   successRate: number;
 }
 
+/** Ação recomendada pelo TaaS para o ticket (grau de autonomia da orientação). */
+export type RecommendedAction = 'RouteOnly' | 'Suggest' | 'GuideWithDraft';
+
+/** Nível de confiança de uma sugestão de playbook (respostas vêm como string). */
+export type PlaybookConfidence = 'Low' | 'Medium' | 'High';
+
+/** Mapeia a confiança (string) para o número esperado nos requests (1=Low, 2=Medium, 3=High). */
+export const CONFIDENCE_TO_NUMBER: Record<PlaybookConfidence, number> = {
+  Low: 1,
+  Medium: 2,
+  High: 3,
+};
+
+/** Confiabilidade do assistente por faixa de confiança (fecha o loop de calibração do TaaS). */
+export interface ConfidenceReliability {
+  confidence: 'High' | 'Medium' | 'Low' | 'Unknown';
+  offered: number;
+  accepted: number;
+  helpful: number;
+  /** Fração 0..1. */
+  acceptanceRate: number;
+  /** Fração 0..1. */
+  helpfulRate: number;
+}
+
+/** Efetividade de um playbook (aplicações e taxa de sucesso). */
+export interface PlaybookEffectiveness {
+  playbookId: number;
+  title: string;
+  applied: number;
+  helpful: number;
+  /** Fração 0..1. */
+  successRate: number;
+}
+
+/** Painel de confiabilidade do assistente TaaS (GET /intelligence/reliability). */
+export interface TaasReliabilityResponse {
+  days: number;
+  totalFeedback: number;
+  accepted: number;
+  helpful: number;
+  /** Fração 0..1. */
+  acceptanceRate: number;
+  /** Fração 0..1. */
+  helpfulRate: number;
+  byConfidence: ConfidenceReliability[];
+  topPlaybooks: PlaybookEffectiveness[];
+}
+
+/** Tipo de um passo do roteiro (resposta em string; requests usam número). */
+export type PlaybookStepKind = 'Check' | 'Action' | 'Decision';
+
+/** Passo de um roteiro, como exibido no relatório de inteligência. */
+export interface PlaybookStepView {
+  order: number;
+  kind: PlaybookStepKind;
+  instruction: string;
+  expectedSignal: string | null;
+  onYesOrder: number | null;
+  onNoOrder: number | null;
+}
+
+/** Sugestão de roteiro de resolução ("caminho das pedras") casada com o ticket. */
+export interface PlaybookSuggestion {
+  playbookId: number;
+  title: string;
+  summary: string;
+  confidence: PlaybookConfidence;
+  score: number;
+  matchedSymptoms: string[];
+  steps: PlaybookStepView[];
+  resolutionTemplate: string | null;
+  escalationTeamId: number | null;
+  appliedCount: number;
+  successRate: number;
+}
+
 export interface IntelligenceReport {
   ticketId: number;
   generatedAt: string;
   rootCauseCandidates: RootCauseCandidate[];
   resolutionSuggestions: ResolutionSuggestion[];
   relatedPatterns: unknown[];
+  /** Grau de autonomia recomendado pelo motor (RouteOnly | Suggest | GuideWithDraft). */
+  recommendedAction?: RecommendedAction | null;
+  /** Roteiros de resolução sugeridos, ordenados por relevância (o primeiro é o melhor). */
+  playbooks?: PlaybookSuggestion[];
+  /** Artigos de conhecimento relacionados ao ticket, ordenados por relevância. */
+  relatedKnowledge?: KnowledgeSuggestion[];
+}
+
+/** Sugestão de artigo de conhecimento relacionada a um ticket (vinda do relatório de inteligência). */
+export interface KnowledgeSuggestion {
+  assetId: number;
+  title: string;
+  summary: string;
+  category: string | null;
+  score: number;
+  matchedTerms: string[];
+}
+
+/* ---- Playbooks (curadoria / CRUD) ---- */
+
+/** Status do playbook (enum numérico no request; string na resposta). */
+export const PlaybookStatus = { Draft: 1, Published: 2, Archived: 3 } as const;
+export type PlaybookStatusValue = (typeof PlaybookStatus)[keyof typeof PlaybookStatus];
+export type PlaybookStatusName = keyof typeof PlaybookStatus;
+
+/** Tipo de passo (enum numérico no request). */
+export const PlaybookStepKindEnum = { Check: 1, Action: 2, Decision: 3 } as const;
+export type PlaybookStepKindValue = (typeof PlaybookStepKindEnum)[keyof typeof PlaybookStepKindEnum];
+
+/** Passo do playbook na resposta da API (enums em string). */
+export interface PlaybookStepResponse {
+  order: number;
+  kind: PlaybookStepKind;
+  instruction: string;
+  expectedSignal: string | null;
+  onYesOrder: number | null;
+  onNoOrder: number | null;
+}
+
+export interface PlaybookResponse {
+  id: number;
+  title: string;
+  summary: string;
+  status: PlaybookStatusName;
+  category: string | null;
+  keywords: string | null;
+  escalationTeamId: number | null;
+  resolutionTemplate: string | null;
+  version: number;
+  steps: PlaybookStepResponse[];
+  symptomTagIds: number[];
+  /** Marcado quando o roteiro foi auto-gerado pelo motor (pode não vir da API). */
+  isAutoGenerated?: boolean;
+}
+
+/** Passo no request de criação/edição (enum numérico). */
+export interface PlaybookStepInput {
+  order: number;
+  kind: PlaybookStepKindValue;
+  instruction: string;
+  expectedSignal?: string | null;
+  onYesOrder?: number | null;
+  onNoOrder?: number | null;
+}
+
+export interface SavePlaybookRequest {
+  title: string;
+  summary: string;
+  status: PlaybookStatusValue;
+  category?: RootCauseCategoryValue | null;
+  keywords?: string | null;
+  escalationTeamId?: number | null;
+  resolutionTemplate?: string | null;
+  steps: PlaybookStepInput[];
+  symptomTagIds: number[];
 }
 
 export interface TicketCreatedResponse {
@@ -329,46 +485,6 @@ export interface UpdateCatalogItemRequest {
   color?: string | null;
   sortOrder?: number;
   active?: boolean;
-}
-
-/* ---- Canais de comunicação (cadastro WhatsApp/e-mail) ---- */
-export const ChannelType = { Email: 1, WhatsApp: 2 } as const;
-export type ChannelTypeValue = (typeof ChannelType)[keyof typeof ChannelType];
-
-export interface ChannelResponse {
-  id: number;
-  type: ChannelTypeValue;
-  name: string;
-  identifier: string | null;
-  endpoint: string | null;
-  phoneNumberId: string | null;
-  verifyToken: string | null;
-  hasApiKey: boolean;
-  hasAppSecret: boolean;
-  active: boolean;
-}
-
-export interface CreateChannelRequest {
-  type: ChannelTypeValue;
-  name: string;
-  identifier?: string | null;
-  endpoint?: string | null;
-  apiKey?: string | null;
-  phoneNumberId?: string | null;
-  verifyToken?: string | null;
-  appSecret?: string | null;
-  active: boolean;
-}
-
-export interface UpdateChannelRequest {
-  name: string;
-  identifier?: string | null;
-  endpoint?: string | null;
-  apiKey?: string | null;
-  phoneNumberId?: string | null;
-  verifyToken?: string | null;
-  appSecret?: string | null;
-  active: boolean;
 }
 
 export interface TicketAttachmentResponse {
@@ -612,6 +728,12 @@ export interface ResolveTicketRequest {
   symptomTagIds: number[];
   isRecurring: boolean;
   impactScope?: number | null;
+  /** Playbook (roteiro) ofertado que o analista de fato usou para resolver — registra o feedback automaticamente. */
+  usedPlaybookId?: number | null;
+  /** Resolução ofertada que o analista de fato usou — registra o feedback automaticamente. */
+  usedResolutionId?: number | null;
+  /** Confiança ofertada no momento da sugestão (1=Low, 2=Medium, 3=High). */
+  offeredConfidence?: number | null;
 }
 
 export interface ResolutionActionInput {
@@ -644,7 +766,12 @@ export interface KnowledgeAssetResponse {
   title: string;
   summary: string;
   content: string;
+  /** Vínculo legado opcional com uma causa raiz. Não é o eixo da tela. */
   rootCauseId: number | null;
+  /** Categoria da wiki (texto livre). */
+  category: string | null;
+  /** Tags separadas por vírgula. */
+  tags: string | null;
   reuseCount: number;
   isPublished: boolean;
   createdAt: string | null;
@@ -665,6 +792,9 @@ export interface CreateKnowledgeAssetRequest {
   title: string;
   summary: string;
   content: string;
+  category?: string | null;
+  tags?: string | null;
+  /** Vínculo legado opcional; não expor na UI. */
   rootCauseId?: number | null;
 }
 
@@ -672,6 +802,8 @@ export interface UpdateKnowledgeAssetRequest {
   title: string;
   summary: string;
   content: string;
+  category?: string | null;
+  tags?: string | null;
 }
 
 /* ---- Engineering Work Items ---- */
@@ -755,21 +887,6 @@ export interface SaveSlaPolicyRequest {
   priority: string;
   responseTimeMinutes: number;
   resolutionTimeMinutes: number;
-}
-
-/* ---- Channels ---- */
-export interface EmailInboundRequest {
-  from: string;
-  to: string;
-  subject: string;
-  body: string;
-  attachments?: { fileName: string; contentType: string; base64Content: string }[];
-}
-
-export interface WhatsAppInboundRequest {
-  from: string;
-  message: string;
-  timestamp: string;
 }
 
 /* ---- Internal: Tenants ---- */

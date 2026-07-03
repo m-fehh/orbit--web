@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import {
   Plus, Search, BookOpen, Clock, TrendingUp,
-  FileText, ChevronRight, Eye,
+  FileText, ChevronRight, Eye, FolderOpen, Tag,
 } from 'lucide-react';
 import { knowledgeApi } from '@/shared/api/endpoints';
 import type { KnowledgeAssetResponse } from '@/shared/api/types';
@@ -26,6 +26,7 @@ export function KnowledgeView() {
   const openTab = useTabStore((s) => s.openTab);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('all');
+  const [category, setCategory] = useState<string | null>(null);
 
   const { data: allData, isLoading } = useQuery({
     queryKey: ['knowledge', 'list', 'wiki'],
@@ -34,14 +35,26 @@ export function KnowledgeView() {
 
   const articles = allData?.items ?? [];
 
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of articles) {
+      if (a.category && a.category.trim()) set.add(a.category.trim());
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [articles]);
+
   const filtered = useMemo(() => {
     let list = articles;
+    if (category) {
+      list = list.filter((a) => (a.category ?? '').trim() === category);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
         (a) =>
           a.title.toLowerCase().includes(q) ||
-          (a.summary && a.summary.toLowerCase().includes(q)),
+          (a.summary && a.summary.toLowerCase().includes(q)) ||
+          (a.tags && a.tags.toLowerCase().includes(q)),
       );
     }
     if (viewMode === 'recent') {
@@ -50,7 +63,7 @@ export function KnowledgeView() {
       list = [...list].sort((a, b) => b.reuseCount - a.reuseCount).slice(0, 20);
     }
     return list;
-  }, [articles, search, viewMode]);
+  }, [articles, search, viewMode, category]);
 
   const published = articles.filter((a) => a.isPublished);
   const drafts = articles.filter((a) => !a.isPublished);
@@ -112,6 +125,43 @@ export function KnowledgeView() {
           ))}
         </nav>
 
+        {categories.length > 0 && (
+          <div className="mt-4 flex min-h-0 flex-1 flex-col px-sm">
+            <p className="px-sm pb-1 text-[10px] font-semibold uppercase tracking-wider text-dim">
+              {t('categories')}
+            </p>
+            <div className="flex flex-col gap-0.5 overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => setCategory(null)}
+                className={`flex items-center gap-2 rounded-lg px-sm py-1.5 text-xs font-medium transition-colors ${
+                  category === null
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted hover:bg-panel-2 hover:text-text'
+                }`}
+              >
+                <Tag className="h-3 w-3 shrink-0" />
+                <span className="flex-1 truncate text-left">{t('allCategories')}</span>
+              </button>
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setCategory(cat)}
+                  className={`flex items-center gap-2 rounded-lg px-sm py-1.5 text-xs font-medium transition-colors ${
+                    category === cat
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted hover:bg-panel-2 hover:text-text'
+                  }`}
+                >
+                  <FolderOpen className="h-3 w-3 shrink-0" />
+                  <span className="flex-1 truncate text-left">{cat}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="mt-auto border-t border-border px-sm py-sm">
           <div className="flex items-center gap-2 text-[10px] text-dim px-sm">
             <Eye className="h-3 w-3" />
@@ -135,6 +185,17 @@ export function KnowledgeView() {
               className="pl-9 h-9 text-xs"
             />
           </div>
+          {category && (
+            <button
+              type="button"
+              onClick={() => setCategory(null)}
+              className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/20"
+            >
+              <FolderOpen className="h-3 w-3" />
+              {category}
+              <span className="ml-0.5 text-muted">×</span>
+            </button>
+          )}
           {search && (
             <span className="text-xs text-muted">
               {filtered.length} {t('searchResults').toLowerCase()}

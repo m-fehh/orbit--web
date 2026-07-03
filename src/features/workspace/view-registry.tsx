@@ -16,6 +16,8 @@ import { AnalyticsView } from '@/features/analytics/analytics-view';
 import { IterationsView } from '@/features/iterations/iterations-view';
 import { TagsView } from '@/features/tags/tags-view';
 import { IntelligenceDashboard } from '@/features/intelligence/intelligence-dashboard';
+import { PlaybooksView } from '@/features/playbooks/playbooks-view';
+import { ReliabilityView } from '@/features/reliability/reliability-view';
 import { EmptyState } from '@/shared/ui/states';
 import { PageTransition } from '@/shared/ui/page-transition';
 import { ICONS } from './icons';
@@ -53,6 +55,10 @@ export function renderView(loc: TabLocation) {
       return wrap(<AnalyticsView />);
     case 'intelligence':
       return wrap(<IntelligenceDashboard />);
+    case 'playbooks':
+      return wrap(<PlaybooksView />);
+    case 'reliability':
+      return wrap(<ReliabilityView />);
     case 'iterations':
       return wrap(<IterationsView />);
     case 'tags':

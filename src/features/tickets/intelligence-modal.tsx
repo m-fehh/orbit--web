@@ -10,11 +10,12 @@ import {
   Zap, ExternalLink, BarChart3, Clock, FileText, ArrowRight, Layers,
   ArrowUpRight,
 } from 'lucide-react';
-import { intelligenceApi, knowledgeApi, ticketsApi } from '@/shared/api/endpoints';
+import { intelligenceApi, ticketsApi } from '@/shared/api/endpoints';
 import { ticketResolutionApi } from '@/shared/api/endpoints';
 import { apiErrorMessage } from '@/shared/api/types';
 import type { RootCauseCandidate, ResolutionSuggestion } from '@/shared/api/types';
 import { useWindowStore } from '@/features/windows/window-store';
+import { useTabStore } from '@/features/workspace/tab-store';
 import { openTicketTab } from './ticket-actions';
 import { Button } from '@/shared/ui/button';
 import { PulseDot } from '@/shared/ui/motion';
@@ -333,15 +334,12 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
   const [feedback, setFeedback] = useState<FeedbackState>({});
   const [activeTab, setActiveTab] = useState<'overview' | 'causes' | 'resolutions' | 'knowledge'>('overview');
 
+  const openTab = useTabStore((s) => s.openTab);
+
   const report = useQuery({
     queryKey: ['tickets', 'intelligence', ticketId],
     queryFn: () => intelligenceApi.ticketReport(ticketId),
     retry: false,
-  });
-
-  const knowledge = useQuery({
-    queryKey: ['intelligence', 'knowledge', ticketId],
-    queryFn: () => knowledgeApi.list({ search: ticketTitle, pageSize: 5 }),
   });
 
   const applyResolution = useMutation({
@@ -385,7 +383,7 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
 
   const causes = report.data?.rootCauseCandidates ?? [];
   const resolutions = report.data?.resolutionSuggestions ?? [];
-  const knData = knowledge.data?.items ?? [];
+  const knData = report.data?.relatedKnowledge ?? [];
 
   if (causes.length === 0 && resolutions.length === 0 && knData.length === 0) {
     return <NoDataState />;
@@ -586,22 +584,43 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
           {activeTab === 'knowledge' && (
             <motion.div key="knowledge" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.2 }} className="flex flex-col gap-3 p-6">
               {knData.map((k, i) => (
-                <motion.div
-                  key={k.id}
+                <motion.button
+                  key={k.assetId}
+                  type="button"
+                  onClick={() =>
+                    openTab({
+                      kind: 'knowledge-article',
+                      params: { id: k.assetId },
+                      title: k.title,
+                      icon: 'knowledge',
+                    })
+                  }
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.06 }}
-                  className="group cursor-pointer rounded-xl border border-border bg-panel p-4 transition-all hover:border-warning/40 hover:shadow-md"
+                  className="group w-full cursor-pointer rounded-xl border border-border bg-panel p-4 text-left transition-all hover:border-warning/40 hover:shadow-md"
                 >
                   <div className="flex items-start gap-3">
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-warning/10 text-warning ring-1 ring-warning/20"><BookOpen className="h-4 w-4" /></span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-text group-hover:text-primary transition-colors">{k.title}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-text group-hover:text-primary transition-colors">{k.title}</p>
+                        {k.category && (
+                          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">{k.category}</span>
+                        )}
+                      </div>
                       {k.summary && <p className="mt-1 text-xs text-muted line-clamp-2">{k.summary}</p>}
+                      {k.matchedTerms.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {k.matchedTerms.slice(0, 4).map((term) => (
+                            <span key={term} className="rounded-full bg-primary/8 px-2 py-0.5 text-[10px] text-primary">{term}</span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <ExternalLink className="h-4 w-4 shrink-0 text-dim opacity-0 transition-opacity group-hover:opacity-100" />
                   </div>
-                </motion.div>
+                </motion.button>
               ))}
               {knData.length === 0 && <p className="py-lg text-center text-xs text-dim">{t('noKnowledge')}</p>}
             </motion.div>
