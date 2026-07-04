@@ -10,6 +10,8 @@ import {
   Users as UsersIcon,
   UserCog,
   History,
+  Gauge,
+  Stethoscope,
   ChevronLeft,
   ChevronRight,
   X,
@@ -26,7 +28,7 @@ import { usePermissions } from '@/features/auth/use-permissions';
 import { UserMenu } from '@/features/shell/user-menu';
 import { cn } from '@/shared/lib/utils';
 
-type NavLabel = 'dashboard' | 'tickets' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability' | 'copilot' | 'problems';
+type NavLabel = 'dashboard' | 'tickets' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability' | 'copilot' | 'problems' | 'sla' | 'symptoms';
 
 interface NavItem {
   loc: TabLocation;
@@ -66,6 +68,8 @@ const SECTIONS: NavSection[] = [
       { loc: { kind: 'users', params: {}, title: 'Usuários', icon: 'users' }, labelKey: 'users', icon: UsersIcon, perm: ['admin.users.view'] },
       { loc: { kind: 'admin', params: {}, title: 'Perfis', icon: 'admin' }, labelKey: 'admin', icon: UserCog, perm: ['role.view', 'admin.users.view'] },
       { loc: { kind: 'audit', params: {}, title: 'Logs de auditoria', icon: 'audit' }, labelKey: 'audit', icon: History, perm: ['auditlog.view'] },
+      { loc: { kind: 'sla', params: {}, title: 'SLA', icon: 'admin' }, labelKey: 'sla', icon: Gauge, perm: ['sla.view', 'sla.manage'] },
+      { loc: { kind: 'symptoms', params: {}, title: 'Sintomas', icon: 'admin' }, labelKey: 'symptoms', icon: Stethoscope, perm: ['symptom.view', 'symptom.create', 'symptom.update'] },
     ],
   },
 ];

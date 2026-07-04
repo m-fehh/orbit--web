@@ -12,6 +12,7 @@ import {
   Link as LinkIcon, ImageIcon, Undo, Redo, Code, Quote,
   X, Unlink, Type,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/shared/lib/utils';
 import { Portal } from '@/shared/ui/portal';
 
@@ -49,6 +50,7 @@ function ToolBtn({ active, onClick, children, title }: { active?: boolean; onCli
 }
 
 function LinkModal({ editor, onClose }: { editor: ReturnType<typeof useEditor>; onClose: () => void }) {
+  const t = useTranslations('editor');
   if (!editor) return null;
   const isEditing = editor.isActive('link');
   const prevHref = editor.getAttributes('link').href ?? '';
@@ -81,13 +83,13 @@ function LinkModal({ editor, onClose }: { editor: ReturnType<typeof useEditor>; 
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={onClose}>
         <div className="w-[400px] rounded-xl border border-border bg-panel shadow-2xl" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <h3 className="text-sm font-semibold text-text">{isEditing ? 'Editar link' : 'Inserir link'}</h3>
+            <h3 className="text-sm font-semibold text-text">{isEditing ? t('linkEditTitle') : t('linkModalTitle')}</h3>
             <button type="button" onClick={onClose} className="grid h-6 w-6 place-items-center rounded text-dim hover:text-text hover:bg-panel-2"><X className="h-4 w-4" /></button>
           </div>
           <div className="flex flex-col gap-3 p-4">
             <label className="flex flex-col gap-1.5 text-sm font-medium">
-              <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-dim"><Type className="h-3 w-3" />Texto exibido</span>
-              <input value={displayText} onChange={(e) => setDisplayText(e.target.value)} placeholder="Texto do link" className="h-9 w-full rounded-lg border border-border bg-bg-subtle px-3 text-sm text-text outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
+              <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-dim"><Type className="h-3 w-3" />{t('linkText')}</span>
+              <input value={displayText} onChange={(e) => setDisplayText(e.target.value)} placeholder={t('linkTextPlaceholder')} className="h-9 w-full rounded-lg border border-border bg-bg-subtle px-3 text-sm text-text outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
             </label>
             <label className="flex flex-col gap-1.5 text-sm font-medium">
               <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-dim"><LinkIcon className="h-3 w-3" />URL</span>
@@ -98,13 +100,13 @@ function LinkModal({ editor, onClose }: { editor: ReturnType<typeof useEditor>; 
             <div>
               {isEditing && (
                 <button type="button" onClick={() => { editor.chain().focus().extendMarkRange('link').unsetLink().run(); onClose(); }} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/10 transition-colors">
-                  <Unlink className="h-3.5 w-3.5" />Remover link
+                  <Unlink className="h-3.5 w-3.5" />{t('removeLink')}
                 </button>
               )}
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={onClose} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-dim hover:text-text transition-colors">Cancelar</button>
-              <button type="button" onClick={apply} className="rounded-lg bg-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-primary/90 transition-colors">{isEditing ? 'Atualizar' : 'Inserir'}</button>
+              <button type="button" onClick={onClose} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-dim hover:text-text transition-colors">{t('cancel')}</button>
+              <button type="button" onClick={apply} className="rounded-lg bg-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-primary/90 transition-colors">{isEditing ? t('update') : t('insert')}</button>
             </div>
           </div>
         </div>
@@ -114,6 +116,7 @@ function LinkModal({ editor, onClose }: { editor: ReturnType<typeof useEditor>; 
 }
 
 export function RichEditor({ value, onChange, placeholder, onImagePaste, readOnly, className, minHeight = '140px', compact }: RichEditorProps) {
+  const t = useTranslations('editor');
   const [showLinkModal, setShowLinkModal] = useState(false);
   const internalUpdate = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -198,26 +201,26 @@ export function RichEditor({ value, onChange, placeholder, onImagePaste, readOnl
       <div className={cn('overflow-hidden rounded-lg border border-border bg-bg-subtle transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15', className)}>
         {/* Toolbar minimalista */}
         <div className="flex items-center gap-0.5 border-b border-border bg-panel-2/50 px-2 py-1 flex-wrap">
-          <ToolBtn active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} title="Negrito (Ctrl+B)"><Bold className="h-3.5 w-3.5" /></ToolBtn>
-          <ToolBtn active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()} title="Itálico (Ctrl+I)"><Italic className="h-3.5 w-3.5" /></ToolBtn>
-          <ToolBtn active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} title="Sublinhado"><UnderlineIcon className="h-3.5 w-3.5" /></ToolBtn>
+          <ToolBtn active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} title={t('bold')}><Bold className="h-3.5 w-3.5" /></ToolBtn>
+          <ToolBtn active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()} title={t('italic')}><Italic className="h-3.5 w-3.5" /></ToolBtn>
+          <ToolBtn active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} title={t('underline')}><UnderlineIcon className="h-3.5 w-3.5" /></ToolBtn>
           <div className="mx-0.5 h-4 w-px bg-border/70 shrink-0" />
-          <ToolBtn active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()} title="Lista"><List className="h-3.5 w-3.5" /></ToolBtn>
-          <ToolBtn active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="Lista numerada"><ListOrdered className="h-3.5 w-3.5" /></ToolBtn>
+          <ToolBtn active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()} title={t('list')}><List className="h-3.5 w-3.5" /></ToolBtn>
+          <ToolBtn active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()} title={t('orderedList')}><ListOrdered className="h-3.5 w-3.5" /></ToolBtn>
           {!compact && (
             <>
-              <ToolBtn active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()} title="Citação"><Quote className="h-3.5 w-3.5" /></ToolBtn>
-              <ToolBtn active={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()} title="Código"><Code className="h-3.5 w-3.5" /></ToolBtn>
+              <ToolBtn active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()} title={t('quote')}><Quote className="h-3.5 w-3.5" /></ToolBtn>
+              <ToolBtn active={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()} title={t('code')}><Code className="h-3.5 w-3.5" /></ToolBtn>
             </>
           )}
           <div className="mx-0.5 h-4 w-px bg-border/70 shrink-0" />
-          <ToolBtn active={editor.isActive('link')} onClick={() => setShowLinkModal(true)} title="Link"><LinkIcon className="h-3.5 w-3.5" /></ToolBtn>
-          <ToolBtn onClick={() => fileRef.current?.click()} title="Inserir imagem"><ImageIcon className="h-3.5 w-3.5" /></ToolBtn>
+          <ToolBtn active={editor.isActive('link')} onClick={() => setShowLinkModal(true)} title={t('link')}><LinkIcon className="h-3.5 w-3.5" /></ToolBtn>
+          <ToolBtn onClick={() => fileRef.current?.click()} title={t('image')}><ImageIcon className="h-3.5 w-3.5" /></ToolBtn>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { insertImageFile(f); e.target.value = ''; } }} />
           <div className="ml-auto flex items-center gap-0.5">
             <div className="mx-0.5 h-4 w-px bg-border/70 shrink-0" />
-            <ToolBtn onClick={() => editor.chain().focus().undo().run()} title="Desfazer (Ctrl+Z)"><Undo className="h-3.5 w-3.5" /></ToolBtn>
-            <ToolBtn onClick={() => editor.chain().focus().redo().run()} title="Refazer (Ctrl+Y)"><Redo className="h-3.5 w-3.5" /></ToolBtn>
+            <ToolBtn onClick={() => editor.chain().focus().undo().run()} title={t('undo')}><Undo className="h-3.5 w-3.5" /></ToolBtn>
+            <ToolBtn onClick={() => editor.chain().focus().redo().run()} title={t('redo')}><Redo className="h-3.5 w-3.5" /></ToolBtn>
           </div>
         </div>
 

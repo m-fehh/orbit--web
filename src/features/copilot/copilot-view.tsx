@@ -9,6 +9,7 @@ import { intelligenceApi } from '@/shared/api/endpoints';
 import {
   apiErrorMessage,
   type PlaybookConfidence, type PlaybookStepKind, type PlaybookStepView, type PlaybookSuggestion,
+  type ResolutionSuggestion,
 } from '@/shared/api/types';
 import { ProgressBar, healthColor, healthTextClass, formatPct } from '@/shared/ui/charts';
 import { cn } from '@/shared/lib/utils';
@@ -105,6 +106,29 @@ export function SuggestionCard({
   );
 }
 
+/** Card de uma resolução recuperada de um ticket já resolvido. */
+function ResolutionCard({ r }: { r: ResolutionSuggestion }) {
+  const t = useTranslations('copilot');
+  return (
+    <div className="card-surface flex flex-col gap-2 p-4">
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 flex-1 text-sm font-medium text-text line-clamp-2">{r.summary}</p>
+        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+          {formatPct(r.similarityScore)}
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted">
+        <span>{t('sourceTicket')} #{r.ticketId}</span>
+        <span>{t('reuseCount', { count: r.reusedCount })}</span>
+        <span className="flex items-center gap-1">
+          {t('successRate')}
+          <span className={cn('font-semibold', healthTextClass(r.successRate))}>{formatPct(r.successRate)}</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 const EXAMPLE_KEYS = ['ex1', 'ex2', 'ex3', 'ex4'] as const;
 
 /** Uma mensagem na conversa (usuário ou assistente). */
@@ -113,8 +137,10 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   /** Texto da mensagem (pergunta do usuário, ou `answer`/mensagem do assistente). */
   text: string;
-  /** Soluções comprovadas anexas à resposta do assistente. */
+  /** Soluções comprovadas (playbooks) anexas à resposta do assistente. */
   solutions?: PlaybookSuggestion[];
+  /** Resoluções de tickets resolvidos anexas à resposta. */
+  resolutions?: ResolutionSuggestion[];
   /** Marca uma resposta que falhou (erro de rede/API). */
   isError?: boolean;
 }
@@ -150,14 +176,16 @@ export function CopilotView() {
       const res = await intelligenceApi.ask(q);
       const hasAnswer = !!res.answer?.trim();
       const solutions = res.solutions ?? [];
+      const resolutions = res.resolutions ?? [];
+      const hasSources = solutions.length > 0 || resolutions.length > 0;
       const text = hasAnswer
         ? res.answer.trim()
-        : solutions.length > 0
+        : hasSources
           ? t('sourcesLead')
           : t('emptyAnswer');
       setMessages((prev) => [
         ...prev,
-        { id: nextId(), role: 'assistant', text, solutions },
+        { id: nextId(), role: 'assistant', text, solutions, resolutions },
       ]);
     } catch (err) {
       setMessages((prev) => [
@@ -258,7 +286,17 @@ export function CopilotView() {
                           {t('sources')}
                         </p>
                         {m.solutions.map((s, i) => (
-                          <SuggestionCard key={s.playbookId} suggestion={s} highlight={i === 0} />
+                          <SuggestionCard key={s.playbookId} suggestion={s} highlight={i === 0 && !m.text} />
+                        ))}
+                      </div>
+                    )}
+                    {m.resolutions && m.resolutions.length > 0 && (
+                      <div className="flex flex-col gap-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-dim">
+                          {t('fromResolved')}
+                        </p>
+                        {m.resolutions.map((r) => (
+                          <ResolutionCard key={r.resolutionId} r={r} />
                         ))}
                       </div>
                     )}

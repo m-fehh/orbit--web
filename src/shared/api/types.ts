@@ -84,6 +84,14 @@ export interface TicketResponse {
   tags?: TagResponse[];
 }
 
+/** Analista sugerido para um ticket (roteamento por skill). */
+export interface SuggestedAssigneeResponse {
+  userId: number;
+  userName: string;
+  resolvedCount: number;
+  successRate: number;
+}
+
 export interface TicketCommentResponse {
   id: number;
   userId: number;
@@ -362,8 +370,10 @@ export interface CopilotAnswerResponse {
   query: string;
   /** Texto curto do assistente. Pode vir vazio quando não há solução. */
   answer: string;
-  /** Soluções comprovadas (mesmo shape dos cards de sugestão). */
+  /** Soluções comprovadas curadas (playbooks). */
   solutions: PlaybookSuggestion[];
+  /** Resoluções de tickets já resolvidos, recuperadas do histórico. */
+  resolutions: ResolutionSuggestion[];
 }
 
 export interface IntelligenceReport {
@@ -471,6 +481,10 @@ export interface ProblemTicketRef {
 
 /** Detalhe de um problema: tickets afetados + soluções sugeridas. */
 export interface ProblemDetailResponse extends ProblemResponse {
+  /** Esforço já gasto nos tickets recorrentes, em minutos (caso de negócio da correção). */
+  estimatedImpactMinutes: number;
+  /** Item de engenharia já criado a partir deste problema, quando escalado. */
+  escalatedWorkItemId: number | null;
   tickets: ProblemTicketRef[];
   suggestedSolutions: PlaybookSuggestion[];
 }
@@ -866,20 +880,29 @@ export interface UpdateTeamRequest {
 /* ---- SLA Policies ---- */
 export interface SlaPolicyResponse {
   id: number;
-  name: string;
-  priority: string;
-  responseTimeMinutes: number;
-  resolutionTimeMinutes: number;
-  active: boolean;
-  createdAt: string | null;
+  priority: PriorityName;
+  firstResponseMinutes: number;
+  resolutionMinutes: number;
+  inactive: boolean;
 }
 
+/** Upsert de política de SLA por prioridade (enum em número no request). */
 export interface SaveSlaPolicyRequest {
-  name: string;
-  priority: string;
-  responseTimeMinutes: number;
-  resolutionTimeMinutes: number;
+  priority: PriorityValue;
+  firstResponseMinutes: number;
+  resolutionMinutes: number;
 }
+
+/* ---- Business Hours (expediente para cálculo de SLA) ---- */
+export interface BusinessHoursResponse {
+  enabled: boolean;
+  /** Dias úteis em ISO (1=Seg … 7=Dom), separados por vírgula. */
+  workDays: string;
+  startMinute: number;
+  endMinute: number;
+  timeZoneId: string;
+}
+export type SaveBusinessHoursRequest = BusinessHoursResponse;
 
 /* ---- Internal: Tenants ---- */
 export interface TenantResponse {

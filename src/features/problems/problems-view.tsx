@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
-  Radar as RadarLucide, Sparkles, X, ScanSearch, Layers,
+  Radar as RadarLucide, Sparkles, X, ScanSearch, Layers, Wrench,
 } from 'lucide-react';
 import { problemsApi } from '@/shared/api/endpoints';
 import {
@@ -60,6 +60,21 @@ function ProblemDetail({ id, onClose }: { id: number; onClose: () => void }) {
     onError: (err) => toast.error(apiErrorMessage(err, t('actionError'))),
   });
 
+  const escalate = useMutation({
+    mutationFn: () => problemsApi.escalate(id),
+    onSuccess: () => {
+      toast.success(t('escalated'));
+      qc.invalidateQueries({ queryKey: ['problems'] });
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, t('actionError'))),
+  });
+
+  const fmtMin = (m: number) => {
+    if (!m || m <= 0) return '—';
+    const h = Math.floor(m / 60), mm = m % 60;
+    return h > 0 ? `${h}h${mm ? ` ${mm}min` : ''}` : `${mm}min`;
+  };
+
   function openTicket(ref: ProblemTicketRef) {
     openTab({
       kind: 'ticket',
@@ -111,6 +126,30 @@ function ProblemDetail({ id, onClose }: { id: number; onClose: () => void }) {
                   <span>{t('lastSeen')}: {formatShortDate(data.lastSeenAt)}</span>
                   <span>{t('firstSeen')}: {formatShortDate(data.firstSeenAt)}</span>
                 </div>
+              </div>
+
+              {/* Caso de negócio: impacto acumulado + escalar para engenharia */}
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-dim">{t('impactLabel')}</p>
+                    <p className="text-sm font-bold text-text">
+                      {t('ticketCount', { count: data.ticketCount })} · {fmtMin(data.estimatedImpactMinutes)}
+                    </p>
+                  </div>
+                  <div className="ml-auto">
+                    {data.escalatedWorkItemId ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-md bg-success/15 px-3 py-1.5 text-xs font-semibold text-success">
+                        <Wrench className="h-3.5 w-3.5" /> {t('escalated')}
+                      </span>
+                    ) : (
+                      <Button loading={escalate.isPending} onClick={() => escalate.mutate()}>
+                        <Wrench className="h-4 w-4" /> {t('escalate')}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <p className="mt-1.5 text-[11px] text-dim">{t('escalateHint')}</p>
               </div>
 
               {/* Seletor de status */}

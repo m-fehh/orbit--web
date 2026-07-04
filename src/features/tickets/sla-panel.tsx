@@ -8,11 +8,11 @@ import type { SlaSnapshotResponse } from '@/shared/api/types';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { cn } from '@/shared/lib/utils';
 
-const COLOR: Record<SlaSnapshotResponse['status'], { text: string; bar: string; bg: string }> = {
-  OnTrack: { text: 'text-success', bar: 'bg-success', bg: 'bg-success/10' },
-  AtRisk: { text: 'text-warning', bar: 'bg-warning', bg: 'bg-warning/10' },
-  Breached: { text: 'text-danger', bar: 'bg-danger', bg: 'bg-danger/10' },
-  None: { text: 'text-dim', bar: 'bg-panel-2', bg: 'bg-panel-2' },
+const COLOR: Record<SlaSnapshotResponse['status'], { text: string; bar: string; bg: string; ring: string }> = {
+  OnTrack: { text: 'text-success', bar: 'bg-success', bg: 'bg-success/10', ring: 'ring-success/25' },
+  AtRisk: { text: 'text-warning', bar: 'bg-warning', bg: 'bg-warning/10', ring: 'ring-warning/25' },
+  Breached: { text: 'text-danger', bar: 'bg-danger', bg: 'bg-danger/10', ring: 'ring-danger/25' },
+  None: { text: 'text-dim', bar: 'bg-panel-2', bg: 'bg-panel-2', ring: 'ring-border' },
 };
 
 /** Formata "tempo restante" em algo humano, em qualquer ordem de grandeza. */
@@ -48,7 +48,7 @@ function consumedPct(sla: SlaSnapshotResponse): number {
  * Painel rico de SLA: status, contador regressivo, due date e barra visual.
  * Mostrado no detalhe do ticket e reaproveitável em modais/dashboards.
  */
-export function SlaPanel({ sla, dense = false }: { sla: SlaSnapshotResponse | null | undefined; dense?: boolean }) {
+export function SlaPanel({ sla, dense = false, bare = false }: { sla: SlaSnapshotResponse | null | undefined; dense?: boolean; bare?: boolean }) {
   const tSla = useTranslations('sla');
   const locale = useLocale() as Locale;
   // Tick a cada 30s para o "tempo restante" não congelar.
@@ -78,37 +78,37 @@ export function SlaPanel({ sla, dense = false }: { sla: SlaSnapshotResponse | nu
   }
 
   return (
-    <div className={cn('rounded-md border border-border p-md', c.bg)}>
-      <div className="flex items-center gap-sm">
-        <Icon className={cn('h-5 w-5', c.text)} aria-hidden />
-        <span className={cn('text-sm font-semibold', c.text)}>{tSla(sla.status)}</span>
-        {sla.priority && (
-          <span className="ml-auto rounded bg-panel/60 px-1.5 py-0.5 text-xs text-muted">{sla.priority}</span>
-        )}
+    <div className={cn('overflow-hidden', bare ? 'rounded-lg border border-border' : 'card-surface')}>
+      {/* Header: título do card + pílula de status (distinto dos labels internos) */}
+      <div className="flex items-center gap-2 border-b border-border px-md py-2.5">
+        <Timer className="h-3.5 w-3.5 shrink-0 text-dim" aria-hidden />
+        <span className="flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-dim">{tSla('label')}</span>
+        <span className={cn('inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium', c.bg, c.text)}>
+          <Icon className="h-3 w-3" aria-hidden /> {tSla(sla.status)}
+        </span>
       </div>
 
-      {sla.dueAt && (
-        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <p className="uppercase tracking-wide text-dim">{tSla('due')}</p>
-            <p className="font-medium text-text">{formatDateTime(sla.dueAt, { locale, timeZone: 'UTC' })}</p>
-          </div>
-          {sla.minutesRemaining != null && (
-            <div>
-              <p className="uppercase tracking-wide text-dim">
-                {sla.minutesRemaining >= 0 ? tSla('remaining') : tSla('overdue')}
-              </p>
-              <p className={cn('font-semibold', c.text)}>{fmtRemaining(sla.minutesRemaining)}</p>
+      <div className="p-md">
+        {sla.dueAt ? (
+          <>
+            <div className="mb-2.5 h-1.5 w-full overflow-hidden rounded-full bg-panel-2">
+              <div className={cn('h-full rounded-full transition-all duration-500', c.bar)} style={{ width: `${pct}%` }} />
             </div>
-          )}
-        </div>
-      )}
-
-      {sla.dueAt && (
-        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-panel-2">
-          <div className={cn('h-full transition-all', c.bar)} style={{ width: `${pct}%` }} />
-        </div>
-      )}
+            {sla.minutesRemaining != null && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-dim">{sla.minutesRemaining >= 0 ? tSla('remaining') : tSla('overdue')}</span>
+                <span className={cn('font-semibold', c.text)}>{fmtRemaining(sla.minutesRemaining)}</span>
+              </div>
+            )}
+            <div className="mt-1 flex items-center justify-between text-[11px] text-dim">
+              <span>{tSla('due')}</span>
+              <span className="tabular-nums">{formatDateTime(sla.dueAt, { locale, timeZone: 'UTC' })}</span>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-dim">{tSla(sla.status)}</p>
+        )}
+      </div>
     </div>
   );
 }

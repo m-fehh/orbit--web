@@ -17,6 +17,8 @@ const SECTION_NAV_KEY: Record<ViewKind, string> = {
   analytics: 'analytics',
   admin: 'admin',
   audit: 'audit',
+  sla: 'sla',
+  symptoms: 'symptoms',
   intelligence: 'intelligence',
   playbooks: 'playbooks',
   reliability: 'reliability',
@@ -24,6 +26,7 @@ const SECTION_NAV_KEY: Record<ViewKind, string> = {
   problems: 'problems',
   iterations: 'iterations',
   tags: 'tags',
+  settings: 'settings',
 };
 
 const SECTION_META: Record<ViewKind, { indexKind: ViewKind; icon: TabLocation['icon'] }> = {
@@ -35,6 +38,8 @@ const SECTION_META: Record<ViewKind, { indexKind: ViewKind; icon: TabLocation['i
   analytics: { indexKind: 'analytics', icon: 'analytics' },
   admin: { indexKind: 'admin', icon: 'admin' },
   audit: { indexKind: 'audit', icon: 'audit' },
+  sla: { indexKind: 'sla', icon: 'admin' },
+  symptoms: { indexKind: 'symptoms', icon: 'admin' },
   intelligence: { indexKind: 'intelligence', icon: 'analytics' },
   playbooks: { indexKind: 'playbooks', icon: 'analytics' },
   reliability: { indexKind: 'reliability', icon: 'analytics' },
@@ -42,6 +47,7 @@ const SECTION_META: Record<ViewKind, { indexKind: ViewKind; icon: TabLocation['i
   problems: { indexKind: 'problems', icon: 'analytics' },
   iterations: { indexKind: 'iterations', icon: 'tickets' },
   tags: { indexKind: 'tags', icon: 'admin' },
+  settings: { indexKind: 'settings', icon: 'admin' },
 };
 
 /** Breadcrumb + navegação (back/forward) da aba ativa, baseada no histórico. */

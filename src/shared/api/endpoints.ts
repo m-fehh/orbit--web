@@ -13,6 +13,7 @@ import type {
   TicketResponse,
   TicketDetailResponse,
   TicketCreatedResponse,
+  SuggestedAssigneeResponse,
   TicketCommentResponse,
   TicketAttachmentResponse,
   AuditLogResponse,
@@ -64,6 +65,8 @@ import type {
   UpdateTeamRequest,
   SlaPolicyResponse,
   SaveSlaPolicyRequest,
+  BusinessHoursResponse,
+  SaveBusinessHoursRequest,
   TenantResponse,
   CreateTenantRequest,
   UpdateTenantRequest,
@@ -153,6 +156,8 @@ export const ticketsApi = {
     api.patch<TicketResponse>(`/tickets/${id}/tracking`, body),
   assign: (id: number, userId: number, teamId?: number | null) =>
     api.patch<TicketResponse>(`/tickets/${id}/assign`, { userId, teamId: teamId ?? null }),
+  suggestedAssignees: (id: number) =>
+    api.get<SuggestedAssigneeResponse[]>(`/tickets/${id}/suggested-assignees`),
   changeStatus: (id: number, status: TicketStatusValue) =>
     api.patch<TicketResponse>(`/tickets/${id}/status`, { status }),
   setIteration: (id: number, title: string, description: string, iterationId: number | null) =>
@@ -307,6 +312,8 @@ export const problemsApi = {
     api.patch<ProblemResponse>(`/problems/${id}/status`, { status }),
   /** Dispara uma varredura para (re)detectar recorrências. */
   detect: () => api.post<void>('/problems/detect'),
+  /** Escala o problema para engenharia (cria item de trabalho com o caso de negócio). */
+  escalate: (id: number) => api.post<void>(`/problems/${id}/escalate`),
 };
 
 /**
@@ -365,10 +372,18 @@ export const slaPoliciesApi = {
   save: (body: SaveSlaPolicyRequest) => api.put<SlaPolicyResponse>('/slapolicies', body),
 };
 
+/** Expediente do tenant (janela de trabalho para o SLA). */
+export const businessHoursApi = {
+  get: () => api.get<BusinessHoursResponse>('/businesshours'),
+  save: (body: SaveBusinessHoursRequest) => api.put<BusinessHoursResponse>('/businesshours', body),
+};
+
 /** Catálogo de sintomas (vocabulário controlado). */
 export const symptomsApi = {
   list: () => api.get<SymptomTagResponse[]>('/symptoms'),
-  create: (body: { name: string; code?: string; group?: string }) => api.post<SymptomTagResponse>('/symptoms', body),
+  create: (body: CreateSymptomTagRequest) => api.post<SymptomTagResponse>('/symptoms', body),
+  update: (id: number, body: UpdateSymptomTagRequest) => api.put<SymptomTagResponse>(`/symptoms/${id}`, body),
+  deactivate: (id: number) => api.patch<SymptomTagResponse>(`/symptoms/${id}/deactivate`),
 };
 
 /** Symptoms do ticket. */

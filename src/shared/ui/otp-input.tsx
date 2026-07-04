@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, type ClipboardEvent, type KeyboardEvent } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/shared/lib/utils';
 
 /** Input de código de N dígitos com auto-avanço, colar e backspace. */
@@ -15,6 +16,7 @@ export function OtpInput({
   onChange: (next: string) => void;
   disabled?: boolean;
 }) {
+  const t = useTranslations('editor');
   const refs = useRef<Array<HTMLInputElement | null>>([]);
   const digits = Array.from({ length }, (_, i) => value[i] ?? '');
 
@@ -42,7 +44,7 @@ export function OtpInput({
   };
 
   return (
-    <div className="flex justify-between gap-sm" role="group" aria-label="Código de verificação">
+    <div className="flex justify-between gap-sm" role="group" aria-label={t('otpGroupLabel')}>
       {digits.map((digit, i) => (
         <input
           key={i}

@@ -8,11 +8,12 @@ import {
   Sparkles, Lightbulb, ArrowRight,
   Target, Zap,
 } from 'lucide-react';
-import { ticketsApi, usersApi, iterationsApi, tagsApi } from '@/shared/api/endpoints';
+import { ticketsApi, usersApi, iterationsApi, tagsApi, intelligenceApi } from '@/shared/api/endpoints';
 import {
   Priority, apiErrorMessage,
-  type PriorityValue, type TicketCreatedResponse, type TagResponse,
+  type PriorityValue, type TicketCreatedResponse, type TagResponse, type CopilotAnswerResponse,
 } from '@/shared/api/types';
+import { SuggestionCard } from '@/features/copilot/copilot-view';
 import { useAuthStore } from '@/features/auth/auth-store';
 import { useWindowStore } from '@/features/windows/window-store';
 import { openTicketTab } from '@/features/tickets/ticket-actions';
@@ -54,6 +55,8 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<TicketCreatedResponse | null>(null);
   const [suggestedIds, setSuggestedIds] = useState<number[]>([]);
+  const [deflection, setDeflection] = useState<CopilotAnswerResponse | null>(null);
+  const [deflectDismissed, setDeflectDismissed] = useState(false);
 
   const users = useQuery({ queryKey: ['users', 'options'], queryFn: () => usersApi.list(1, 100) });
   const iterations = useQuery({ queryKey: ['iterations'], queryFn: () => iterationsApi.list(1, 100, 'Active') });
@@ -81,6 +84,18 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
   useEffect(() => {
     if (tags.data) setSuggestedIds(suggestTagIds(description, tags.data));
   }, [description, tags.data]);
+
+  // Deflexão: enquanto o solicitante descreve o problema, busca soluções comprovadas (debounced)
+  // e as oferece ANTES de abrir o chamado — autoatendimento que reduz volume.
+  useEffect(() => {
+    if (result) return;
+    const text = `${title} ${description.replace(/<[^>]+>/g, ' ')}`.trim();
+    if (text.length < 8) { setDeflection(null); return; }
+    const h = setTimeout(() => {
+      intelligenceApi.ask(text, 3).then(setDeflection).catch(() => { /* silencioso */ });
+    }, 600);
+    return () => clearTimeout(h);
+  }, [title, description, result]);
 
   const createTagMut = useMutation({
     mutationFn: (name: string) => tagsApi.create({ name }),
@@ -210,6 +225,31 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
             minHeight="120px"
           />
         </div>
+
+        {/* Deflexão — soluções comprovadas antes de abrir o chamado */}
+        {!deflectDismissed && deflection && ((deflection.solutions?.length ?? 0) > 0 || (deflection.resolutions?.length ?? 0) > 0) && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <div className="mb-1.5 flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-primary" />
+              <p className="text-sm font-semibold text-primary">{t('deflectionTitle')}</p>
+              <button type="button" onClick={() => setDeflectDismissed(true)} className="ml-auto text-xs text-dim hover:text-text">
+                {t('deflectionDismiss')}
+              </button>
+            </div>
+            <p className="mb-3 text-xs text-muted">{t('deflectionHint')}</p>
+            <div className="flex flex-col gap-2">
+              {deflection.solutions.slice(0, 1).map((s) => (
+                <SuggestionCard key={s.playbookId} suggestion={s} highlight />
+              ))}
+              {deflection.resolutions.slice(0, 2).map((r) => (
+                <div key={r.resolutionId} className="rounded-lg border border-border bg-panel p-3">
+                  <p className="line-clamp-2 text-sm text-text">{r.summary}</p>
+                  <p className="mt-1 text-[11px] text-dim">{t('deflectionResolvedSource', { number: r.ticketId })}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5 text-sm font-medium">

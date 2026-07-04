@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   MessageSquare, Clock, Info, Send, Lock, Timer, Sparkles, User, Users,
   Lightbulb, GitBranch, ChevronDown, UserPlus, Plus, Check, History, Paperclip, X,
-  Edit3, Calendar, ArrowRight, Target, TrendingUp, BarChart3, Zap, ExternalLink,
+  Edit3, ArrowRight, Target, TrendingUp, BarChart3, Zap, ExternalLink,
   ChevronRight, Eye, Download, FileText, UploadCloud, Trash2, Minus,
   Link2, HelpCircle, Search, ShieldAlert, AlertTriangle, Bug, Wrench, BookOpen,
   FlaskConical, ListChecks, GanttChart, ArrowUpRight, ThumbsUp, ThumbsDown,
@@ -315,17 +315,19 @@ export function TicketDetail({ id }: { id: number }) {
 
       <div className={cn('min-h-0 flex-1 p-lg', sub === 'conversation' ? 'overflow-hidden flex flex-col' : 'overflow-auto')}>
         {sub === 'overview' && (
-          <div className="grid items-start gap-lg lg:grid-cols-3">
-            <div className="flex flex-col gap-lg lg:col-span-2">
-              <div>
-                <div className="mb-sm flex items-center justify-between">
-                  <p className="h-5 text-xs font-semibold uppercase tracking-wide text-dim">{tTicket('description')}</p>
-                  {!editingDesc && (
-                    <button type="button" onClick={() => { setEditDesc(ticket.description); setEditingDesc(true); }} className="text-[10px] text-primary hover:underline">{tTicket('edit')}</button>
-                  )}
-                </div>
+          <div className="grid items-start gap-md lg:grid-cols-3">
+            <div className="flex flex-col gap-md lg:col-span-2">
+              {/* Descrição */}
+              <div className="card-surface overflow-hidden">
+                <CardHeader
+                  icon={FileText}
+                  title={tTicket('description')}
+                  right={!editingDesc ? (
+                    <button type="button" onClick={() => { setEditDesc(ticket.description); setEditingDesc(true); }} className="grid h-6 w-6 place-items-center rounded-md text-dim hover:bg-panel-2 hover:text-text" aria-label={tTicket('edit')}><Edit3 className="h-3.5 w-3.5" /></button>
+                  ) : undefined}
+                />
                 {editingDesc ? (
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2 p-md">
                     <MarkdownEditor
                       value={editDesc}
                       onChange={setEditDesc}
@@ -339,8 +341,8 @@ export function TicketDetail({ id }: { id: number }) {
                     </div>
                   </div>
                 ) : (
-                  <div className="card-surface min-h-[140px] p-lg cursor-pointer hover:border-primary/30 transition-colors" onClick={() => { setEditDesc(ticket.description); setEditingDesc(true); }}>
-                    {ticket.description ? <MarkdownContent content={ticket.description} /> : <span className="text-dim text-sm">—</span>}
+                  <div className="min-h-[88px] cursor-pointer p-md text-sm leading-relaxed transition-colors hover:bg-panel-2/30" onClick={() => { setEditDesc(ticket.description); setEditingDesc(true); }}>
+                    {ticket.description ? <MarkdownContent content={ticket.description} /> : <span className="text-dim">—</span>}
                   </div>
                 )}
               </div>
@@ -349,44 +351,43 @@ export function TicketDetail({ id }: { id: number }) {
                 <ResolutionSummaryPanel ticketId={id} estimateMinutes={ticket.estimateMinutes} completedMinutes={ticket.completedMinutes} closedAt={ticket.closedAt} openedAt={ticket.openedAt} />
               ) : (
                 <>
-                  <IntelligenceQuickView ticketId={id} onExpand={() => openIntelligenceModal(id, ticket.title, tIntelMain('modalTitle', { title: ticket.title }))} />
+                  <AssistantPanel
+                    ticketId={id}
+                    onExpand={() => openIntelligenceModal(id, ticket.title, tIntelMain('modalTitle', { title: ticket.title }))}
+                    onInvestigate={() => setSub('investigation')}
+                    onResolve={() => setShowResolveModal(true)}
+                  />
                   <PlaybookQuickView ticketId={id} />
-                  <RecommendationsPanel ticketId={id} onOpenIntelligence={() => openIntelligenceModal(id, ticket.title, tIntelMain('modalTitle', { title: ticket.title }))} />
                 </>
               )}
             </div>
-            <aside className="flex flex-col gap-lg">
-              <div>
-                <p className="mb-sm h-5 text-xs font-semibold uppercase tracking-wide text-dim">{tTicket('details')}</p>
-                <div className="card-surface flex flex-col gap-3 p-lg text-sm">
-                  <Detail icon={User} label={tTicket('requester')} value={userName(ticket.customerId)} />
-                  <Detail icon={UserPlus} label={tTicket('assignee')} value={userName(ticket.assignedUserId)} />
-                  <Detail icon={Users} label={tTicket('team')} value={teamName(ticket.assignedTeamId)} />
-                  <Detail icon={Calendar} label={tTicket('openedAt')} value={formatDateTime(ticket.openedAt, { locale, timeZone })} />
+
+            <aside className="flex flex-col gap-md">
+              {/* Detalhes */}
+              <div className="card-surface overflow-hidden">
+                <CardHeader icon={Info} title={tTicket('details')} />
+                <dl className="flex flex-col gap-3 p-md text-sm">
+                  <PropRow label={tTicket('requester')}><PersonValue name={userName(ticket.customerId)} /></PropRow>
+                  <PropRow label={tTicket('assignee')}><PersonValue name={userName(ticket.assignedUserId)} /></PropRow>
+                  <PropRow label={tTicket('team')}><TeamValue name={teamName(ticket.assignedTeamId)} /></PropRow>
+                  <div className="h-px bg-border/60" />
+                  <PropRow label={tTicket('openedAt')}><span className="text-text tabular-nums">{formatDateTime(ticket.openedAt, { locale, timeZone })}</span></PropRow>
                   {ticket.updatedAt && (
-                    <Detail icon={Edit3} label={tTicket('updatedAt')} value={formatDateTime(ticket.updatedAt, { locale, timeZone })} />
+                    <PropRow label={tTicket('updatedAt')}><span className="text-muted tabular-nums">{formatDateTime(ticket.updatedAt, { locale, timeZone })}</span></PropRow>
                   )}
-                </div>
+                </dl>
               </div>
 
-              <div>
-                <p className="mb-sm h-5 text-xs font-semibold uppercase tracking-wide text-dim">{tTicket('timeTracking')}</p>
-                <TimeTrackingCard
-                  ticketId={id}
-                  estimateMinutes={ticket.estimateMinutes}
-                  completedMinutes={ticket.completedMinutes}
-                  remainingMinutes={ticket.remainingMinutes}
-                />
-              </div>
+              {/* SLA — card autocontido */}
+              <SlaPanel sla={sla} />
 
-              <div>
-                <p className="mb-sm h-5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-dim">
-                  <Timer className="h-3.5 w-3.5" /> {tSla('label')}
-                </p>
-                <div className="card-surface p-lg">
-                  <SlaPanel sla={sla} />
-                </div>
-              </div>
+              {/* Controle de tempo — card autocontido */}
+              <TimeTrackingCard
+                ticketId={id}
+                estimateMinutes={ticket.estimateMinutes}
+                completedMinutes={ticket.completedMinutes}
+                remainingMinutes={ticket.remainingMinutes}
+              />
             </aside>
           </div>
         )}
@@ -430,11 +431,12 @@ export function TicketDetail({ id }: { id: number }) {
 }
 
 /* ---- Estimate Input ---- */
-function TimeTrackingCard({ ticketId, estimateMinutes, completedMinutes, remainingMinutes }: {
+function TimeTrackingCard({ ticketId, estimateMinutes, completedMinutes, remainingMinutes, bare = false }: {
   ticketId: number;
   estimateMinutes: number | null;
   completedMinutes: number;
   remainingMinutes: number | null;
+  bare?: boolean;
 }) {
   const t = useTranslations('worklog');
   const tTicket = useTranslations('ticket');
@@ -462,8 +464,9 @@ function TimeTrackingCard({ ticketId, estimateMinutes, completedMinutes, remaini
   });
 
   return (
-    <div className="card-surface overflow-hidden">
-      <div className="p-md">
+    <div className={cn('overflow-hidden', !bare && 'card-surface')}>
+      {!bare && <CardHeader icon={Clock} title={tTicket('timeTracking')} />}
+      <div className={cn(bare ? 'px-lg py-md' : 'p-md')}>
         {/* Ring + stats row */}
         <div className="flex items-center gap-3">
           {/* SVG ring */}
@@ -590,6 +593,13 @@ function AssignControl({ ticketId, currentUserId, currentUserName, currentUserEm
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<number | null>(currentUserId);
 
+  const suggestions = useQuery({
+    queryKey: ['tickets', 'suggested-assignees', ticketId],
+    queryFn: () => ticketsApi.suggestedAssignees(ticketId),
+    enabled: open,
+    retry: false,
+  });
+
   const assign = useMutation({
     mutationFn: () => ticketsApi.assign(ticketId, userId!, resolveUserTeam(userId!)),
     onSuccess: () => { toast.success(t('assignedOk')); qc.invalidateQueries({ queryKey: ['tickets'] }); setOpen(false); },
@@ -617,6 +627,27 @@ function AssignControl({ ticketId, currentUserId, currentUserName, currentUserEm
           <div className="absolute right-0 z-40 mt-1 w-72 rounded-md border border-border bg-panel p-md shadow-lg">
             <p className="mb-1.5 text-xs font-medium text-muted">{t('assignee')}</p>
             <AsyncCombobox options={userOptions} value={userId} onChange={setUserId} placeholder={t('selectUser')} allowClear={false} />
+            {suggestions.data && suggestions.data.length > 0 && (
+              <div className="mt-2">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-dim">{t('suggestedAssignees')}</p>
+                <div className="flex flex-wrap gap-1">
+                  {suggestions.data.map((s) => (
+                    <button
+                      key={s.userId}
+                      type="button"
+                      onClick={() => setUserId(s.userId)}
+                      title={t('suggestedResolved', { count: s.resolvedCount })}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors',
+                        userId === s.userId ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted hover:text-text',
+                      )}
+                    >
+                      {s.userName}<span className="text-dim">· {s.resolvedCount}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <p className="mt-1.5 text-xs text-dim">{t('teamAutoHint')}</p>
             <Button className="mt-md w-full justify-center" disabled={!userId || assign.isPending} loading={assign.isPending} onClick={() => assign.mutate()}>{t('assign')}</Button>
           </div>
@@ -626,14 +657,43 @@ function AssignControl({ ticketId, currentUserId, currentUserName, currentUserEm
   );
 }
 
-function Detail({ icon: Icon, label, value }: { icon: typeof User; label: string; value: string }) {
+function PropRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-start gap-sm">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-dim" />
-      <div className="min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-dim">{label}</p>
-        <p className="truncate text-sm text-text">{value}</p>
-      </div>
+    <div className="flex items-center justify-between gap-3">
+      <dt className="shrink-0 text-xs text-muted">{label}</dt>
+      <dd className="min-w-0 truncate text-right">{children}</dd>
+    </div>
+  );
+}
+
+function PersonValue({ name }: { name: string }) {
+  if (!name || name === '—') return <span className="text-dim">—</span>;
+  return (
+    <span className="inline-flex max-w-full items-center gap-2" title={name}>
+      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">{initials(name)}</span>
+      <span className="truncate font-medium text-text">{name}</span>
+    </span>
+  );
+}
+
+function TeamValue({ name }: { name: string }) {
+  if (!name || name === '—') return <span className="text-dim">—</span>;
+  return (
+    <span className="inline-flex max-w-full items-center gap-1.5" title={name}>
+      <Users className="h-3.5 w-3.5 shrink-0 text-dim" />
+      <span className="truncate font-medium text-text">{name}</span>
+    </span>
+  );
+}
+
+/* Cabeçalho de card padrão: ícone + título pequeno UPPERCASE + divisória.
+   Título estrutural em maiúsculas; labels de campo ficam em caixa normal (ver PropRow). */
+function CardHeader({ icon: Icon, title, right }: { icon: typeof User; title: string; right?: ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 border-b border-border px-md py-2.5">
+      <Icon className="h-3.5 w-3.5 shrink-0 text-dim" />
+      <span className="flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-dim">{title}</span>
+      {right}
     </div>
   );
 }
@@ -742,7 +802,23 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
   const res = resolution.data;
   const rc = rootCauses.data?.[0];
 
-  if (!res) return null;
+  if (!res) {
+    return (
+      <div className="card-surface overflow-hidden border border-warning/25">
+        <div className="flex items-center gap-3 border-b border-border px-lg py-3">
+          <div className="grid h-9 w-9 place-items-center rounded-lg bg-warning/10 text-warning">
+            <AlertTriangle className="h-4 w-4" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-text">{t('noRecordTitle')}</p>
+          </div>
+        </div>
+        <div className="p-md">
+          <p className="text-xs leading-relaxed text-muted">{t('noRecordHint')}</p>
+        </div>
+      </div>
+    );
+  }
 
   const totalTimeMs = closedAt && openedAt ? new Date(closedAt).getTime() - new Date(openedAt).getTime() : null;
   const totalTimeHours = totalTimeMs ? Math.round(totalTimeMs / (1000 * 60 * 60) * 10) / 10 : null;
@@ -752,184 +828,118 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
 
   const tasks = workItems.data ?? [];
   const tasksDone = tasks.filter(wi => wi.status === 'Done').length;
+  const steps = (res.resolutionSteps ?? '').split('\n').map(s => s.replace(/^[-•\d.]\s*/, '').trim()).filter(Boolean);
+  const hasSteps = steps.length > 0;
+  const hasTasks = tasks.length > 0;
 
   return (
     <div className="flex flex-col gap-md">
-      {/* Card 1: Resolution Summary */}
-      <div className="card-surface overflow-hidden border border-success/20">
-        {/* Header */}
-        <div className="flex items-center gap-3 bg-gradient-to-r from-success/10 via-success/5 to-transparent px-md py-3">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-success/15">
-            <Check className="h-4 w-4 text-success" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-bold text-success">{t('resolvedSummaryTitle')}</p>
-            {res.resolvedAt && (
-              <p className="text-[10px] text-muted">{t('resolutionDate')}: {formatDateTime(res.resolvedAt, { locale, timeZone })}</p>
-            )}
-          </div>
+      {/* Card: Resumo da Resolução */}
+      <div className="card-surface overflow-hidden">
+        <CardHeader
+          icon={Check}
+          title={t('resolvedSummaryTitle')}
+          right={efficiencyPct != null ? (
+            <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold', efficiencyPct <= 100 ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning')}>{efficiencyPct}% · {t('efficiency')}</span>
+          ) : undefined}
+        />
+        <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
+          <ResStat label={tTicket('estimated')} value={fmtMin(estimateMinutes ?? 0)} />
+          <ResStat label={tTicket('completed')} value={fmtMin(completedMinutes)} accent />
+          <ResStat label={t('totalLifecycle')} value={totalTimeHours != null ? `${totalTimeHours}h` : '—'} />
         </div>
-
         <div className="flex flex-col gap-4 p-md text-sm">
-          {/* Time finalization */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-4 w-4 text-primary" />
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">{t('timeFinalization')}</p>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              <div className="rounded-lg bg-panel-2/50 px-3 py-2 text-center">
-                <p className="text-[9px] uppercase text-dim">{tTicket('estimated')}</p>
-                <p className="text-sm font-bold text-text">{fmtMin(estimateMinutes ?? 0)}</p>
-              </div>
-              <div className="rounded-lg bg-panel-2/50 px-3 py-2 text-center">
-                <p className="text-[9px] uppercase text-dim">{tTicket('completed')}</p>
-                <p className="text-sm font-bold text-primary">{fmtMin(completedMinutes)}</p>
-              </div>
-              <div className="rounded-lg bg-panel-2/50 px-3 py-2 text-center">
-                <p className="text-[9px] uppercase text-dim">{t('totalLifecycle')}</p>
-                <p className="text-sm font-bold text-text">{totalTimeHours != null ? `${totalTimeHours}h` : '—'}</p>
-              </div>
-              <div className="rounded-lg bg-panel-2/50 px-3 py-2 text-center">
-                <p className="text-[9px] uppercase text-dim">{t('efficiency')}</p>
-                <p className={cn(
-                  'text-sm font-bold',
-                  efficiencyPct != null && efficiencyPct <= 100 ? 'text-success' : efficiencyPct != null ? 'text-warning' : 'text-text',
-                )}>
-                  {efficiencyPct != null ? `${efficiencyPct}%` : '—'}
-                </p>
-              </div>
-            </div>
-            {closedAt && openedAt && (
-              <p className="text-[10px] text-dim mt-1.5">
-                {t('openToClose')}: {formatDateTime(openedAt, { locale, timeZone })} → {formatDateTime(closedAt, { locale, timeZone })}
-              </p>
-            )}
-          </div>
-
-          {/* Root cause */}
           {rc && (
-            <div className="rounded-lg border border-border bg-bg-subtle/50 p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="h-4 w-4 text-primary" />
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">{t('rootCause')}</p>
+            <div className="rounded-lg border border-border bg-panel-2/40 p-3">
+              <div className="mb-1.5 flex items-center gap-2">
+                <Target className="h-3.5 w-3.5 text-dim" />
+                <p className="text-[10px] font-bold uppercase tracking-wider text-dim">{t('rootCause')}</p>
                 <span className="ml-auto rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
               </div>
               <p className="font-medium text-text">{rc.title}</p>
-              {rc.description && <p className="text-xs text-muted mt-1 leading-relaxed">{rc.description}</p>}
+              {rc.description && <p className="mt-1 text-xs leading-relaxed text-muted">{rc.description}</p>}
             </div>
           )}
 
-          {/* Resolution summary */}
-          <div className="rounded-lg border border-success/20 bg-success/5 p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap className="h-4 w-4 text-success" />
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-success">{t('resolution')}</p>
-            </div>
-            <p className="text-text leading-relaxed">{res.summary}</p>
+          <div>
+            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-dim">{t('resolution')}</p>
+            <p className="leading-relaxed text-text">{res.summary}</p>
           </div>
 
-          {/* Learnings */}
-          {res.learnings.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <BookOpen className="h-4 w-4 text-warning" />
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-warning">{t('learnings')}</p>
+          {res.outcome && (
+            <div className="rounded-lg border border-success/20 bg-success/5 p-3">
+              <div className="mb-1 flex items-center gap-2">
+                <TrendingUp className="h-3.5 w-3.5 text-success" />
+                <p className="text-[10px] font-bold uppercase tracking-wider text-success">{t('outcome')}</p>
               </div>
-              <div className="space-y-1.5">
-                {res.learnings.map(l => (
-                  <div key={l.id} className="flex items-start gap-2 rounded-md bg-warning/5 border border-warning/10 px-3 py-2">
-                    <Lightbulb className="h-3.5 w-3.5 text-warning mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs text-text">{l.description}</p>
-                      {l.impact && <p className="text-[10px] text-dim mt-0.5">{l.impact}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <p className="leading-relaxed text-text">{res.outcome}</p>
             </div>
+          )}
+
+          {closedAt && openedAt && (
+            <p className="text-[11px] text-dim">
+              {t('openToClose')}: <span className="tabular-nums">{formatDateTime(openedAt, { locale, timeZone })}</span> → <span className="tabular-nums">{formatDateTime(closedAt, { locale, timeZone })}</span>
+            </p>
           )}
         </div>
       </div>
 
-      {/* Card 2: Solution Roadmap */}
-      {(res.resolutionSteps || res.outcome || tasks.length > 0) && (
-        <div className="card-surface overflow-hidden border border-primary/15">
-          <div className="flex items-center gap-3 bg-gradient-to-r from-primary/8 via-primary/3 to-transparent px-md py-3">
-            <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10">
-              <ListChecks className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-primary">{t('solutionRoadmap')}</p>
-              <p className="text-[10px] text-muted">{t('solutionRoadmapHint')}</p>
-            </div>
+      {/* Card: Passos da solução */}
+      {(hasSteps || hasTasks) && (
+        <div className="card-surface overflow-hidden">
+          <CardHeader
+            icon={ListChecks}
+            title={t('solutionRoadmap')}
+            right={hasTasks ? <span className="shrink-0 text-[11px] text-dim">{tWork('tasksSummary', { done: tasksDone, total: tasks.length })}</span> : undefined}
+          />
+          <div className="flex flex-col gap-5 p-md text-sm">
+            {hasSteps && (
+              <ol className="flex flex-col gap-2.5">
+                {steps.map((step, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-success/10 text-[10px] font-bold text-success">{i + 1}</span>
+                    <p className="leading-relaxed text-text">{step}</p>
+                  </li>
+                ))}
+              </ol>
+            )}
+
+            {hasTasks && (
+              <div className="flex flex-col gap-1">
+                {tasks.map((wi) => (
+                  <div key={wi.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+                    {wi.status === 'Done'
+                      ? <Check className="h-3.5 w-3.5 shrink-0 text-success" />
+                      : wi.status === 'Cancelled'
+                        ? <X className="h-3.5 w-3.5 shrink-0 text-dim" />
+                        : <div className="h-3 w-3 shrink-0 rounded-full border-2 border-primary" />}
+                    <span className={cn('flex-1 truncate text-xs', wi.status === 'Done' && 'text-dim line-through')}>{wi.title}</span>
+                    {wi.assignedToId && <span className="shrink-0 text-[10px] text-dim">{userMap.get(wi.assignedToId) ?? ''}</span>}
+                    <span className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold', taskStatusBadgeClass(wi.status))}>
+                      {tWork(`status.${wi.status}` as 'status.Open')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+        </div>
+      )}
 
-          <div className="flex flex-col gap-4 p-md text-sm">
-            {/* Steps roadmap */}
-            {res.resolutionSteps && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <ListChecks className="h-4 w-4 text-dim" />
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-dim">{t('actions')}</p>
-                </div>
-                <div className="ml-1 border-l-2 border-success/20 pl-4 space-y-2">
-                  {res.resolutionSteps.split('\n').filter(Boolean).map((step, i) => (
-                    <div key={i} className="flex items-start gap-2 relative">
-                      <div className="absolute -left-[21px] top-1 grid h-4 w-4 place-items-center rounded-full bg-success/15 ring-2 ring-[var(--color-bg)]">
-                        <Check className="h-2.5 w-2.5 text-success" />
-                      </div>
-                      <p className="text-xs text-text leading-relaxed">{step.replace(/^[-•\d.]\s*/, '')}</p>
-                    </div>
-                  ))}
+      {/* Card: Aprendizados */}
+      {res.learnings.length > 0 && (
+        <div className="card-surface overflow-hidden">
+          <CardHeader icon={Lightbulb} title={t('learnings')} />
+          <div className="flex flex-col gap-2 p-md text-sm">
+            {res.learnings.map(l => (
+              <div key={l.id} className="flex items-start gap-2.5 rounded-lg border border-warning/20 bg-warning/5 px-3 py-2.5">
+                <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                <div>
+                  <p className="text-text">{l.description}</p>
+                  {l.impact && <p className="mt-0.5 text-[11px] text-dim">{l.impact}</p>}
                 </div>
               </div>
-            )}
-
-            {/* Outcome */}
-            {res.outcome && (
-              <div className="rounded-lg border border-border bg-bg-subtle/50 p-3">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <TrendingUp className="h-4 w-4 text-success" />
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-success">{t('outcome')}</p>
-                </div>
-                <p className="text-text leading-relaxed">{res.outcome}</p>
-              </div>
-            )}
-
-            {/* Work items summary */}
-            {tasks.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <ListChecks className="h-4 w-4 text-dim" />
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-dim">{t('workItemsSummary')}</p>
-                  <span className="ml-auto text-[10px] text-dim">
-                    {tWork('tasksSummary', { done: tasksDone, total: tasks.length })}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {tasks.map((wi) => (
-                    <div key={wi.id} className="flex items-center gap-2 rounded-md bg-panel-2/40 px-3 py-1.5">
-                      {wi.status === 'Done'
-                        ? <Check className="h-3 w-3 text-emerald-600 shrink-0" />
-                        : wi.status === 'Cancelled'
-                          ? <X className="h-3 w-3 text-slate-400 shrink-0" />
-                          : <div className="h-3 w-3 rounded-full border-2 border-blue-400 shrink-0" />
-                      }
-                      <span className={cn('text-xs flex-1 truncate', wi.status === 'Done' && 'line-through text-dim')}>
-                        {wi.title}
-                      </span>
-                      {wi.assignedToId && (
-                        <span className="text-[10px] text-dim shrink-0">{userMap.get(wi.assignedToId) ?? ''}</span>
-                      )}
-                      <span className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold', taskStatusBadgeClass(wi.status))}>
-                        {tWork(`status.${wi.status}` as 'status.Open')}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            ))}
           </div>
         </div>
       )}
@@ -937,177 +947,62 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
   );
 }
 
-/* ---- Intelligence Quick View ---- */
+function ResStat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="px-4 py-3 text-center">
+      <p className="text-[9px] font-medium uppercase tracking-wider text-dim">{label}</p>
+      <p className={cn('mt-0.5 text-base font-bold tabular-nums', accent ? 'text-primary' : 'text-text')}>{value}</p>
+    </div>
+  );
+}
+
 function pct(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return '—';
   return `${Math.round(v * 100)}%`;
 }
 
-/** Painel "Playbook de Resolução": consome o mesmo relatório de inteligência (cache compartilhado). */
-function PlaybookQuickView({ ticketId }: { ticketId: number }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['tickets', 'intelligence', ticketId],
-    queryFn: () => intelligenceApi.ticketReport(ticketId),
-    retry: false,
-  });
-
-  // Enquanto o relatório carrega, o IntelligenceQuickView já exibe o estado de análise.
-  if (isLoading || !data) return null;
-
+/* ---- Resolution Assistant — unified, premium, always actionable ---- */
+function SectionLabel({ icon: Icon, tone, children }: { icon: typeof User; tone: 'primary' | 'success' | 'dim'; children: ReactNode }) {
+  const c = tone === 'success' ? 'text-success' : tone === 'primary' ? 'text-primary' : 'text-dim';
   return (
-    <PlaybookPanel
-      ticketId={ticketId}
-      playbooks={data.playbooks}
-      recommendedAction={data.recommendedAction}
-    />
-  );
-}
-
-function IntelligenceQuickView({ ticketId, onExpand }: { ticketId: number; onExpand: () => void }) {
-  const t = useTranslations('intelligence');
-  const tTicket = useTranslations('ticket');
-  const { data, isLoading } = useQuery({
-    queryKey: ['tickets', 'intelligence', ticketId],
-    queryFn: () => intelligenceApi.ticketReport(ticketId),
-    retry: false,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="card-surface p-md border border-primary/10">
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          <span className="text-xs text-muted">{t('analyzing')}</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!data || (data.rootCauseCandidates.length === 0 && data.resolutionSuggestions.length === 0)) {
-    return null;
-  }
-
-  const causes = data.rootCauseCandidates;
-  const resolutions = data.resolutionSuggestions;
-  const hasMeaningfulData = causes.some(c => c.description) || resolutions.length > 0;
-
-  if (!hasMeaningfulData) return null;
-
-  return (
-    <div className="card-surface overflow-hidden border border-primary/20">
-      <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-primary/8 to-transparent px-md py-2.5">
-        <div className="flex items-center gap-2">
-          <div className="grid h-6 w-6 place-items-center rounded-md bg-primary/15">
-            <Brain className="h-3.5 w-3.5 text-primary" />
-          </div>
-          <p className="text-xs font-semibold text-primary">{t('title')}</p>
-          {causes.some(c => c.aiEnhanced) && (
-            <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold text-primary">{t('ai')}</span>
-          )}
-        </div>
-        <Button size="sm" variant="ghost" onClick={onExpand} className="h-6 text-xs gap-1">
-          {t('viewMore')} <ArrowRight className="h-3 w-3" />
-        </Button>
-      </div>
-
-      <div className="p-md">
-        <div className="grid gap-3 md:grid-cols-1">
-          {/* Pattern Analysis — contextual data, NOT root cause */}
-          {causes.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-1.5">
-                <Layers className="h-3 w-3 text-primary" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-dim">{t('patternContext')}</span>
-              </div>
-              {causes.slice(0, 3).map((rc, i) => {
-                const relatedCount = rc.supportingTicketIds.length;
-                return (
-                  <div key={i} className="rounded-lg border border-border bg-panel/60 p-2.5">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
-                      {relatedCount > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => openRelatedTicketsModal(rc.supportingTicketIds, t('relatedTicketsTitle'))}
-                          className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/15 transition-colors cursor-pointer"
-                        >
-                          <Layers className="h-2.5 w-2.5" /> {relatedCount} {tTicket('relatedTickets')}
-                        </button>
-                      )}
-                    </div>
-                    {rc.description && (
-                      <p className="text-xs text-muted leading-relaxed line-clamp-2">{rc.description}</p>
-                    )}
-                    {(rc.coOccurrencePatterns ?? []).length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                        {(rc.coOccurrencePatterns ?? []).slice(0, 3).map((p) => (
-                          <span key={p} className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">{p}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Resolutions */}
-          {resolutions.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-1.5">
-                <Zap className="h-3 w-3 text-success" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-dim">{t('resolutions')}</span>
-              </div>
-              {resolutions.slice(0, 3).map((r) => (
-                <div key={r.resolutionId} className="rounded-lg border border-border bg-panel/60 p-2.5">
-                  <p className="text-xs font-medium text-text line-clamp-2 mb-1.5">{r.summary}</p>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {r.successRate != null && !isNaN(r.successRate) && (
-                      <span className="rounded-full bg-success/10 px-1.5 py-0.5 text-[9px] font-bold text-success">
-                        {pct(r.successRate)} {t('success')}
-                      </span>
-                    )}
-                    {r.reusedCount > 0 && (
-                      <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[9px] font-medium text-dim">
-                        {r.reusedCount}× {t('reuse')}
-                      </span>
-                    )}
-                    {(r.matchedTerms ?? []).slice(0, 3).map((term) => (
-                      <span key={term} className="rounded bg-primary/8 px-1.5 py-0.5 text-[9px] text-primary">{term}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {data.generatedAt && (
-          <p className="mt-3 text-[10px] text-dim text-right">
-            {t('aiDisclaimer')}
-          </p>
-        )}
-      </div>
+    <div className="mb-2 flex items-center gap-1.5">
+      <Icon className={cn('h-3.5 w-3.5', c)} />
+      <span className="text-[10px] font-bold uppercase tracking-wider text-dim">{children}</span>
     </div>
   );
 }
 
-/* ---- Recommendations Panel ---- */
-function RecommendationsPanel({ ticketId, onOpenIntelligence }: { ticketId: number; onOpenIntelligence: () => void }) {
+function MetricChip({ tone, children }: { tone: 'primary' | 'success' | 'dim'; children: ReactNode }) {
+  const c = tone === 'success' ? 'bg-success/10 text-success' : tone === 'primary' ? 'bg-primary/10 text-primary' : 'bg-panel-2 text-dim';
+  return <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-semibold', c)}>{children}</span>;
+}
+
+function AssistantAction({ icon: Icon, label, onClick }: { icon: typeof User; label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="flex items-center gap-2 rounded-xl border border-border bg-panel/50 px-3 py-2.5 text-left text-xs font-medium text-text transition-all hover:border-primary/40 hover:bg-primary/5">
+      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Icon className="h-3.5 w-3.5" /></span>
+      <span className="leading-tight">{label}</span>
+    </button>
+  );
+}
+
+function AssistantPanel({ ticketId, onExpand, onInvestigate, onResolve }: {
+  ticketId: number;
+  onExpand: () => void;
+  onInvestigate: () => void;
+  onResolve: () => void;
+}) {
   const t = useTranslations('intelligence');
+  const tTicket = useTranslations('ticket');
   const qc = useQueryClient();
   const [handled, setHandled] = useState<Record<number, 'accepted' | 'ignored'>>({});
   const report = useQuery({ queryKey: ['tickets', 'intelligence', ticketId], queryFn: () => intelligenceApi.ticketReport(ticketId), retry: false });
 
-  // Ignorar: apenas registra feedback negativo e some com o card.
   const ignore = useMutation({
     mutationFn: (resolutionId: number) => ticketsApi.recommendationFeedback(ticketId, { resolutionId, accepted: false, helpful: false }),
     onSuccess: (_d, resolutionId) => { setHandled((h) => ({ ...h, [resolutionId]: 'ignored' })); toast.success(t('ignored')); },
     onError: (err) => toast.error(apiErrorMessage(err, t('analysisError'))),
   });
-
-  // Aceitar (check): APLICA a solução de fato — resolve o ticket com a sugestão da IA —
-  // e registra feedback positivo para o aprendizado.
   const apply = useMutation({
     mutationFn: (r: { resolutionId: number; summary: string }) =>
       ticketResolutionApi.resolveWithAi(ticketId, { rootCauseId: 0, summary: r.summary, resolutionSteps: '', notifyCustomer: true }),
@@ -1121,49 +1016,150 @@ function RecommendationsPanel({ ticketId, onOpenIntelligence }: { ticketId: numb
     onError: (err) => toast.error(apiErrorMessage(err, t('applyError'))),
   });
 
-  const suggestions = (report.data?.resolutionSuggestions ?? []).slice(0, 3);
-  if (report.isLoading || suggestions.length === 0) return null;
+  const data = report.data;
+  const suggestions = (data?.resolutionSuggestions ?? []).slice(0, 3);
+  const causes = (data?.rootCauseCandidates ?? []).filter((c) => c.description).slice(0, 3);
+  const aiEnhanced = (data?.rootCauseCandidates ?? []).some((c) => c.aiEnhanced);
+  const hasContent = suggestions.length > 0 || causes.length > 0;
 
   return (
-    <div>
-      <div className="mb-sm flex items-center justify-between">
-        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-dim"><Sparkles className="h-3.5 w-3.5 text-primary" /> {t('smartRecommendations')}</p>
-        <button type="button" onClick={onOpenIntelligence} className="text-xs text-primary hover:underline">{t('viewFullAnalysis')}</button>
+    <div className="card-surface overflow-hidden border border-primary/20">
+      <div className="flex items-center gap-3 border-b border-border px-lg py-3">
+        <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary">
+          <Brain className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-bold text-text">{t('assistantTitle')}</p>
+            {aiEnhanced && <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold text-primary">{t('ai')}</span>}
+          </div>
+          <p className="truncate text-[11px] text-dim">{t('assistantSubtitle')}</p>
+        </div>
+        {hasContent && (
+          <Button size="sm" variant="ghost" onClick={onExpand} className="h-7 shrink-0 gap-1 text-xs">
+            {t('viewMore')} <ArrowRight className="h-3 w-3" />
+          </Button>
+        )}
       </div>
-      <div className="flex flex-col gap-sm">
-        {suggestions.map((r) => {
-          const state = handled[r.resolutionId];
-          return (
-            <div key={r.resolutionId} className={cn('card-surface flex items-center gap-sm p-md transition-opacity', state === 'ignored' && 'opacity-50')}>
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-success/15 text-success"><Lightbulb className="h-4 w-4" /></span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{r.summary}</p>
-                <p className="text-xs text-dim">{pct(r.similarityScore)} {t('similar')} · {pct(r.successRate)} {t('success')}{r.reusedCount > 0 ? ` · ${r.reusedCount}× ${t('reuse')}` : ''}</p>
+
+      <div className="p-lg">
+        {report.isLoading ? (
+          <div className="flex items-center gap-2 py-2">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span className="text-xs text-muted">{t('analyzing')}</span>
+          </div>
+        ) : !hasContent ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-panel-2/30 p-4">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-warning/15">
+                <HelpCircle className="h-4 w-4 text-warning" />
               </div>
-              {state ? (
-                <span className={cn('shrink-0 rounded px-2 py-0.5 text-xs font-semibold', state === 'accepted' ? 'bg-success/15 text-success' : 'bg-panel-2 text-dim')}>{state === 'accepted' ? t('accepted') : t('ignored')}</span>
-              ) : (() => {
-                const applying = apply.isPending && apply.variables?.resolutionId === r.resolutionId;
-                const ignoring = ignore.isPending && ignore.variables === r.resolutionId;
-                const busy = apply.isPending || ignore.isPending;
-                return (
-                  <div className="flex shrink-0 gap-1">
-                    <button type="button" onClick={() => apply.mutate({ resolutionId: r.resolutionId, summary: r.summary })} disabled={busy} className="grid h-7 w-7 place-items-center rounded-md text-success hover:bg-success/10 disabled:opacity-50" aria-label={t('applySolution')} title={t('applySolution')}>
-                      {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    </button>
-                    <button type="button" onClick={() => ignore.mutate(r.resolutionId)} disabled={busy} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-panel-2 disabled:opacity-50" aria-label={t('ignored')} title={t('ignored')}>
-                      {ignoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                    </button>
-                  </div>
-                );
-              })()}
+              <div>
+                <p className="text-sm font-semibold text-text">{t('noMatchTitle')}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">{t('noMatchHint')}</p>
+              </div>
             </div>
-          );
-        })}
+            <div className="grid gap-2 sm:grid-cols-3">
+              <AssistantAction icon={FlaskConical} label={t('actionInvestigate')} onClick={onInvestigate} />
+              <AssistantAction icon={Sparkles} label={t('actionDefineSymptoms')} onClick={onExpand} />
+              <AssistantAction icon={Wrench} label={t('actionResolve')} onClick={onResolve} />
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-5">
+            {suggestions.length > 0 && (
+              <div>
+                <SectionLabel icon={Zap} tone="success">{t('smartRecommendations')}</SectionLabel>
+                <div className="flex flex-col gap-2">
+                  {suggestions.map((r) => {
+                    const state = handled[r.resolutionId];
+                    const applying = apply.isPending && apply.variables?.resolutionId === r.resolutionId;
+                    const ignoring = ignore.isPending && ignore.variables === r.resolutionId;
+                    const busy = apply.isPending || ignore.isPending;
+                    return (
+                      <div key={r.resolutionId} className={cn('rounded-xl border border-border bg-panel/60 p-3 transition-all hover:border-success/30', state === 'ignored' && 'opacity-50')}>
+                        <div className="flex items-start gap-3">
+                          <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-success/15 text-success"><Lightbulb className="h-3.5 w-3.5" /></span>
+                          <div className="min-w-0 flex-1">
+                            <p className="line-clamp-2 text-sm font-medium leading-snug text-text">{r.summary}</p>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                              <MetricChip tone="primary">{pct(r.similarityScore)} {t('matchLabel')}</MetricChip>
+                              {r.successRate != null && !isNaN(r.successRate) && <MetricChip tone="success">{pct(r.successRate)} {t('success')}</MetricChip>}
+                              {r.reusedCount > 0 && <MetricChip tone="dim">{r.reusedCount}× {t('reuse')}</MetricChip>}
+                            </div>
+                          </div>
+                          {state ? (
+                            <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold', state === 'accepted' ? 'bg-success/15 text-success' : 'bg-panel-2 text-dim')}>{state === 'accepted' ? t('accepted') : t('ignored')}</span>
+                          ) : (
+                            <div className="flex shrink-0 gap-1">
+                              <button type="button" onClick={() => apply.mutate({ resolutionId: r.resolutionId, summary: r.summary })} disabled={busy} className="grid h-7 w-7 place-items-center rounded-lg text-success hover:bg-success/10 disabled:opacity-50" title={t('applySolution')} aria-label={t('applySolution')}>
+                                {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                              </button>
+                              <button type="button" onClick={() => ignore.mutate(r.resolutionId)} disabled={busy} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-panel-2 disabled:opacity-50" title={t('ignored')} aria-label={t('ignored')}>
+                                {ignoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {causes.length > 0 && (
+              <div>
+                <SectionLabel icon={Layers} tone="primary">{t('contextSignals')}</SectionLabel>
+                <div className="flex flex-col gap-2">
+                  {causes.map((rc, i) => {
+                    const relatedCount = rc.supportingTicketIds.length;
+                    return (
+                      <div key={i} className="rounded-xl border border-border bg-panel/60 p-3">
+                        <div className="mb-1 flex items-center gap-1.5">
+                          <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
+                          {relatedCount > 0 && (
+                            <button type="button" onClick={() => openRelatedTicketsModal(rc.supportingTicketIds, t('relatedTicketsTitle'))} className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/15">
+                              <Layers className="h-2.5 w-2.5" /> {relatedCount} {tTicket('relatedTickets')}
+                            </button>
+                          )}
+                        </div>
+                        {rc.description && <p className="line-clamp-2 text-xs leading-relaxed text-muted">{rc.description}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <p className="text-right text-[10px] text-dim">{t('aiDisclaimer')}</p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+/** Painel "Playbook de Resolução": consome o mesmo relatório de inteligência (cache compartilhado). */
+function PlaybookQuickView({ ticketId }: { ticketId: number }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['tickets', 'intelligence', ticketId],
+    queryFn: () => intelligenceApi.ticketReport(ticketId),
+    retry: false,
+  });
+
+  // Enquanto o relatório carrega, o AssistantPanel já exibe o estado de análise.
+  if (isLoading || !data) return null;
+
+  return (
+    <PlaybookPanel
+      ticketId={ticketId}
+      playbooks={data.playbooks}
+      recommendedAction={data.recommendedAction}
+    />
+  );
+}
+
 
 /* ---- Iteration Control (header dropdown — iteration only) ---- */
 function IterationControl({ ticketId, ticketTitle, ticketDescription, currentIteration, currentIterationId }: { ticketId: number; ticketTitle: string; ticketDescription: string; currentIteration: IterationResponse | null; currentIterationId: number | null }) {

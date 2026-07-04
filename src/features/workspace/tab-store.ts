@@ -10,13 +10,16 @@ export type ViewKind =
   | 'analytics'
   | 'admin'
   | 'audit'
+  | 'sla'
+  | 'symptoms'
   | 'intelligence'
   | 'playbooks'
   | 'reliability'
   | 'copilot'
   | 'problems'
   | 'iterations'
-  | 'tags';
+  | 'tags'
+  | 'settings';
 
 /** Chave de ícone (resolvida para um componente lucide no TabBar). */
 export type IconKey =

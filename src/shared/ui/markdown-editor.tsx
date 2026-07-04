@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Bold, Code, Eye, Hash, ImageIcon, Italic,
   Link as LinkIcon, List, AtSign, Pencil, Quote, X, Loader2,
@@ -59,33 +60,35 @@ function useResolvedImageSrc(src: string | undefined, enabled = true): { url: st
 
 // ─── Imagem inline (resolve anexos com auth) ─────────────────────────────────
 function AuthedImage({ src, alt }: { src?: string; alt?: string }) {
+  const t = useTranslations('editor');
   const { url, failed } = useResolvedImageSrc(src);
   if (!src) return null;
   if (failed) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-lg border border-danger/30 bg-danger/5 px-2.5 py-1 text-xs text-danger my-1">
-        <ImageIcon className="h-3 w-3" /> {alt || 'imagem'} (indisponível)
+        <ImageIcon className="h-3 w-3" /> {t('imageUnavailable')}
       </span>
     );
   }
   if (!url) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs text-dim my-1">
-        <Loader2 className="h-3 w-3 animate-spin" /> carregando imagem…
+        <Loader2 className="h-3 w-3 animate-spin" /> {t('loadingImage')}
       </span>
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={url} alt={alt || 'imagem'} className="max-w-full rounded-lg border border-border my-2" />;
+  return <img src={url} alt={alt || t('imageWord')} className="max-w-full rounded-lg border border-border my-2" />;
 }
 
 // ─── Chip de imagem: aparece no lugar da imagem nos comentários ───────────────
 function ImageChip({ src, alt }: { src?: string; alt?: string }) {
+  const t = useTranslations('editor');
   const [open, setOpen] = useState(false);
   const { url, loading, failed } = useResolvedImageSrc(src, open);
   if (!src) return null;
   const isAttachment = ATTACHMENT_REF.test(src);
-  const label = alt || (isAttachment ? 'Imagem' : src.split('/').pop()?.split('?')[0]) || 'Imagem';
+  const label = alt || (isAttachment ? t('imageWord') : src.split('/').pop()?.split('?')[0]) || t('imageWord');
   return (
     <>
       <button
@@ -111,16 +114,16 @@ function ImageChip({ src, alt }: { src?: string; alt?: string }) {
                 <X className="h-4 w-4" />
               </button>
               {failed ? (
-                <div className="rounded-xl bg-panel px-6 py-8 text-sm text-danger">Imagem indisponível</div>
+                <div className="rounded-xl bg-panel px-6 py-8 text-sm text-danger">{t('imageUnavailable')}</div>
               ) : !url || loading ? (
                 <div className="flex items-center gap-2 rounded-xl bg-panel px-6 py-8 text-sm text-dim">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t('loading')}
                 </div>
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={url}
-                  alt={alt || 'Imagem'}
+                  alt={alt || t('imageWord')}
                   className="max-w-full max-h-[80vh] rounded-xl object-contain shadow-2xl"
                 />
               )}
@@ -144,30 +147,31 @@ const IMAGE_AS_CHIP_COMPONENTS = {
 
 // ─── Modal de link ────────────────────────────────────────────────────────────
 function LinkModal({ onInsert, onClose }: { onInsert: (text: string, url: string) => void; onClose: () => void }) {
+  const t = useTranslations('editor');
   const [text, setText] = useState('');
   const [url, setUrl] = useState('');
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="w-80 rounded-xl border border-border bg-panel shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="border-b border-border px-4 py-3">
-          <h3 className="text-sm font-semibold text-text">Inserir link</h3>
+          <h3 className="text-sm font-semibold text-text">{t('linkModalTitle')}</h3>
         </div>
         <div className="flex flex-col gap-3 p-4">
           <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
-            Texto exibido
-            <input value={text} onChange={e => setText(e.target.value)} placeholder="Texto do link"
+            {t('linkText')}
+            <input value={text} onChange={e => setText(e.target.value)} placeholder={t('linkTextPlaceholder')}
               className="h-8 rounded-lg border border-border bg-bg-subtle px-3 text-sm text-text outline-none focus:border-primary" />
           </label>
           <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
-            URL
+            {t('linkUrl')}
             <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." autoFocus
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onInsert(text, url); } if (e.key === 'Escape') onClose(); }}
               className="h-8 rounded-lg border border-border bg-bg-subtle px-3 text-sm text-text outline-none focus:border-primary" />
           </label>
         </div>
         <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
-          <button type="button" onClick={onClose} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-dim hover:text-text">Cancelar</button>
-          <button type="button" onClick={() => onInsert(text, url)} className="rounded-lg bg-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-primary/90">Inserir</button>
+          <button type="button" onClick={onClose} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-dim hover:text-text">{t('cancel')}</button>
+          <button type="button" onClick={() => onInsert(text, url)} className="rounded-lg bg-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-primary/90">{t('insert')}</button>
         </div>
       </div>
     </div>
@@ -201,9 +205,10 @@ function SuggestionsDropdown({ items, onSelect }: { items: MentionSuggestion[]; 
 
 // ─── Preview interno do editor (reutilizado no modo live e preview) ───────────
 function EditorPreview({ value, minHeight }: { value: string; minHeight: string }) {
+  const t = useTranslations('editor');
   const isHtml = value.trim() && /<[a-zA-Z][^>]*>/.test(value);
   if (!value.trim()) {
-    return <p className="text-dim text-sm italic px-3 py-2.5">Pré-visualização aparecerá aqui…</p>;
+    return <p className="text-dim text-sm italic px-3 py-2.5">{t('previewPlaceholder')}</p>;
   }
   if (isHtml) {
     return (
@@ -249,6 +254,7 @@ export function MarkdownEditor({
   onMentionSearch, onTicketSearch,
   minHeight = '120px', className, compact = false, onBlur,
 }: MarkdownEditorProps) {
+  const t = useTranslations('editor');
   const [mode, setMode] = useState<EditorMode>(compact ? 'write' : 'live');
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [suggestions, setSuggestions] = useState<MentionSuggestion[]>([]);
@@ -366,15 +372,15 @@ export function MarkdownEditor({
   }, [onImagePaste, runImageUpload]);
 
   const toolBtns = [
-    { icon: Bold, title: 'Negrito (Ctrl+B)', before: '**', after: '**' },
-    { icon: Italic, title: 'Itálico (Ctrl+I)', before: '_', after: '_' },
-    { icon: Code, title: 'Código', before: '`', after: '`' },
+    { icon: Bold, title: t('bold'), before: '**', after: '**' },
+    { icon: Italic, title: t('italic'), before: '_', after: '_' },
+    { icon: Code, title: t('code'), before: '`', after: '`' },
     null,
-    { icon: List, title: 'Lista', before: '\n- ', after: '' },
-    { icon: Quote, title: 'Citação', before: '\n> ', after: '' },
+    { icon: List, title: t('list'), before: '\n- ', after: '' },
+    { icon: Quote, title: t('quote'), before: '\n> ', after: '' },
     null,
-    { icon: LinkIcon, title: 'Link', before: null as null, after: null as null, action: () => setShowLinkModal(true) },
-    { icon: ImageIcon, title: 'Inserir imagem', before: null as null, after: null as null, action: () => fileRef.current?.click() },
+    { icon: LinkIcon, title: t('link'), before: null as null, after: null as null, action: () => setShowLinkModal(true) },
+    { icon: ImageIcon, title: t('image'), before: null as null, after: null as null, action: () => fileRef.current?.click() },
   ] as const;
 
   const textarea = (
@@ -387,7 +393,7 @@ export function MarkdownEditor({
         onDrop={handleDrop}
         onKeyDown={e => { if (suggestions.length > 0 && e.key === 'Escape') { setSuggestions([]); setMentionTrigger(null); } }}
         onBlur={onBlur}
-        placeholder={placeholder ?? 'Escreva seu texto… use a barra de ferramentas para formatar'}
+        placeholder={placeholder ?? t('textareaPlaceholder')}
         className="w-full resize-none bg-transparent px-3 py-2.5 text-sm text-text placeholder:text-dim outline-none font-mono leading-relaxed"
         style={{ minHeight }}
       />
@@ -423,7 +429,7 @@ export function MarkdownEditor({
             {onMentionSearch && (
               <>
                 <div className="mx-0.5 h-4 w-px bg-border/70" />
-                <button type="button" title="Mencionar usuário (@)"
+                <button type="button" title={t('mentionUser')}
                   onMouseDown={e => { e.preventDefault(); insert('@'); }}
                   className="grid h-7 w-7 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text transition-colors">
                   <AtSign className="h-3.5 w-3.5" />
@@ -431,7 +437,7 @@ export function MarkdownEditor({
               </>
             )}
             {onTicketSearch && (
-              <button type="button" title="Referenciar ticket (#)"
+              <button type="button" title={t('referenceTicket')}
                 onMouseDown={e => { e.preventDefault(); insert('#'); }}
                 className="grid h-7 w-7 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text transition-colors">
                 <Hash className="h-3.5 w-3.5" />
@@ -443,7 +449,7 @@ export function MarkdownEditor({
           <div className="flex items-center gap-2">
             {uploading && (
               <span className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                <Loader2 className="h-3 w-3 animate-spin" /> enviando imagem…
+                <Loader2 className="h-3 w-3 animate-spin" /> {t('uploadingImage')}
               </span>
             )}
 
@@ -451,17 +457,17 @@ export function MarkdownEditor({
             <div className="flex items-center rounded-md border border-border overflow-hidden text-[11px] font-medium shrink-0">
             <button type="button" onClick={() => setMode('write')}
               className={cn('flex items-center gap-1 px-2 py-1 transition-colors', mode === 'write' ? 'bg-primary text-primary-fg' : 'text-dim hover:text-text')}>
-              <Pencil className="h-3 w-3" />Editar
+              <Pencil className="h-3 w-3" />{t('modeWrite')}
             </button>
             {!compact && (
               <button type="button" onClick={() => setMode('live')}
                 className={cn('flex items-center gap-1 px-2 py-1 transition-colors border-l border-r border-border/50', mode === 'live' ? 'bg-primary text-primary-fg' : 'text-dim hover:text-text')}>
-                Dividido
+                {t('modeSplit')}
               </button>
             )}
             <button type="button" onClick={() => setMode('preview')}
               className={cn('flex items-center gap-1 px-2 py-1 transition-colors', mode === 'preview' ? 'bg-primary text-primary-fg' : 'text-dim hover:text-text')}>
-              <Eye className="h-3 w-3" />Ver
+              <Eye className="h-3 w-3" />{t('modePreview')}
             </button>
             </div>
           </div>

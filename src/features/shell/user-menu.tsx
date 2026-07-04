@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { LogOut, Shield, Settings, ChevronDown, Accessibility, Sparkles, Sun, Moon, Monitor, Keyboard } from 'lucide-react';
+import { LogOut, Settings, ChevronDown, Sparkles, Sun, Moon, Monitor, Keyboard } from 'lucide-react';
 import { authApi } from '@/shared/api/endpoints';
 import { useAuthStore } from '@/features/auth/auth-store';
+import { useTabStore } from '@/features/workspace/tab-store';
 import { useUiStore, type ThemeMode } from '@/features/shell/ui-store';
 import { useTourStore } from '@/features/tour/tour-store';
 import { useShortcutsStore } from '@/features/shortcuts/shortcuts-store';
@@ -21,7 +21,6 @@ const THEME_OPTIONS: { value: ThemeMode; icon: typeof Sun }[] = [
 /** Avatar + menu do usuário (tema, segurança/MFA, acessibilidade, atalhos, tour, logout). */
 export function UserMenu({ variant = 'header', collapsed = false }: { variant?: 'header' | 'sidebar'; collapsed?: boolean } = {}) {
   const t = useTranslations('nav');
-  const tA11y = useTranslations('a11y');
   const tTheme = useTranslations('theme');
   const tTour = useTranslations('tour');
   const tShortcuts = useTranslations('shortcuts');
@@ -32,7 +31,14 @@ export function UserMenu({ variant = 'header', collapsed = false }: { variant?: 
   const setTheme = useUiStore((s) => s.setTheme);
   const startTour = useTourStore((s) => s.start);
   const openShortcuts = useShortcutsStore((s) => s.openHelp);
+  const openTab = useTabStore((s) => s.openTab);
   const [open, setOpen] = useState(false);
+
+  function openSettings() {
+    setOpen(false);
+    openTab({ kind: 'settings', params: {}, title: t('settings'), icon: 'admin' });
+    router.push('/workspace');
+  }
 
   const initials = (user?.name ?? '?')
     .split(' ')
@@ -49,12 +55,6 @@ export function UserMenu({ variant = 'header', collapsed = false }: { variant?: 
     reset();
     router.replace('/login');
   }
-
-  const items = [
-    { href: '/settings/security', icon: Shield, label: t('security') },
-    { href: '/settings/accessibility', icon: Accessibility, label: tA11y('title') },
-    { href: '/settings', icon: Settings, label: t('settings') },
-  ];
 
   const isSidebar = variant === 'sidebar';
 
@@ -154,20 +154,17 @@ export function UserMenu({ variant = 'header', collapsed = false }: { variant?: 
 
             {/* Itens */}
             <div className="p-1.5">
-              {items.map((it) => (
-                <Link
-                  key={it.href}
-                  href={it.href}
-                  onClick={() => setOpen(false)}
-                  role="menuitem"
-                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-text transition-colors hover:bg-panel-2"
-                >
-                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-bg-subtle text-muted">
-                    <it.icon className="h-4 w-4" aria-hidden />
-                  </span>
-                  {it.label}
-                </Link>
-              ))}
+              <button
+                type="button"
+                onClick={openSettings}
+                role="menuitem"
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-text transition-colors hover:bg-panel-2"
+              >
+                <span className="grid h-8 w-8 place-items-center rounded-lg bg-bg-subtle text-muted">
+                  <Settings className="h-4 w-4" aria-hidden />
+                </span>
+                {t('settings')}
+              </button>
               <button
                 type="button"
                 onClick={() => { setOpen(false); openShortcuts(); }}
