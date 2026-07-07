@@ -265,7 +265,7 @@ function AnomalyBanner() {
   });
   if (!data || data.length === 0) return null;
   return (
-    <div className="card-surface overflow-hidden border border-warning/25">
+    <div data-tour="anomalies" className="card-surface overflow-hidden border border-warning/25">
       <div className="flex items-center gap-2 bg-gradient-to-r from-warning/10 to-transparent px-4 py-2.5">
         <Activity className="h-4 w-4 text-warning" />
         <p className="text-sm font-bold text-warning">{t('anomaliesTitle')}</p>

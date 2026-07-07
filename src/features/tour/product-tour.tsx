@@ -5,28 +5,8 @@ import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, ArrowRight, Check, X, Sparkles } from 'lucide-react';
 import { useTourStore, tourCompleted } from './tour-store';
+import { APP_TOUR } from './tours';
 import { cn } from '@/shared/lib/utils';
-
-/** Um passo do tour. `target` é um seletor CSS; ausente = card centralizado. */
-interface TourStep {
-  key: string;
-  target?: string;
-  placement?: 'top' | 'bottom' | 'left' | 'right' | 'center';
-}
-
-/**
- * Passos do walkthrough. Os textos vêm do namespace i18n `tour` (todas as línguas).
- * Passos cujo alvo não existe na tela atual são pulados automaticamente.
- */
-const STEPS: TourStep[] = [
-  { key: 'welcome', placement: 'center' },
-  { key: 'nav', target: '[data-tour="nav"]', placement: 'right' },
-  { key: 'search', target: '[data-tour="search"]', placement: 'bottom' },
-  { key: 'notifications', target: '[data-tour="notifications"]', placement: 'bottom' },
-  { key: 'language', target: '[data-tour="language"]', placement: 'bottom' },
-  { key: 'user', target: '[data-tour="user"]', placement: 'bottom' },
-  { key: 'done', placement: 'center' },
-];
 
 const PAD = 8;
 const CARD_W = 340;
@@ -37,17 +17,6 @@ function rectOf(selector?: string): DOMRect | null {
   return el ? el.getBoundingClientRect() : null;
 }
 
-/** Encontra o índice do próximo passo cujo alvo existe (ou sem alvo). */
-function resolveStep(from: number, dir: 1 | -1): number {
-  let i = from;
-  while (i >= 0 && i < STEPS.length) {
-    const s = STEPS[i];
-    if (!s.target || rectOf(s.target)) return i;
-    i += dir;
-  }
-  return -1;
-}
-
 export function ProductTour() {
   const t = useTranslations('tour');
   const active = useTourStore((s) => s.active);
@@ -55,20 +24,32 @@ export function ProductTour() {
   const setStep = useTourStore((s) => s.setStep);
   const start = useTourStore((s) => s.start);
   const stop = useTourStore((s) => s.stop);
+  const steps = useTourStore((s) => s.steps);
 
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
-  // Auto-início no primeiro acesso (após o shell montar os elementos).
+  // Auto-início do tour global no primeiro acesso (após o shell montar os elementos).
   useEffect(() => {
     if (tourCompleted()) return;
-    const id = setTimeout(() => start(), 700);
+    const id = setTimeout(() => start(APP_TOUR), 700);
     return () => clearTimeout(id);
   }, [start]);
 
-  const current = STEPS[step];
+  /** Próximo passo cujo alvo existe (ou sem alvo), na direção dada. */
+  const resolveStep = (from: number, dir: 1 | -1): number => {
+    let i = from;
+    while (i >= 0 && i < steps.length) {
+      const s = steps[i];
+      if (!s.target || rectOf(s.target)) return i;
+      i += dir;
+    }
+    return -1;
+  };
+
+  const current = steps[step];
 
   const recompute = useCallback(() => {
     setRect(current?.target ? rectOf(current.target) : null);
@@ -112,7 +93,7 @@ export function ProductTour() {
 
   if (!mounted || !active || !current) return null;
 
-  const visibleIndexes = STEPS.map((s, i) => i).filter((i) => !STEPS[i].target || rectOf(STEPS[i].target));
+  const visibleIndexes = steps.map((_s, i) => i).filter((i) => !steps[i].target || rectOf(steps[i].target));
   const positionInVisible = visibleIndexes.indexOf(step);
   const isLast = positionInVisible === visibleIndexes.length - 1;
   const isFirst = positionInVisible <= 0;

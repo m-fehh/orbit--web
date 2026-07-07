@@ -45,7 +45,7 @@ function AiHealthCard() {
   });
   const models = data?.models ?? [];
   return (
-    <div className="card-surface overflow-hidden">
+    <div data-tour="ai-health" className="card-surface overflow-hidden">
       <div className="flex items-center gap-2 border-b border-border bg-gradient-to-r from-primary/8 to-transparent px-lg py-3">
         <Brain className="h-4 w-4 text-primary" />
         <p className="text-sm font-bold text-text">{t('aiHealthTitle')}</p>

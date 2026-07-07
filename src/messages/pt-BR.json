@@ -312,7 +312,7 @@
     "deflectionTitle": "Talvez isto já resolva",
     "deflectionHint": "Soluções comprovadas para algo parecido — pode resolver antes de abrir o chamado.",
     "deflectionDismiss": "Ignorar",
-    "deflectionResolvedSource": "Resolvido antes no ticket #{number}",
+    "deflectionResolvedSource": "Resolvido antes no ticket {number}",
     "cancel": "Cancelar",
     "submit": "Criar ticket",
     "analyzing": "Analisando…",
@@ -402,8 +402,11 @@
     "ignored": "Recomendação ignorada",
     "viewMore": "Ver análise",
     "analyzing": "Analisando a demanda…",
+    "analyzingHint": "Analisando o ticket e buscando padrões similares...",
     "analysisError": "Não foi possível analisar",
+    "analysisErrorHint": "Ocorreu um erro ao processar a análise de inteligência.",
     "retry": "Tentar de novo",
+    "relatedCount": "{count} {count, plural, one {ticket relacionado} other {tickets relacionados}}",
     "rootCauses": "Causas raiz prováveis",
     "patternContext": "Análise de padrões",
     "noSignal": "Sem sinal suficiente no histórico.",
@@ -443,8 +446,8 @@
     "ticketAlreadyResolved": "Este ticket já foi resolvido.",
     "otherPossibleCauses": "Outras causas possíveis",
     "relatedKnowledge": "Conhecimento relacionado",
-    "appliedSuccess": "Solucao aplicada com sucesso",
-    "applyError": "Erro ao aplicar solucao",
+    "appliedSuccess": "Solução aplicada com sucesso",
+    "applyError": "Erro ao aplicar solução",
     "feedbackSent": "Feedback registrado",
     "wasHelpful": "Foi útil?",
     "helpfulYes": "Útil",
@@ -466,7 +469,7 @@
     "aiModelMeta": "{samples} exemplos · {classes} classes · acurácia",
     "aiModel": { "priority": "Prioridade", "team": "Equipe" },
     "assistantTitle": "Assistente de Resolução",
-    "assistantSubtitle": "Indicações do motor local com base no histórico deste tenant",
+    "assistantSubtitle": "Com base no histórico da sua operação",
     "recommendedPlaybook": "Playbook recomendado",
     "contextSignals": "Sinais de contexto",
     "noMatchTitle": "Sem correspondência forte ainda",
@@ -475,6 +478,7 @@
     "actionDefineSymptoms": "Definir sintomas para melhorar o match",
     "actionResolve": "Registrar resolução",
     "matchLabel": "match",
+    "match": "Match",
     "tldr": "Resumo (TL;DR)",
     "tldrSource": "extraído do ticket",
     "whySignals": "Por que:",
@@ -531,7 +535,28 @@
     "noPlaybooks": "Nenhum playbook aplicado ainda.",
     "perOccurrence": "por ocorrência",
     "support": "Suporte",
-    "lift": "Lift"
+    "lift": "Lift",
+    "viewSimilarTickets": "{count, plural, one {Ver ticket similar} other {Ver # tickets similares}}",
+    "loadingTicket": "Carregando ticket...",
+    "ticketLoadError": "Erro ao carregar ticket",
+    "recommendation": "Recomendação",
+    "reusedCount": "Reutilizado {count}×",
+    "cause": "Causa",
+    "viewTickets": "Ver tickets",
+    "viewAllCauses": "{count, plural, one {Ver mais # causa} other {Ver mais # causas}}",
+    "viewAllResolutions": "{count, plural, one {Ver mais # resolução} other {Ver mais # resoluções}}",
+    "causeCategories": {
+      "userError": "Erro do Usuário",
+      "infrastructure": "Infraestrutura",
+      "bug": "Bug",
+      "configuration": "Configuração",
+      "performance": "Performance",
+      "security": "Segurança",
+      "network": "Rede",
+      "database": "Banco de Dados",
+      "thirdParty": "Terceiros",
+      "unknown": "Desconhecido"
+    }
   },
   "comments": {
     "addError": "Não foi possível comentar",
@@ -751,7 +776,7 @@
     "rcLow": "Baixa",
     "rcHigh": "Alta",
     "rcSummaryTitle": "Resumo da Causa Raiz:",
-    "rcTitleLabel": "Titulo:",
+    "rcTitleLabel": "Título:",
     "rcCategoryLabel": "Categoria:",
     "rcConfidenceLabel": "Confiança:",
     "rcDetailsLabel": "Detalhes:",
@@ -1232,10 +1257,8 @@
     "resolveTicket": "Resolver Ticket",
     "resolvedOk": "Ticket resolvido com sucesso!",
     "resolvedSummaryTitle": "Resumo da Resolução",
-    "tabOverview": "Visão geral",
-    "tabTreatment": "Tratativa",
-    "tabLearnings": "Aprendizados",
     "tabOverview": "Resumo",
+    "tabTreatment": "Tratativa",
     "tabSteps": "Passos",
     "tabLearnings": "Aprendizados",
     "noRecordTitle": "Resolvido sem tratativa registrada",
@@ -1269,12 +1292,22 @@
       "other": "Outro"
     },
     "action": {
-      "Restart": "Reinício", "ConfigChange": "Mudança de configuração", "Deploy": "Deploy",
-      "Rollback": "Rollback", "Hotfix": "Hotfix", "ScaleResource": "Escalar recurso",
-      "DataCorrection": "Correção de dados", "AccessChange": "Mudança de acesso", "CacheClear": "Limpeza de cache",
-      "ServiceFailover": "Failover de serviço", "ThirdPartyEscalation": "Escalação a terceiros",
-      "UserGuidance": "Orientação ao usuário", "Documentation": "Documentação", "Workaround": "Contorno",
-      "Monitoring": "Monitoramento", "Other": "Outro"
+      "Restart": "Reinício",
+      "ConfigChange": "Mudança de configuração",
+      "Deploy": "Deploy",
+      "Rollback": "Rollback",
+      "Hotfix": "Hotfix",
+      "ScaleResource": "Escalar recurso",
+      "DataCorrection": "Correção de dados",
+      "AccessChange": "Mudança de acesso",
+      "CacheClear": "Limpeza de cache",
+      "ServiceFailover": "Failover de serviço",
+      "ThirdPartyEscalation": "Escalação a terceiros",
+      "UserGuidance": "Orientação ao usuário",
+      "Documentation": "Documentação",
+      "Workaround": "Contorno",
+      "Monitoring": "Monitoramento",
+      "Other": "Outro"
     },
     "solutionRoadmap": "Roadmap da Solução",
     "solutionRoadmapHint": "Visão completa do processo de resolução e resultados",
@@ -1432,6 +1465,193 @@
     }
   },
   "tour": {
+    "screenTour": "Tour da tela",
+    "sc": {
+      "generic": {
+        "intro": {
+          "title": "Tour desta tela",
+          "body": "Ainda estamos detalhando o passo a passo desta tela. Use o Copiloto (pergunte em linguagem livre) para tirar dúvidas de uso enquanto isso."
+        }
+      },
+      "tickets": {
+        "intro": {
+          "title": "Central de Tickets",
+          "body": "Aqui ficam todos os chamados. Filtre, busque e clique num ticket para abrir o detalhe."
+        },
+        "new": {
+          "title": "Novo chamado",
+          "body": "Abra um ticket por aqui. Ao digitar, o Orbit sugere prioridade, aponta duplicatas e oferece soluções já existentes."
+        },
+        "filters": {
+          "title": "Filtros",
+          "body": "Refine por status, prioridade, equipe, responsável e período. A busca acha por título."
+        },
+        "list": {
+          "title": "Lista",
+          "body": "Cada linha é um chamado com prioridade, status, SLA e responsável. Clique para abrir."
+        }
+      },
+      "ticket": {
+        "intro": {
+          "title": "Detalhe do Ticket",
+          "body": "Tudo do chamado num lugar: descrição, assistente, comentários, tempo, anexos e histórico."
+        },
+        "tabs": {
+          "title": "Abas",
+          "body": "Navegue entre Visão geral, Conversa, Worklogs, Investigação, Itens e Anexos."
+        },
+        "assistant": {
+          "title": "Assistente de Resolução",
+          "body": "Recomendações do motor local: soluções parecidas, próximo passo e sinais do contexto."
+        },
+        "resolve": {
+          "title": "Resolver",
+          "body": "Ao encerrar, registre causa raiz, passos e desfecho — isso alimenta a Base de Soluções."
+        }
+      },
+      "dashboard": {
+        "intro": {
+          "title": "Centro de Operação",
+          "body": "Resumo do dia: abertos, em risco de SLA, distribuição por status e carga por equipe."
+        },
+        "metrics": {
+          "title": "Indicadores",
+          "body": "Acompanhe os números-chave e ajuste o período conforme precisar."
+        }
+      },
+      "analytics": {
+        "intro": {
+          "title": "Analytics",
+          "body": "Análises e tendências por período e equipe para enxergar padrões ao longo do tempo."
+        },
+        "trends": {
+          "title": "Tendências",
+          "body": "Compare volume, tempo de resolução e reincidência entre períodos."
+        }
+      },
+      "intelligence": {
+        "intro": {
+          "title": "Inteligência",
+          "body": "Cobertura de playbooks, confiabilidade e padrões minerados do histórico."
+        },
+        "aihealth": {
+          "title": "Saúde da IA",
+          "body": "Veja os modelos treinados (acurácia, amostras) e use Treinar agora para atualizá-los."
+        }
+      },
+      "playbooks": {
+        "intro": {
+          "title": "Base de Soluções",
+          "body": "Roteiros de resolução minerados do histórico. O time revisa e publica."
+        },
+        "review": {
+          "title": "Revisão",
+          "body": "Rascunhos aguardando curadoria — aprove os bons, descarte o ruído."
+        },
+        "publish": {
+          "title": "Publicar",
+          "body": "Publicado, o playbook passa a ser ofertado com confiança plena nos tickets."
+        }
+      },
+      "problems": {
+        "intro": {
+          "title": "Radar de Recorrência",
+          "body": "Agrupa chamados recorrentes num Problema com o impacto acumulado."
+        },
+        "anomalies": {
+          "title": "Anomalias de volume",
+          "body": "Picos atípicos detectados pela IA (SR-CNN) — podem indicar um incidente em escala."
+        },
+        "escalate": {
+          "title": "Escalar",
+          "body": "Leve o Problema para engenharia com o caso de negócio (incidentes + horas)."
+        }
+      },
+      "reliability": {
+        "intro": {
+          "title": "Confiabilidade",
+          "body": "Calibração da confiança ofertada versus a efetividade medida pelo feedback."
+        }
+      },
+      "copilot": {
+        "intro": {
+          "title": "Copiloto de Conhecimento",
+          "body": "Pergunte em linguagem livre: ele busca no histórico e nos guias do próprio Orbit."
+        },
+        "input": {
+          "title": "Pergunte aqui",
+          "body": "Descreva o problema ou cole o título de um chamado. Ele só afirma o que encontra."
+        },
+        "sources": {
+          "title": "Fontes",
+          "body": "As respostas trazem as fontes: playbooks, tickets resolvidos (navegáveis) e guias do sistema."
+        }
+      },
+      "sla": {
+        "intro": {
+          "title": "Políticas de SLA",
+          "body": "Defina os prazos por prioridade e o horário comercial da empresa."
+        },
+        "targets": {
+          "title": "Metas por prioridade",
+          "body": "Informe, em horas, a primeira resposta e a resolução de cada prioridade."
+        },
+        "hours": {
+          "title": "Horário comercial",
+          "body": "Quando ativo, o SLA conta apenas dentro do expediente."
+        }
+      },
+      "users": {
+        "intro": {
+          "title": "Usuários",
+          "body": "Gerencie as pessoas da empresa e seus vínculos com perfil e equipe."
+        },
+        "create": {
+          "title": "Novo usuário",
+          "body": "Informe nome e e-mail e vincule a um perfil — sem perfil, o usuário não enxerga telas."
+        }
+      },
+      "admin": {
+        "intro": {
+          "title": "Perfis & Permissões",
+          "body": "Defina papéis e o que cada um pode fazer (PBAC)."
+        },
+        "permissions": {
+          "title": "Permissões",
+          "body": "Marque as permissões por módulo; depois vincule usuários ao perfil."
+        }
+      },
+      "audit": {
+        "intro": {
+          "title": "Auditoria",
+          "body": "Registro automático de todas as mudanças (quem, o quê, quando), com diff por campo."
+        }
+      },
+      "iterations": {
+        "intro": {
+          "title": "Iterações",
+          "body": "Organize o trabalho por ciclos (sprints); tickets são vinculados à iteração ativa."
+        }
+      },
+      "tags": {
+        "intro": {
+          "title": "Tags",
+          "body": "Etiquetas para classificar e filtrar chamados."
+        }
+      },
+      "settings": {
+        "intro": {
+          "title": "Configurações",
+          "body": "Preferências da empresa: identidade visual, idioma, fuso e tema."
+        }
+      },
+      "investigations": {
+        "intro": {
+          "title": "Investigação",
+          "body": "Estruture a análise com evidências e hipóteses até a causa raiz (5 Porquês)."
+        }
+      }
+    },
     "badge": "Tour",
     "aria": "Tour do produto",
     "start": "Tour do produto",
@@ -1706,6 +1926,8 @@
     "sources": "Soluções comprovadas",
     "sourcesLead": "Encontrei estas soluções comprovadas no histórico:",
     "fromResolved": "De tickets resolvidos",
+    "fromGuides": "Sobre o Orbit",
+    "openTicket": "Abrir o ticket",
     "sourceTicket": "Ticket",
     "reuseCount": "{count} reusos",
     "emptyAnswer": "Não encontrei solução comprovada sobre isso ainda — o conhecimento cresce conforme os tickets são resolvidos.",

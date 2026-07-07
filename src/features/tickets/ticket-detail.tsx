@@ -294,7 +294,7 @@ export function TicketDetail({ id }: { id: number }) {
         </div>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto border-b border-border px-lg">
+      <div data-tour="ticket-tabs" className="flex gap-1 overflow-x-auto border-b border-border px-lg">
         {tabs.map((tb) => (
           <button
             key={tb.key}
@@ -555,11 +555,11 @@ function TimeTrackingCard({ ticketId, estimateMinutes, completedMinutes, remaini
             <span className="min-w-0 flex-1 text-[11px] text-text">
               <span className="text-dim">{t('estimateSuggested')}:</span> <span className="font-bold tabular-nums">{fmtMin(predicted!)}</span>
             </span>
-            <Button size="sm" onClick={() => applyEstimate.mutate(predicted!)} loading={applyEstimate.isPending} className="h-6 px-2.5 text-[11px]">
-              {t('estimateAccept')}
-            </Button>
-            <button type="button" onClick={() => { setEtaHandled(true); setEstimateInput(''); setEditing(true); }} className="rounded-md border border-border px-2 py-0.5 text-[11px] text-dim transition-colors hover:text-text">
-              {t('estimateReject')}
+            <button type="button" onClick={() => applyEstimate.mutate(predicted!)} disabled={applyEstimate.isPending} className="grid h-7 w-7 place-items-center rounded-lg text-success hover:bg-success/10 disabled:opacity-50" aria-label={t('estimateAccept')} title={t('estimateAccept')}>
+              {applyEstimate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            </button>
+            <button type="button" onClick={() => { setEtaHandled(true); setEstimateInput(''); setEditing(true); }} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-panel-2" aria-label={t('estimateReject')} title={t('estimateReject')}>
+              <X className="h-4 w-4" />
             </button>
           </div>
           <p className="mt-1 text-[10px] text-dim">{t('estimateSuggestedHint', { count: eta.data!.basedOn })}</p>
@@ -1100,6 +1100,8 @@ function AssistantPanel({ ticketId, status, onExpand, onInvestigate, onResolve }
 }) {
   const t = useTranslations('intelligence');
   const tTicket = useTranslations('ticket');
+  const tInv = useTranslations('investigation');
+  const catLabel = (c: string) => { const k = `cat.${c}` as 'cat.Bug'; return tInv.has(k) ? tInv(k) : c; };
   const qc = useQueryClient();
   const [handled, setHandled] = useState<Record<number, 'accepted' | 'ignored'>>({});
   const report = useQuery({ queryKey: ['tickets', 'intelligence', ticketId], queryFn: () => intelligenceApi.ticketReport(ticketId), retry: false });
@@ -1125,20 +1127,16 @@ function AssistantPanel({ ticketId, status, onExpand, onInvestigate, onResolve }
   const data = report.data;
   const suggestions = (data?.resolutionSuggestions ?? []).slice(0, 3);
   const causes = (data?.rootCauseCandidates ?? []).filter((c) => c.description).slice(0, 3);
-  const aiEnhanced = (data?.rootCauseCandidates ?? []).some((c) => c.aiEnhanced);
   const hasContent = suggestions.length > 0 || causes.length > 0;
 
   return (
     <div className="card-surface overflow-hidden border border-primary/20">
       <div className="flex items-center gap-3 border-b border-border px-lg py-3">
         <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary">
-          <Brain className="h-4 w-4" />
+          <Sparkles className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-bold text-text">{t('assistantTitle')}</p>
-            {aiEnhanced && <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold text-primary">{t('ai')}</span>}
-          </div>
+          <p className="text-sm font-bold text-text">{t('assistantTitle')}</p>
           <p className="truncate text-[11px] text-dim">{t('assistantSubtitle')}</p>
         </div>
         {hasContent && (
@@ -1249,7 +1247,7 @@ function AssistantPanel({ ticketId, status, onExpand, onInvestigate, onResolve }
                     return (
                       <div key={i} className="rounded-xl border border-border bg-panel/60 p-3">
                         <div className="mb-1 flex items-center gap-1.5">
-                          <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
+                          <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{catLabel(rc.category)}</span>
                           {relatedCount > 0 && (
                             <button type="button" onClick={() => openRelatedTicketsModal(rc.supportingTicketIds, t('relatedTicketsTitle'))} className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/15">
                               <Layers className="h-2.5 w-2.5" /> {relatedCount} {tTicket('relatedTickets')}

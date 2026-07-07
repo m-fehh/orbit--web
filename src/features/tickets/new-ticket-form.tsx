@@ -301,7 +301,7 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
               {deflection.resolutions.slice(0, 2).map((r) => (
                 <div key={r.resolutionId} className="rounded-lg border border-border bg-panel p-3">
                   <p className="line-clamp-2 text-sm text-text">{r.summary}</p>
-                  <p className="mt-1 text-[11px] text-dim">{t('deflectionResolvedSource', { number: r.ticketId })}</p>
+                  <p className="mt-1 text-[11px] text-dim">{t('deflectionResolvedSource', { number: r.ticketNumber && r.ticketNumber.length > 0 ? r.ticketNumber : `#${r.ticketId}` })}</p>
                 </div>
               ))}
             </div>

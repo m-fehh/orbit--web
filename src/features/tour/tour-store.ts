@@ -4,24 +4,33 @@ import { create } from 'zustand';
 
 const DONE_KEY = 'orbit-tour-done-v1';
 
+/** Um passo do tour. `target` é um seletor CSS; ausente = card centralizado. */
+export interface TourStep {
+  key: string;
+  target?: string;
+}
+
 interface TourState {
   active: boolean;
   step: number;
-  start: () => void;
+  /** Passos do tour atualmente em execução (global ou da tela). */
+  steps: TourStep[];
+  start: (steps: TourStep[]) => void;
   stop: (markDone?: boolean) => void;
   setStep: (n: number) => void;
 }
 
-/** Estado do product tour (walkthrough). Conclusão persiste em localStorage. */
+/** Estado do tour interativo (walkthrough). Um por vez; conclusão persiste em localStorage. */
 export const useTourStore = create<TourState>((set) => ({
   active: false,
   step: 0,
-  start: () => set({ active: true, step: 0 }),
+  steps: [],
+  start: (steps) => set({ active: steps.length > 0, step: 0, steps }),
   stop: (markDone = true) => {
     if (markDone && typeof window !== 'undefined') {
       try { localStorage.setItem(DONE_KEY, '1'); } catch { /* ignore */ }
     }
-    set({ active: false, step: 0 });
+    set({ active: false, step: 0, steps: [] });
   },
   setStep: (n) => set({ step: n }),
 }));

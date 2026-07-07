@@ -9,6 +9,7 @@ import { useAuthStore } from '@/features/auth/auth-store';
 import { useTabStore } from '@/features/workspace/tab-store';
 import { useUiStore, type ThemeMode } from '@/features/shell/ui-store';
 import { useTourStore } from '@/features/tour/tour-store';
+import { APP_TOUR } from '@/features/tour/tours';
 import { useShortcutsStore } from '@/features/shortcuts/shortcuts-store';
 import { cn } from '@/shared/lib/utils';
 
@@ -178,7 +179,7 @@ export function UserMenu({ variant = 'header', collapsed = false }: { variant?: 
               </button>
               <button
                 type="button"
-                onClick={() => { setOpen(false); startTour(); }}
+                onClick={() => { setOpen(false); startTour(APP_TOUR); }}
                 role="menuitem"
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-text transition-colors hover:bg-panel-2"
               >

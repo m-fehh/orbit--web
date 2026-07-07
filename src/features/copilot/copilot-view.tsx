@@ -3,14 +3,15 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  Sparkles, CheckCircle2, GitBranch, Zap, Star, Send, Loader2, User,
+  Sparkles, CheckCircle2, GitBranch, Zap, Star, Send, Loader2, User, BookOpen, ArrowUpRight,
 } from 'lucide-react';
 import { intelligenceApi } from '@/shared/api/endpoints';
 import {
   apiErrorMessage,
   type PlaybookConfidence, type PlaybookStepKind, type PlaybookStepView, type PlaybookSuggestion,
-  type ResolutionSuggestion,
+  type ResolutionSuggestion, type CopilotGuide,
 } from '@/shared/api/types';
+import { openTicketTab } from '@/features/tickets/ticket-actions';
 import { ProgressBar, healthColor, healthTextClass, formatPct } from '@/shared/ui/charts';
 import { cn } from '@/shared/lib/utils';
 
@@ -106,20 +107,43 @@ export function SuggestionCard({
   );
 }
 
-/** Card de uma resolução recuperada de um ticket já resolvido. */
+/** Card de uma resolução recuperada de um ticket já resolvido — navegável para o ticket. */
 function ResolutionCard({ r }: { r: ResolutionSuggestion }) {
   const t = useTranslations('copilot');
+  const code = r.ticketNumber && r.ticketNumber.length > 0 ? r.ticketNumber : `#${r.ticketId}`;
   return (
     <div className="card-surface flex flex-col gap-1.5 p-3.5">
       <p className="text-sm text-text">{r.summary}</p>
       <div className="flex flex-wrap items-center gap-3 text-[11px] text-dim">
-        <span>{t('sourceTicket')} #{r.ticketId}</span>
+        <button
+          type="button"
+          onClick={() => openTicketTab({ id: r.ticketId, number: r.ticketNumber ?? String(r.ticketId) })}
+          className="inline-flex items-center gap-1 font-medium text-primary transition-colors hover:underline"
+          title={t('openTicket')}
+        >
+          {t('sourceTicket')} {code} <ArrowUpRight className="h-3 w-3" />
+        </button>
         {r.reusedCount > 0 && (
           <span className="flex items-center gap-1">
             {t('reuseCount', { count: r.reusedCount })} ·
             <span className={cn('font-semibold', healthTextClass(r.successRate))}>{formatPct(r.successRate)}</span>
           </span>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Card de um guia do próprio Orbit (autoconhecimento) que embasou a resposta. */
+function GuideCard({ g }: { g: CopilotGuide }) {
+  return (
+    <div className="card-surface flex items-start gap-2.5 p-3.5">
+      <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+        <BookOpen className="h-3.5 w-3.5" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-text">{g.title}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted">{g.content}</p>
       </div>
     </div>
   );
@@ -137,6 +161,8 @@ interface ChatMessage {
   solutions?: PlaybookSuggestion[];
   /** Resoluções de tickets resolvidos anexas à resposta. */
   resolutions?: ResolutionSuggestion[];
+  /** Guias do próprio Orbit (autoconhecimento) anexos à resposta. */
+  guides?: CopilotGuide[];
   /** Marca uma resposta que falhou (erro de rede/API). */
   isError?: boolean;
 }
@@ -173,7 +199,8 @@ export function CopilotView() {
       const hasAnswer = !!res.answer?.trim();
       const solutions = res.solutions ?? [];
       const resolutions = res.resolutions ?? [];
-      const hasSources = solutions.length > 0 || resolutions.length > 0;
+      const guides = res.guides ?? [];
+      const hasSources = solutions.length > 0 || resolutions.length > 0 || guides.length > 0;
       const text = hasAnswer
         ? res.answer.trim()
         : hasSources
@@ -181,7 +208,7 @@ export function CopilotView() {
           : t('emptyAnswer');
       setMessages((prev) => [
         ...prev,
-        { id: nextId(), role: 'assistant', text, solutions, resolutions },
+        { id: nextId(), role: 'assistant', text, solutions, resolutions, guides },
       ]);
     } catch (err) {
       setMessages((prev) => [
@@ -296,6 +323,16 @@ export function CopilotView() {
                         ))}
                       </div>
                     )}
+                    {m.guides && m.guides.length > 0 && (
+                      <div className="flex flex-col gap-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-dim">
+                          {t('fromGuides')}
+                        </p>
+                        {m.guides.map((g) => (
+                          <GuideCard key={g.screen} g={g} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ),
@@ -320,6 +357,7 @@ export function CopilotView() {
       <div className="border-t border-border bg-bg px-4 py-3 md:px-6">
         <div className="mx-auto flex max-w-3xl items-end gap-2">
           <textarea
+            data-tour="copilot-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}

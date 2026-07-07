@@ -1,9 +1,11 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ChevronRight as Sep } from 'lucide-react';
+import { ChevronRight as Sep, HelpCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useTabStore, currentLocation, type ViewKind, type TabLocation } from '@/features/workspace/tab-store';
+import { useTourStore } from '@/features/tour/tour-store';
+import { tourFor } from '@/features/tour/tours';
 import { Icon } from './icons';
 import { cn } from '@/shared/lib/utils';
 
@@ -51,7 +53,9 @@ const SECTION_META: Record<ViewKind, { indexKind: ViewKind; icon: TabLocation['i
 /** Breadcrumb + navegação (back/forward) da aba ativa, baseada no histórico. */
 export function Breadcrumb() {
   const t = useTranslations('nav');
+  const tTour = useTranslations('tour');
   const { tabs, activeId, openTab } = useTabStore();
+  const startTour = useTourStore((s) => s.start);
   const tab = tabs.find((tb) => tb.id === activeId);
 
   const sectionIndex = useMemo<Record<ViewKind, TabLocation>>(() => {
@@ -91,6 +95,15 @@ export function Breadcrumb() {
           </>
         )}
       </nav>
+
+      <button
+        type="button"
+        onClick={() => startTour(tourFor(loc.kind))}
+        className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs font-medium text-muted transition-colors hover:border-primary/40 hover:text-primary"
+        title={tTour('screenTour')}
+      >
+        <HelpCircle className="h-3.5 w-3.5" /> {tTour('screenTour')}
+      </button>
     </div>
   );
 }

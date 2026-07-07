@@ -285,6 +285,8 @@ export interface ResolutionSuggestion {
   matchedTerms: string[];
   reusedCount: number;
   successRate: number;
+  /** Número/código humano do ticket de origem (ex.: T-2026-000123). */
+  ticketNumber?: string;
 }
 
 /** Ação recomendada pelo TaaS para o ticket (grau de autonomia da orientação). */
@@ -380,6 +382,16 @@ export interface CopilotAnswerResponse {
   solutions: PlaybookSuggestion[];
   /** Resoluções de tickets já resolvidos, recuperadas do histórico. */
   resolutions: ResolutionSuggestion[];
+  /** Guias do próprio Orbit (mapa de telas/recursos) usados para responder dúvidas de uso. */
+  guides: CopilotGuide[];
+}
+
+/** Guia do próprio Orbit (autoconhecimento do produto) usado pelo copiloto. */
+export interface CopilotGuide {
+  screen: string;
+  title: string;
+  content: string;
+  score: number;
 }
 
 /** Sintoma sugerido pelo Smart Intake (inferido dos tickets similares). */

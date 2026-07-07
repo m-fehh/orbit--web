@@ -7,133 +7,293 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, ThumbsUp, ThumbsDown, Check, BookOpen, Target, Lightbulb, Sparkles,
-  Zap, BarChart3, Clock, FileText, ArrowRight, Layers,
-  ArrowUpRight,
+  Zap, Clock, FileText, ArrowRight, Layers, ArrowUpRight,
+  RefreshCw, AlertTriangle, TrendingUp, GitMerge, Tag,
+  LayoutDashboard, Play, X, ChevronRight, Search, Activity, Shield
 } from 'lucide-react';
 import { intelligenceApi, ticketsApi } from '@/shared/api/endpoints';
 import { ticketResolutionApi } from '@/shared/api/endpoints';
 import { apiErrorMessage } from '@/shared/api/types';
-import type { RootCauseCandidate, ResolutionSuggestion } from '@/shared/api/types';
+import type { RootCauseCandidate, ResolutionSuggestion, KnowledgeSuggestion } from '@/shared/api/types';
 import { useWindowStore } from '@/features/windows/window-store';
 import { openTicketTab } from './ticket-actions';
 import { Button } from '@/shared/ui/button';
-import { PulseDot } from '@/shared/ui/motion';
 import { cn } from '@/shared/lib/utils';
 
+// ─── Constants ──────────────────────────────────────────────────────────────
 const MODAL_ID = 'intelligence-modal';
+const STAGGER_DELAY = 0.06;
 
-function pct(v: number | null | undefined): string {
-  if (v == null || isNaN(v)) return '—';
-  return `${Math.round(v * 100)}%`;
+// ─── Translation Maps ───────────────────────────────────────────────────────
+const ROOT_CAUSE_CATEGORY_TRANSLATION_KEYS: Record<string, string> = {
+  'UserError': 'causeCategories.userError',
+  'Infrastructure': 'causeCategories.infrastructure',
+  'Bug': 'causeCategories.bug',
+  'Configuration': 'causeCategories.configuration',
+  'Performance': 'causeCategories.performance',
+  'Security': 'causeCategories.security',
+  'Network': 'causeCategories.network',
+  'Database': 'causeCategories.database',
+  'ThirdParty': 'causeCategories.thirdParty',
+  'Unknown': 'causeCategories.unknown',
+};
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+function formatPercentage(value: number | null | undefined): string {
+  if (value == null || isNaN(value)) return '—';
+  return `${Math.round(value * 100)}%`;
 }
 
-export function openIntelligenceModal(ticketId: number, ticketTitle: string, modalTitle?: string) {
+function translateCauseCategory(
+  category: string,
+  t: ReturnType<typeof useTranslations<'intelligence'>>
+): string {
+  const key = ROOT_CAUSE_CATEGORY_TRANSLATION_KEYS[category];
+  if (key) {
+    const translated = t(key);
+    return translated === key ? category : translated;
+  }
+  return category;
+}
+
+// ─── Modal Opener ───────────────────────────────────────────────────────────
+export function openIntelligenceModal(
+  ticketId: number,
+  ticketTitle: string,
+  ticketCode: string,
+  modalTitle?: string
+) {
+  const windowId = `${MODAL_ID}-${ticketId}`;
+
   useWindowStore.getState().open({
-    id: `${MODAL_ID}-${ticketId}`,
+    id: windowId,
     title: modalTitle ?? `Orbit Intelligence — ${ticketTitle}`,
     icon: <Brain className="h-4 w-4" />,
     modal: true,
-    width: 960,
-    height: 800,
-    content: <IntelligenceModalContent ticketId={ticketId} ticketTitle={ticketTitle} />,
+    width: 1020,
+    height: 820,
+    content: (
+      <IntelligenceModalContent
+        ticketId={ticketId}
+        ticketTitle={ticketTitle}
+        ticketCode={ticketCode}
+        windowId={windowId}
+      />
+    ),
   });
 }
 
+// ─── Types ──────────────────────────────────────────────────────────────────
+type TabKey = 'overview' | 'causes' | 'resolutions' | 'knowledge';
 type FeedbackState = Record<string, 'up' | 'down'>;
 
+// ─── Analyzing State ────────────────────────────────────────────────────────
 function AnalyzingState() {
   const t = useTranslations('intelligence');
+
   const steps = [
-    { icon: Target, label: t('analyzingSteps.scanning'), delay: 0 },
-    { icon: BarChart3, label: t('analyzingSteps.matching'), delay: 0.4 },
+    { icon: Search, label: t('analyzingSteps.scanning'), delay: 0 },
+    { icon: Activity, label: t('analyzingSteps.matching'), delay: 0.4 },
     { icon: Brain, label: t('analyzingSteps.reasoning'), delay: 0.8 },
     { icon: Lightbulb, label: t('analyzingSteps.generating'), delay: 1.2 },
   ];
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-lg p-xl">
+    <div className="flex flex-1 flex-col items-center justify-center gap-8 p-10" role="status" aria-label={t('analyzing')}>
       <motion.div
         className="relative"
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.5, type: 'spring' }}
+        transition={{ duration: 0.6, type: 'spring', bounce: 0.4 }}
       >
         <motion.div
           className="absolute inset-0 rounded-full bg-primary/20"
-          animate={{ scale: [1, 2, 1], opacity: [0.3, 0, 0.3] }}
+          animate={{
+            scale: [1, 2.5, 1],
+            opacity: [0.4, 0, 0.4],
+          }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         />
-        <div className="relative rounded-full bg-primary/10 p-lg">
-          <Brain className="h-8 w-8 text-primary" />
+        <motion.div
+          className="absolute inset-0 rounded-full bg-primary/10"
+          animate={{
+            scale: [1, 1.8, 1],
+            opacity: [0.3, 0, 0.3],
+          }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+        />
+        <div className="relative z-10 w-16 h-16 rounded-2xl bg-primary/15 text-primary flex items-center justify-center ring-1 ring-primary/20 shadow-lg shadow-primary/10">
+          <Brain className="h-8 w-8" />
         </div>
       </motion.div>
-      <div className="flex flex-col items-center gap-sm">
-        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="text-sm font-medium text-text">
-          {t('analyzing')}
-        </motion.p>
-        <div className="flex flex-col gap-1.5">
-          {steps.map((step, i) => (
-            <motion.div key={i} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: step.delay, duration: 0.3 }} className="flex items-center gap-2 text-xs text-muted">
-              <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: step.delay }}>
-                <step.icon className="h-3.5 w-3.5 text-primary" />
-              </motion.div>
-              {step.label}
+
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="text-center"
+      >
+        <p className="text-base font-semibold text-text">{t('analyzing')}</p>
+        <p className="text-xs text-muted mt-1.5">{t('analyzingHint')}</p>
+      </motion.div>
+
+      <div className="flex flex-col gap-2 w-64">
+        {steps.map((step, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: step.delay, duration: 0.4 }}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-panel/50 border border-border/50"
+          >
+            <motion.div
+              animate={{ opacity: [0.4, 1, 0.4] }}
+              transition={{ duration: 2, repeat: Infinity, delay: step.delay }}
+              className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0"
+            >
+              <step.icon className="h-4 w-4" />
             </motion.div>
-          ))}
-        </div>
+            <span className="text-xs font-medium text-text">{step.label}</span>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="w-56 h-1.5 bg-border/20 rounded-full overflow-hidden">
+        <motion.div
+          className="h-full bg-gradient-to-r from-primary/40 via-primary/60 to-primary/40 rounded-full"
+          animate={{ x: ['-100%', '100%'] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ width: '40%' }}
+        />
       </div>
     </div>
   );
 }
 
-function NoDataState() {
+// ─── Empty State ────────────────────────────────────────────────────────────
+function EmptyState() {
   const t = useTranslations('intelligence');
+
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex flex-1 flex-col items-center justify-center gap-md p-xl text-center">
-      <div className="rounded-2xl bg-primary/5 p-lg">
-        <Brain className="h-12 w-12 text-primary/30" />
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="flex flex-1 flex-col items-center justify-center gap-6 p-10 text-center"
+    >
+      <div className="w-20 h-20 rounded-3xl bg-primary/5 flex items-center justify-center">
+        <Brain className="h-10 w-10 text-primary/25" />
       </div>
-      <div className="space-y-1">
-        <p className="text-sm font-medium text-text">{t('noData')}</p>
-        <p className="max-w-xs text-xs text-muted">{t('noDataHint')}</p>
+      <div className="space-y-1.5">
+        <p className="text-sm font-semibold text-text">{t('noData')}</p>
+        <p className="text-xs text-muted max-w-xs leading-relaxed">{t('noDataHint')}</p>
       </div>
     </motion.div>
   );
 }
 
-function CauseCard({ cause, index, t }: { cause: RootCauseCandidate; index: number; t: ReturnType<typeof useTranslations<'intelligence'>> }) {
-  const [expanded, setExpanded] = useState(false);
+// ─── Error State ────────────────────────────────────────────────────────────
+function ErrorState({ onRetry }: { onRetry: () => void }) {
+  const t = useTranslations('intelligence');
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.06 }}
-      className="group rounded-xl border border-border bg-panel overflow-hidden transition-all hover:border-primary/40 hover:shadow-md"
+      transition={{ duration: 0.5 }}
+      className="flex flex-1 flex-col items-center justify-center gap-6 p-10 text-center"
+      role="alert"
+    >
+      <div className="w-20 h-20 rounded-3xl bg-danger/10 flex items-center justify-center ring-1 ring-danger/20">
+        <AlertTriangle className="h-10 w-10 text-danger/60" />
+      </div>
+      <div className="space-y-1.5">
+        <p className="text-sm font-semibold text-text">{t('analysisError')}</p>
+        <p className="text-xs text-muted max-w-xs leading-relaxed">{t('analysisErrorHint')}</p>
+      </div>
+      <Button variant="secondary" size="sm" onClick={onRetry}>
+        <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+        {t('retry')}
+      </Button>
+    </motion.div>
+  );
+}
+
+// ─── Cause Card ─────────────────────────────────────────────────────────────
+function CauseCard({
+  cause,
+  index,
+  t,
+  windowId,
+}: {
+  cause: RootCauseCandidate;
+  index: number;
+  t: ReturnType<typeof useTranslations<'intelligence'>>;
+  windowId: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const translatedCategory = translateCauseCategory(cause.category, t);
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * STAGGER_DELAY, duration: 0.35 }}
+      className={cn(
+        'rounded-xl border transition-all duration-300',
+        expanded
+          ? 'border-primary/30 bg-panel shadow-sm'
+          : 'border-border bg-panel hover:border-primary/20 hover:shadow-sm'
+      )}
     >
       <button
         type="button"
-        onClick={() => setExpanded(v => !v)}
-        className="flex w-full items-start gap-3.5 p-4 text-left"
+        onClick={() => setExpanded((prev) => !prev)}
+        className="w-full p-4 text-left"
+        aria-expanded={expanded}
       >
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
-          <span className="text-[11px] font-bold">#{index + 1}</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-text">{cause.category}</p>
-            {cause.aiEnhanced && (
-              <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold text-primary">AI</span>
+        <div className="flex items-center gap-3">
+          <div className="flex-shrink-0 w-7 h-7 rounded-md bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold ring-1 ring-primary/20">
+            {index + 1}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-[13px] font-semibold text-text">
+                {translatedCategory}
+              </h4>
+              {cause.aiEnhanced && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-[9px] font-bold text-primary">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  AI
+                </span>
+              )}
+            </div>
+            {cause.description && (
+              <p className={cn(
+                'text-[11px] text-muted leading-relaxed mt-1',
+                !expanded && 'line-clamp-2'
+              )}>
+                {cause.description}
+              </p>
             )}
           </div>
-          {cause.description && (
-            <p className={cn('mt-1 text-xs leading-relaxed text-muted', !expanded && 'line-clamp-2')}>{cause.description}</p>
-          )}
-        </div>
-        <div className="shrink-0 text-right">
-          <span className="rounded-lg bg-primary/10 px-2.5 py-1.5 text-sm font-bold tabular-nums text-primary">
-            {pct(cause.confidenceScore)}
-          </span>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary">
+              <TrendingUp className="h-3 w-3" />
+              <span className="text-[11px] font-bold tabular-nums">
+                {formatPercentage(cause.confidenceScore)}
+              </span>
+            </div>
+            <motion.div
+              animate={{ rotate: expanded ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+              className="text-dim"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </motion.div>
+          </div>
         </div>
       </button>
 
@@ -143,28 +303,38 @@ function CauseCard({ cause, index, t }: { cause: RootCauseCandidate; index: numb
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="border-t border-border/50 px-sm pb-sm pt-2">
+            <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
               {cause.coOccurrencePatterns.length > 0 && (
-                <div className="mb-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-dim mb-1">{t('patternContext')}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {cause.coOccurrencePatterns.map(p => (
-                      <span key={p} className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">{p}</span>
-                    ))}
-                  </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {cause.coOccurrencePatterns.map((pattern) => (
+                    <span
+                      key={pattern}
+                      className="px-2 py-0.5 rounded-md bg-warning/10 text-[10px] font-medium text-warning border border-warning/10"
+                    >
+                      {pattern}
+                    </span>
+                  ))}
                 </div>
               )}
+
               {cause.supportingTicketIds.length > 0 && (
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); openRelatedTicketsModal(cause.supportingTicketIds, t('relatedTicketsTitle')); }}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/15 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openRelatedTicketsModal(
+                      cause.supportingTicketIds,
+                      t('relatedTicketsTitle'),
+                      windowId
+                    );
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/5 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
                 >
                   <Layers className="h-3 w-3" />
-                  {t('similarTickets', { count: cause.supportingTicketIds.length })}
+                  {t('viewSimilarTickets', { count: cause.supportingTicketIds.length })}
                   <ArrowUpRight className="h-3 w-3" />
                 </button>
               )}
@@ -172,167 +342,361 @@ function CauseCard({ cause, index, t }: { cause: RootCauseCandidate; index: numb
           </motion.div>
         )}
       </AnimatePresence>
-
-      <div className="h-1 bg-border/30">
-        <div className="h-full rounded-r bg-primary/40 transition-all" style={{ width: `${Math.round((cause.confidenceScore ?? 0) * 100)}%` }} />
-      </div>
-    </motion.div>
+    </motion.article>
   );
 }
 
-function ResolutionCard({ res, index, feedback, onFeedback, onApply, applyPending, t }: {
-  res: ResolutionSuggestion;
+// ─── Resolution Card ────────────────────────────────────────────────────────
+function ResolutionCard({
+  resolution,
+  index,
+  feedback,
+  onFeedback,
+  onApply,
+  isApplying,
+  t,
+  windowId,
+}: {
+  resolution: ResolutionSuggestion;
   index: number;
   feedback: FeedbackState;
   onFeedback: (id: number, accepted: boolean) => void;
-  onApply: (r: ResolutionSuggestion) => void;
-  applyPending: boolean;
+  onApply: (resolution: ResolutionSuggestion) => void;
+  isApplying: boolean;
   t: ReturnType<typeof useTranslations<'intelligence'>>;
+  windowId: string;
 }) {
-  const key = String(res.resolutionId ?? index);
-  const fb = feedback[key];
+  const key = String(resolution.resolutionId ?? index);
+  const currentFeedback = feedback[key];
+  const hasSuccessRate = resolution.successRate != null && !isNaN(resolution.successRate);
+  const hasSimilarityScore = resolution.similarityScore != null && !isNaN(resolution.similarityScore);
+
+  const handleSourceClick = () => {
+    if (resolution.ticketId != null) {
+      const store = useWindowStore.getState();
+      store.close(windowId);
+
+      setTimeout(() => {
+        openTicketTab({
+          id: resolution.ticketId,
+          number: resolution.ticketNumber ?? String(resolution.ticketId),
+        });
+      }, 150);
+    }
+  };
 
   return (
-    <motion.div
+    <motion.article
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.06 }}
-      className="group rounded-xl border border-border bg-panel p-4 transition-all hover:border-success/40 hover:shadow-md"
+      transition={{ delay: index * STAGGER_DELAY, duration: 0.35 }}
+      className="group rounded-xl border border-border bg-panel hover:border-success/20 hover:shadow-sm transition-all duration-300"
     >
-      <div className="flex items-start gap-3.5">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-success/10 text-success ring-1 ring-success/20">
-          <Zap className="h-4 w-4" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-relaxed text-text">{res.summary}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {res.successRate != null && !isNaN(res.successRate) && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold text-success">
-                {pct(res.successRate)} {t('success')}
-              </span>
-            )}
-            {res.similarityScore != null && !isNaN(res.similarityScore) && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
-                {pct(res.similarityScore)} {t('similar')}
-              </span>
-            )}
-            {res.reusedCount > 0 && (
-              <span className="rounded-full bg-panel-2 px-2 py-0.5 text-[10px] font-medium text-dim">
-                {res.reusedCount}× {t('reuse')}
-              </span>
-            )}
-            {(res.matchedTerms ?? []).slice(0, 3).map(term => (
-              <span key={term} className="rounded-full bg-primary/8 px-2 py-0.5 text-[10px] text-primary">{term}</span>
-            ))}
+      <div className="p-4">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="relative flex-shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-success/10 text-success flex items-center justify-center ring-1 ring-success/20">
+              <Zap className="h-4 w-4" />
+            </div>
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-success text-[9px] font-bold text-white flex items-center justify-center shadow-sm">
+              {index + 1}
+            </span>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold text-text leading-snug">
+              {resolution.summary}
+            </p>
           </div>
         </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          {hasSuccessRate && (
+            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-success/8 border border-success/10">
+              <TrendingUp className="h-3 w-3 text-success" />
+              <span className="text-[11px] font-bold text-success tabular-nums">
+                {formatPercentage(resolution.successRate)}
+              </span>
+              <span className="text-[10px] text-success/60 font-medium">{t('successRate')}</span>
+            </div>
+          )}
+
+          {hasSimilarityScore && (
+            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/8 border border-primary/10">
+              <GitMerge className="h-3 w-3 text-primary" />
+              <span className="text-[11px] font-bold text-primary tabular-nums">
+                {formatPercentage(resolution.similarityScore)}
+              </span>
+              <span className="text-[10px] text-primary/60 font-medium">{t('match')}</span>
+            </div>
+          )}
+
+          {resolution.reusedCount > 0 && (
+            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-panel-2 border border-border/50">
+              <RefreshCw className="h-3 w-3 text-dim" />
+              <span className="text-[11px] font-semibold text-dim tabular-nums">
+                {resolution.reusedCount}×
+              </span>
+              <span className="text-[10px] text-dim font-medium">reuso</span>
+            </div>
+          )}
+        </div>
+
+        {(resolution.matchedTerms ?? []).length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-0">
+            {(resolution.matchedTerms ?? []).slice(0, 6).map((term) => (
+              <span
+                key={term}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/5 text-[10px] font-medium text-primary border border-primary/10"
+              >
+                <Tag className="h-2.5 w-2.5" />
+                {term}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {resolution.ticketNumber != null && (
+          <button
+            type="button"
+            onClick={handleSourceClick}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-panel-2/80 text-[11px] font-medium text-primary hover:bg-primary/5 transition-colors mt-3"
+          >
+            <FileText className="h-3 w-3" />
+            {t('sourceTicket')} #{resolution.ticketNumber}
+            <ArrowUpRight className="h-3 w-3" />
+          </button>
+        )}
       </div>
 
-      {res.ticketId != null && (
-        <button
-          type="button"
-          onClick={() => openTicketTab({ id: res.ticketId, number: String(res.ticketId) })}
-          className="mt-3 ml-[3.125rem] inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline"
-        >
-          <FileText className="h-3 w-3" />
-          {t('sourceTicket')} #{res.ticketId}
-          <ArrowRight className="h-3 w-3" />
-        </button>
-      )}
-
-      <div className="mt-3.5 flex items-center gap-2 border-t border-border/60 pt-3.5">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-panel/30 rounded-b-xl">
         <Button
           size="sm"
-          className="gap-1.5"
-          loading={applyPending}
-          onClick={() => onApply(res)}
+          className="gap-1.5 shadow-sm text-[12px] h-8"
+          loading={isApplying}
+          onClick={() => onApply(resolution)}
         >
-          <Check className="h-3.5 w-3.5" />
+          <Play className="h-3 w-3" />
           {t('applySolution')}
         </Button>
-        {res.resolutionId != null && (
-          <div className="ml-auto flex items-center gap-1">
-            <span className="mr-1 text-[10px] text-dim">{t('wasHelpful')}</span>
-            <button
-              type="button"
-              onClick={() => onFeedback(res.resolutionId, true)}
-              className={cn(
-                'grid h-8 w-8 place-items-center rounded-lg border border-transparent text-muted transition-colors hover:border-success/30 hover:bg-success/10 hover:text-success',
-                fb === 'up' && 'border-success/30 bg-success/15 text-success',
-              )}
-              disabled={!!fb}
-              aria-label={t('helpfulYes')}
-            >
-              <ThumbsUp className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => onFeedback(res.resolutionId, false)}
-              className={cn(
-                'grid h-8 w-8 place-items-center rounded-lg border border-transparent text-muted transition-colors hover:border-danger/30 hover:bg-danger/10 hover:text-danger',
-                fb === 'down' && 'border-danger/30 bg-danger/15 text-danger',
-              )}
-              disabled={!!fb}
-              aria-label={t('helpfulNo')}
-            >
-              <ThumbsDown className="h-4 w-4" />
-            </button>
+
+        {resolution.resolutionId != null && (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-dim font-medium">{t('wasHelpful')}</span>
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => onFeedback(resolution.resolutionId, true)}
+                className={cn(
+                  'w-7 h-7 rounded-md border flex items-center justify-center transition-all duration-200',
+                  currentFeedback === 'up'
+                    ? 'border-success/40 bg-success/10 text-success shadow-sm'
+                    : 'border-border/60 text-muted hover:border-success/30 hover:bg-success/5 hover:text-success'
+                )}
+                disabled={!!currentFeedback}
+                aria-label={t('helpfulYes')}
+              >
+                <ThumbsUp className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onFeedback(resolution.resolutionId, false)}
+                className={cn(
+                  'w-7 h-7 rounded-md border flex items-center justify-center transition-all duration-200',
+                  currentFeedback === 'down'
+                    ? 'border-danger/40 bg-danger/10 text-danger shadow-sm'
+                    : 'border-border/60 text-muted hover:border-danger/30 hover:bg-danger/5 hover:text-danger'
+                )}
+                disabled={!!currentFeedback}
+                aria-label={t('helpfulNo')}
+              >
+                <ThumbsDown className="h-3 w-3" />
+              </button>
+            </div>
           </div>
         )}
       </div>
-    </motion.div>
+    </motion.article>
   );
 }
 
-function openRelatedTicketsModal(ticketIds: number[], title?: string) {
-  useWindowStore.getState().open({
-    id: `related-tickets-${ticketIds.join('-')}`,
-    title: title ?? 'Related Tickets',
-    icon: <Layers className="h-4 w-4" />,
-    modal: true,
-    width: 520,
-    height: 420,
-    content: <RelatedTicketsPreview ticketIds={ticketIds} />,
-  });
+// ─── Knowledge Card ─────────────────────────────────────────────────────────
+function KnowledgeCard({
+  knowledge,
+  index,
+}: {
+  knowledge: KnowledgeSuggestion;
+  index: number;
+}) {
+  return (
+    <motion.article
+      key={knowledge.assetId}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * STAGGER_DELAY, duration: 0.35 }}
+      className="group rounded-xl border border-border bg-panel hover:border-warning/20 hover:shadow-sm transition-all duration-300 p-4"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-warning/10 text-warning flex items-center justify-center ring-1 ring-warning/20">
+          <BookOpen className="h-4 w-4" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="text-[13px] font-semibold text-text group-hover:text-primary transition-colors">
+              {knowledge.title}
+            </h4>
+            {knowledge.category && (
+              <span className="px-1.5 py-0.5 rounded-md bg-primary/5 text-[10px] font-medium text-primary border border-primary/10">
+                {knowledge.category}
+              </span>
+            )}
+          </div>
+
+          {knowledge.summary && (
+            <p className="text-[11px] text-muted leading-relaxed line-clamp-2 mt-0.5">
+              {knowledge.summary}
+            </p>
+          )}
+
+          {knowledge.matchedTerms.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {knowledge.matchedTerms.slice(0, 5).map((term) => (
+                <span
+                  key={term}
+                  className="px-2 py-0.5 rounded-md bg-primary/5 text-[10px] font-medium text-primary border border-primary/10"
+                >
+                  {term}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <ChevronRight className="h-4 w-4 text-dim group-hover:text-warning transition-colors flex-shrink-0 mt-2.5" />
+      </div>
+    </motion.article>
+  );
 }
 
-function RelatedTicketsPreview({ ticketIds }: { ticketIds: number[] }) {
-  const queries = useQueries({
-    queries: ticketIds.map((tid) => ({
-      queryKey: ['tickets', 'detail', tid],
-      queryFn: () => ticketsApi.get(tid),
+// ─── Related Tickets Preview ────────────────────────────────────────────────
+function RelatedTicketsPreview({
+  ticketIds,
+  windowId,
+}: {
+  ticketIds: number[];
+  windowId: string;
+}) {
+  const t = useTranslations('intelligence');
+
+  const ticketQueries = useQueries({
+    queries: ticketIds.map((ticketId) => ({
+      queryKey: ['tickets', 'detail', ticketId],
+      queryFn: () => ticketsApi.get(ticketId),
       retry: false as const,
     })),
   });
+
+  const handleTicketClick = (ticket: { id: number; number: string; title: string }) => {
+    const store = useWindowStore.getState();
+    const relatedModalId = `related-tickets-${ticketIds.join('-')}`;
+    store.close(relatedModalId);
+    store.close(windowId);
+
+    setTimeout(() => {
+      openTicketTab({ id: ticket.id, number: ticket.number, title: ticket.title });
+    }, 150);
+  };
+
   return (
-    <div className="flex flex-col gap-2 p-md overflow-y-auto max-h-[400px]">
-      {queries.map((q, i) => {
-        const tid = ticketIds[i];
-        if (q.isLoading) return <div key={tid} className="animate-pulse rounded-lg bg-panel-2/50 h-16" />;
-        if (q.isError || !q.data) return <div key={tid} className="rounded-lg border border-danger/20 bg-danger/5 p-3 text-xs text-danger">#{tid}</div>;
-        const tk = q.data;
-        return (
-          <div key={tid} className="flex items-center gap-3 rounded-lg border border-border bg-panel/60 p-3 hover:border-primary/30 transition-colors cursor-pointer" onClick={() => openTicketTab({ id: tk.id, number: tk.number, title: tk.title })}>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-xs font-bold text-primary">#{tk.number}</span>
+    <div className="flex flex-col h-full bg-bg">
+      {/* Count badge */}
+      <div className="flex-shrink-0 flex items-center gap-2 border-b border-border px-4 py-2.5">
+        <span className="text-[10px] text-dim font-medium">
+          {t('relatedCount', { count: ticketIds.length })}
+        </span>
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {ticketQueries.map((query, index) => {
+          const ticketId = ticketIds[index];
+
+          if (query.isLoading) {
+            return (
+              <div
+                key={ticketId}
+                className="animate-pulse rounded-lg bg-panel-2/50 h-[52px]"
+              />
+            );
+          }
+
+          if (query.isError || !query.data) {
+            return (
+              <div
+                key={ticketId}
+                className="rounded-lg border border-danger/20 bg-danger/5 px-3 py-2.5 text-[11px] text-danger flex items-center gap-2"
+              >
+                <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                #{ticketId} — {t('ticketLoadError')}
               </div>
-              <p className="text-sm font-medium text-text truncate">{tk.title}</p>
-            </div>
-            <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-dim" />
-          </div>
-        );
-      })}
+            );
+          }
+
+          const ticket = query.data;
+          return (
+            <button
+              key={ticketId}
+              type="button"
+              onClick={() => handleTicketClick(ticket)}
+              className="flex items-center gap-3 rounded-lg border border-border bg-panel px-3 py-2.5 hover:border-primary/30 hover:shadow-sm transition-all text-left w-full group"
+            >
+              <span className="flex-shrink-0 text-xs font-bold text-primary tabular-nums">
+                #{ticket.number}
+              </span>
+              <span className="flex-1 text-[13px] text-text truncate">
+                {ticket.title}
+              </span>
+              <ArrowUpRight className="h-3.5 w-3.5 flex-shrink-0 text-dim group-hover:text-primary transition-colors" />
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number; ticketTitle: string }) {
-  const t = useTranslations('intelligence');
-  const qc = useQueryClient();
-  const [feedback, setFeedback] = useState<FeedbackState>({});
-  const [activeTab, setActiveTab] = useState<'overview' | 'causes' | 'resolutions' | 'knowledge'>('overview');
+function openRelatedTicketsModal(ticketIds: number[], title?: string, windowId?: string) {
+  useWindowStore.getState().open({
+    id: `related-tickets-${ticketIds.join('-')}`,
+    title: title ?? 'Tickets relacionados',
+    icon: <Layers className="h-4 w-4" />,
+    modal: true,
+    width: 460,
+    height: 400,
+    content: (
+      <RelatedTicketsPreview ticketIds={ticketIds} windowId={windowId ?? ''} />
+    ),
+  });
+}
 
+// ─── Main Content Component ─────────────────────────────────────────────────
+function IntelligenceModalContent({
+  ticketId,
+  ticketTitle,
+  ticketCode,
+  windowId,
+}: {
+  ticketId: number;
+  ticketTitle: string;
+  ticketCode: string;
+  windowId: string;
+}) {
+  const t = useTranslations('intelligence');
+  const queryClient = useQueryClient();
+
+  const [feedback, setFeedback] = useState<FeedbackState>({});
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
 
   const report = useQuery({
     queryKey: ['tickets', 'intelligence', ticketId],
@@ -341,291 +705,470 @@ function IntelligenceModalContent({ ticketId, ticketTitle }: { ticketId: number;
   });
 
   const applyResolution = useMutation({
-    mutationFn: (r: { resolutionId: number; summary: string }) =>
+    mutationFn: (resolution: { resolutionId: number; summary: string }) =>
       ticketResolutionApi.resolveWithAi(ticketId, {
         rootCauseId: 0,
-        summary: r.summary,
+        summary: resolution.summary,
         resolutionSteps: '',
         notifyCustomer: true,
       }),
     onSuccess: () => {
       toast.success(t('appliedSuccess'));
-      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
-      qc.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
     },
-    onError: (err) => toast.error(apiErrorMessage(err, t('applyError'))),
+    onError: (error) => toast.error(apiErrorMessage(error, t('applyError'))),
   });
 
   const sendFeedback = useMutation({
-    mutationFn: (v: { resolutionId: number; accepted: boolean }) =>
-      ticketsApi.recommendationFeedback(ticketId, { resolutionId: v.resolutionId, accepted: v.accepted, helpful: v.accepted }),
-    onSuccess: (_d, v) => {
-      setFeedback((f) => ({ ...f, [v.resolutionId]: v.accepted ? 'up' : 'down' }));
+    mutationFn: (fb: { resolutionId: number; accepted: boolean }) =>
+      ticketsApi.recommendationFeedback(ticketId, {
+        resolutionId: fb.resolutionId,
+        accepted: fb.accepted,
+        helpful: fb.accepted,
+      }),
+    onSuccess: (_data, variables) => {
+      setFeedback((prev) => ({
+        ...prev,
+        [variables.resolutionId]: variables.accepted ? 'up' : 'down',
+      }));
       toast.success(t('feedbackSent'));
     },
-    onError: (err) => toast.error(apiErrorMessage(err, t('feedbackError'))),
+    onError: (error) => toast.error(apiErrorMessage(error, t('feedbackError'))),
   });
 
   if (report.isLoading) return <AnalyzingState />;
-  if (report.isError) {
-    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-1 flex-col items-center justify-center gap-md p-xl text-center" role="alert">
-        <div className="rounded-2xl bg-danger/5 p-lg">
-          <Brain className="h-10 w-10 text-danger/40" />
-        </div>
-        <p className="text-sm font-medium text-text">{t('analysisError')}</p>
-        <Button variant="secondary" size="sm" onClick={() => report.refetch()}>{t('retry')}</Button>
-      </motion.div>
-    );
-  }
+  if (report.isError) return <ErrorState onRetry={() => report.refetch()} />;
 
   const causes = report.data?.rootCauseCandidates ?? [];
   const resolutions = report.data?.resolutionSuggestions ?? [];
-  const knData = report.data?.relatedKnowledge ?? [];
+  const knowledgeItems = report.data?.relatedKnowledge ?? [];
 
-  if (causes.length === 0 && resolutions.length === 0 && knData.length === 0) {
-    return <NoDataState />;
+  if (causes.length === 0 && resolutions.length === 0 && knowledgeItems.length === 0) {
+    return <EmptyState />;
   }
 
-  const topCause = causes[0];
-  const topResolution = resolutions[0];
+  const handleApplyResolution = (resolution: ResolutionSuggestion) => {
+    applyResolution.mutate({
+      resolutionId: resolution.resolutionId,
+      summary: resolution.summary,
+    });
+  };
+
+  const handleFeedback = (resolutionId: number, accepted: boolean) => {
+    sendFeedback.mutate({ resolutionId, accepted });
+  };
+
+  const handleClose = () => {
+    useWindowStore.getState().close(windowId);
+  };
 
   const tabs = [
-    { key: 'overview' as const, icon: Brain, label: t('summary') },
-    { key: 'causes' as const, icon: Target, label: t('rootCauses'), count: causes.length },
-    { key: 'resolutions' as const, icon: Lightbulb, label: t('resolutions'), count: resolutions.length },
-    { key: 'knowledge' as const, icon: BookOpen, label: t('relatedKnowledge'), count: knData.length },
+    {
+      key: 'overview' as TabKey,
+      icon: LayoutDashboard,
+      label: t('summary'),
+    },
+    {
+      key: 'causes' as TabKey,
+      icon: Target,
+      label: t('rootCauses'),
+      count: causes.length,
+      color: 'primary' as const,
+    },
+    {
+      key: 'resolutions' as TabKey,
+      icon: Lightbulb,
+      label: t('resolutions'),
+      count: resolutions.length,
+      color: 'success' as const,
+    },
+    {
+      key: 'knowledge' as TabKey,
+      icon: BookOpen,
+      label: t('relatedKnowledge'),
+      count: knowledgeItems.length,
+      color: 'warning' as const,
+    },
   ];
 
+  const summaryCards = [
+    {
+      icon: Target,
+      label: t('rootCauses'),
+      count: causes.length,
+      color: 'text-primary',
+      bg: 'bg-primary/10',
+      ring: 'ring-primary/20',
+      border: 'border-primary/20',
+    },
+    {
+      icon: Lightbulb,
+      label: t('resolutions'),
+      count: resolutions.length,
+      color: 'text-success',
+      bg: 'bg-success/10',
+      ring: 'ring-success/20',
+      border: 'border-success/20',
+    },
+    {
+      icon: BookOpen,
+      label: t('relatedKnowledge'),
+      count: knowledgeItems.length,
+      color: 'text-warning',
+      bg: 'bg-warning/10',
+      ring: 'ring-warning/20',
+      border: 'border-warning/20',
+    },
+  ];
+
+  const topResolution = resolutions[0];
+  const topCause = causes[0];
+  const hasQuickNav = causes.length > 1 || resolutions.length > 1;
+
   return (
-    <div className="flex flex-1 flex-col overflow-hidden bg-bg">
-      {/* Hero */}
-      <div className="relative overflow-hidden border-b border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent px-6 py-5">
-        <div className="flex items-start gap-4">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/15 text-primary ring-1 ring-primary/20">
-            <Brain className="h-6 w-6" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-text">Orbit Intelligence</h2>
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
-                <PulseDot color="bg-primary" /> AI
-              </span>
-            </div>
-            <p className="mt-0.5 truncate text-xs text-muted">{ticketTitle}</p>
-            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-dim">
-              <Sparkles className="h-3 w-3 text-primary" />
-              {t('aiDisclaimer')}
-            </p>
-          </div>
-        </div>
+    <div className="flex flex-col h-full bg-bg">
+      {/* ─── TABS ────────────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 flex gap-1 overflow-x-auto border-b border-border px-6" role="tablist">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.key;
+          const isResolutions = tab.key === 'resolutions';
+          const isKnowledge = tab.key === 'knowledge';
+
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                'inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors',
+                isActive
+                  ? 'border-primary text-primary bg-panel'
+                  : 'border-transparent text-muted hover:text-text'
+              )}
+            >
+              <tab.icon
+                className={cn(
+                  'h-4 w-4 transition-colors',
+                  isActive && isResolutions && 'text-success',
+                  isActive && isKnowledge && 'text-warning',
+                )}
+              />
+              <span>{tab.label}</span>
+              {tab.count != null && tab.count > 0 && (
+                <span
+                  className={cn(
+                    'ml-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold tabular-nums transition-colors',
+                    isActive && isResolutions && 'bg-success/10 text-success',
+                    isActive && isKnowledge && 'bg-warning/10 text-warning',
+                    isActive && !isResolutions && !isKnowledge && 'bg-primary/10 text-primary',
+                    !isActive && 'bg-border/30 text-dim'
+                  )}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border bg-bg-subtle/30 px-3">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setActiveTab(tab.key)}
-            className={cn(
-              'relative flex items-center gap-1.5 border-b-2 px-4 py-3 text-xs font-semibold transition-all',
-              activeTab === tab.key
-                ? 'border-primary text-primary'
-                : 'border-transparent text-dim hover:text-text',
-            )}
-          >
-            <tab.icon className="h-4 w-4" />
-            {tab.label}
-            {tab.count != null && tab.count > 0 && (
-              <span className={cn(
-                'rounded-full px-1.5 py-px text-[10px] font-bold',
-                activeTab === tab.key ? 'bg-primary/15 text-primary' : 'bg-border/50 text-dim',
-              )}>
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
+      {/* ─── CONTENT ──────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && (
-            <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-5 p-6">
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { icon: Target, color: 'text-primary', bg: 'bg-primary/10', n: causes.length, label: t('rootCauses') },
-                  { icon: Lightbulb, color: 'text-success', bg: 'bg-success/10', n: resolutions.length, label: t('resolutions') },
-                  { icon: BookOpen, color: 'text-warning', bg: 'bg-warning/10', n: knData.length, label: t('relatedKnowledge') },
-                ].map((s, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-panel p-4">
-                    <div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl', s.bg, s.color)}>
-                      <s.icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold leading-none text-text">{s.n}</p>
-                      <p className="mt-1 text-[11px] text-dim">{s.label}</p>
-                    </div>
-                  </div>
-                ))}
+            <motion.div
+              key="overview"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col h-full"
+            >
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  {summaryCards.map((card, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.08, duration: 0.4 }}
+                      className={cn(
+                        'flex items-center gap-3 rounded-xl border p-3.5 bg-panel transition-all hover:shadow-sm',
+                        card.border
+                      )}
+                    >
+                      <div className={cn(
+                        'flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ring-1',
+                        card.bg, card.color, card.ring
+                      )}>
+                        <card.icon className="h-4 w-4" />
+                      </div>
+
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <p className="text-xl font-bold text-text tabular-nums leading-none">
+                          {card.count}
+                        </p>
+                        <p className="text-[11px] font-medium text-dim truncate leading-none">
+                          {card.label}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {topResolution && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2, duration: 0.4 }}
+                      className="rounded-xl border border-success/20 bg-gradient-to-br from-success/[0.04] to-transparent p-4"
+                    >
+                      <div className="flex items-start gap-2.5 mb-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-md bg-success/10 text-success flex items-center justify-center ring-1 ring-success/20">
+                          <Zap className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-success/70">
+                            {t('suggestedSolution')}
+                          </p>
+                          <p className="text-[10px] text-dim">#1 {t('recommendation')}</p>
+                        </div>
+                        {topResolution.successRate != null && (
+                          <span className="flex-shrink-0 text-[13px] font-bold text-success tabular-nums">
+                            {formatPercentage(topResolution.successRate)}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-[13px] font-semibold text-text leading-relaxed mb-3">
+                        {topResolution.summary}
+                      </p>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="gap-1.5 text-[11px] h-7"
+                          loading={applyResolution.isPending}
+                          onClick={() => handleApplyResolution(topResolution)}
+                        >
+                          <Play className="h-3 w-3" />
+                          {t('applySolution')}
+                        </Button>
+                        {topResolution.reusedCount > 0 && (
+                          <span className="text-[10px] text-dim">
+                            {t('reusedCount', { count: topResolution.reusedCount })}
+                          </span>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {topCause && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.25, duration: 0.4 }}
+                      className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent p-4"
+                    >
+                      <div className="flex items-start gap-2.5 mb-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-md bg-primary/10 text-primary flex items-center justify-center ring-1 ring-primary/20">
+                          <Target className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-primary/70">
+                            {t('probableCause')}
+                          </p>
+                          <p className="text-[10px] text-dim">#1 {t('cause')}</p>
+                        </div>
+                        <span className="flex-shrink-0 text-[13px] font-bold text-primary tabular-nums">
+                          {formatPercentage(topCause.confidenceScore)}
+                        </span>
+                      </div>
+
+                      <p className="text-[13px] font-semibold text-text mb-2">
+                        {translateCauseCategory(topCause.category, t)}
+                      </p>
+
+                      {topCause.description && (
+                        <p className="text-[11px] text-muted leading-relaxed mb-3 line-clamp-2">
+                          {topCause.description}
+                        </p>
+                      )}
+
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1">
+                          {topCause.coOccurrencePatterns.slice(0, 3).map((pattern) => (
+                            <span
+                              key={pattern}
+                              className="px-1.5 py-0.5 rounded-md bg-warning/10 text-[9px] font-medium text-warning border border-warning/10"
+                            >
+                              {pattern}
+                            </span>
+                          ))}
+                        </div>
+                        {topCause.supportingTicketIds.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openRelatedTicketsModal(
+                                topCause.supportingTicketIds,
+                                t('relatedTicketsTitle'),
+                                windowId
+                              )
+                            }
+                            className="inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:underline flex-shrink-0"
+                          >
+                            <Layers className="h-2.5 w-2.5" />
+                            {t('viewTickets')}
+                            <ChevronRight className="h-2.5 w-2.5" />
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
               </div>
 
-              {topResolution && (
-                <div className="rounded-2xl border border-success/30 bg-gradient-to-br from-success/8 to-transparent p-5">
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="grid h-7 w-7 place-items-center rounded-lg bg-success/15 text-success"><Zap className="h-4 w-4" /></span>
-                    <p className="text-sm font-bold text-success">{t('suggestedSolution')}</p>
-                    {topResolution.successRate != null && !isNaN(topResolution.successRate) && (
-                      <span className="ml-auto rounded-full bg-success/15 px-2.5 py-1 text-xs font-bold text-success">{pct(topResolution.successRate)} {t('success')}</span>
-                    )}
-                  </div>
-                  <p className="text-sm font-medium leading-relaxed text-text">{topResolution.summary}</p>
-                  <div className="mt-4 flex items-center gap-3">
-                    <Button
-                      className="gap-1.5"
-                      loading={applyResolution.isPending}
-                      onClick={() => applyResolution.mutate({ resolutionId: topResolution.resolutionId, summary: topResolution.summary })}
-                    >
-                      <Check className="h-4 w-4" />
-                      {t('applySolution')}
-                    </Button>
-                    {topResolution.reusedCount > 0 && (
-                      <span className="text-[11px] text-dim">{topResolution.reusedCount}× {t('reuse')}</span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {topCause && (
-                <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/8 to-transparent p-5">
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/15 text-primary"><Target className="h-4 w-4" /></span>
-                    <p className="text-sm font-bold text-primary">{t('probableCause')}</p>
-                    <span className="ml-auto rounded-full bg-primary/15 px-2.5 py-1 text-xs font-bold text-primary">{pct(topCause.confidenceScore)}</span>
-                  </div>
-                  <p className="text-sm font-semibold text-text">{topCause.category}</p>
-                  {topCause.description && (
-                    <p className="mt-1.5 text-xs leading-relaxed text-muted">{topCause.description}</p>
-                  )}
-                  {topCause.coOccurrencePatterns.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {topCause.coOccurrencePatterns.map(p => (
-                        <span key={p} className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">{p}</span>
-                      ))}
-                    </div>
-                  )}
-                  {topCause.supportingTicketIds.length > 0 && (
-                    <button
+              {hasQuickNav && (
+                <div className="flex-shrink-0 grid grid-cols-2 gap-3 px-5 pb-5 pt-0">
+                  {causes.length > 1 && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.35, duration: 0.4 }}
                       type="button"
-                      onClick={() => openRelatedTicketsModal(topCause.supportingTicketIds, t('relatedTicketsTitle'))}
-                      className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline"
+                      onClick={() => setActiveTab('causes')}
+                      className="group flex items-center justify-between rounded-xl border border-border bg-panel p-3.5 text-left hover:border-primary/30 hover:shadow-sm transition-all"
                     >
-                      <Layers className="h-3 w-3" />
-                      {t('similarTickets', { count: topCause.supportingTicketIds.length })}
-                      <ArrowUpRight className="h-3 w-3" />
-                    </button>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center ring-1 ring-primary/20">
+                          <Target className="h-3.5 w-3.5" />
+                        </div>
+                        <div>
+                          <p className="text-[12px] font-semibold text-text">{t('rootCauses')}</p>
+                          <p className="text-[10px] text-muted mt-0.5">
+                            {t('viewAllCauses', { count: causes.length - 1 })}
+                          </p>
+                        </div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-dim group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
+                    </motion.button>
+                  )}
+
+                  {resolutions.length > 1 && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4, duration: 0.4 }}
+                      type="button"
+                      onClick={() => setActiveTab('resolutions')}
+                      className="group flex items-center justify-between rounded-xl border border-border bg-panel p-3.5 text-left hover:border-success/30 hover:shadow-sm transition-all"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-success/10 text-success flex items-center justify-center ring-1 ring-success/20">
+                          <Lightbulb className="h-3.5 w-3.5" />
+                        </div>
+                        <div>
+                          <p className="text-[12px] font-semibold text-text">{t('resolutions')}</p>
+                          <p className="text-[10px] text-muted mt-0.5">
+                            {t('viewAllResolutions', { count: resolutions.length - 1 })}
+                          </p>
+                        </div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-dim group-hover:text-success group-hover:translate-x-1 transition-all flex-shrink-0" />
+                    </motion.button>
                   )}
                 </div>
               )}
-
-              <div className="flex gap-3">
-                {causes.length > 1 && (
-                  <button type="button" onClick={() => setActiveTab('causes')} className="group flex flex-1 items-center justify-between rounded-xl border border-border bg-panel p-4 text-left transition-colors hover:border-primary/40">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-dim">{t('rootCauses')}</p>
-                      <p className="mt-0.5 text-xs text-muted">+{causes.length - 1} {t('otherPossibleCauses').toLowerCase()}</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-dim transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
-                  </button>
-                )}
-                {resolutions.length > 1 && (
-                  <button type="button" onClick={() => setActiveTab('resolutions')} className="group flex flex-1 items-center justify-between rounded-xl border border-border bg-panel p-4 text-left transition-colors hover:border-success/40">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-dim">{t('resolutions')}</p>
-                      <p className="mt-0.5 text-xs text-muted">{t('moreAlternatives', { count: resolutions.length - 1 })}</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-dim transition-transform group-hover:translate-x-0.5 group-hover:text-success" />
-                  </button>
-                )}
-              </div>
             </motion.div>
           )}
 
           {activeTab === 'causes' && (
-            <motion.div key="causes" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.2 }} className="flex flex-col gap-3 p-6">
-              {causes.map((rc, i) => (
-                <CauseCard key={i} cause={rc} index={i} t={t} />
+            <motion.div
+              key="causes"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="p-5 space-y-2.5"
+            >
+              {causes.map((cause, index) => (
+                <CauseCard
+                  key={index}
+                  cause={cause}
+                  index={index}
+                  t={t}
+                  windowId={windowId}
+                />
               ))}
-              {causes.length === 0 && <p className="py-lg text-center text-xs text-dim">{t('noCauses')}</p>}
+              {causes.length === 0 && (
+                <p className="py-12 text-center text-sm text-dim">{t('noCauses')}</p>
+              )}
             </motion.div>
           )}
 
           {activeTab === 'resolutions' && (
-            <motion.div key="resolutions" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.2 }} className="flex flex-col gap-3 p-6">
-              {resolutions.map((r, i) => (
+            <motion.div
+              key="resolutions"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="p-5 space-y-3"
+            >
+              {resolutions.map((resolution, index) => (
                 <ResolutionCard
-                  key={r.resolutionId ?? i}
-                  res={r}
-                  index={i}
+                  key={resolution.resolutionId ?? index}
+                  resolution={resolution}
+                  index={index}
                   feedback={feedback}
-                  onFeedback={(id, accepted) => sendFeedback.mutate({ resolutionId: id, accepted })}
-                  onApply={(r) => applyResolution.mutate({ resolutionId: r.resolutionId, summary: r.summary })}
-                  applyPending={applyResolution.isPending}
+                  onFeedback={handleFeedback}
+                  onApply={handleApplyResolution}
+                  isApplying={applyResolution.isPending}
                   t={t}
+                  windowId={windowId}
                 />
               ))}
-              {resolutions.length === 0 && <p className="py-lg text-center text-xs text-dim">{t('noResolutions')}</p>}
+              {resolutions.length === 0 && (
+                <p className="py-12 text-center text-sm text-dim">{t('noResolutions')}</p>
+              )}
             </motion.div>
           )}
 
           {activeTab === 'knowledge' && (
-            <motion.div key="knowledge" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.2 }} className="flex flex-col gap-3 p-6">
-              {knData.map((k, i) => (
-                <motion.div
-                  key={k.assetId}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.06 }}
-                  className="group w-full rounded-xl border border-border bg-panel p-4 text-left"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-warning/10 text-warning ring-1 ring-warning/20"><BookOpen className="h-4 w-4" /></span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-text group-hover:text-primary transition-colors">{k.title}</p>
-                        {k.category && (
-                          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">{k.category}</span>
-                        )}
-                      </div>
-                      {k.summary && <p className="mt-1 text-xs text-muted line-clamp-2">{k.summary}</p>}
-                      {k.matchedTerms.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {k.matchedTerms.slice(0, 4).map((term) => (
-                            <span key={term} className="rounded-full bg-primary/8 px-2 py-0.5 text-[10px] text-primary">{term}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
+            <motion.div
+              key="knowledge"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="p-5 space-y-2.5"
+            >
+              {knowledgeItems.map((item, index) => (
+                <KnowledgeCard key={item.assetId} knowledge={item} index={index} />
               ))}
-              {knData.length === 0 && <p className="py-lg text-center text-xs text-dim">{t('noKnowledge')}</p>}
+              {knowledgeItems.length === 0 && (
+                <p className="py-12 text-center text-sm text-dim">{t('noKnowledge')}</p>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center gap-md border-t border-border bg-bg-subtle/30 px-6 py-2.5 text-[10px] text-dim">
-        <span className="flex items-center gap-1.5">
+      <footer className="flex-shrink-0 flex items-center justify-between px-5 py-2.5 border-t border-border bg-bg-subtle/30">
+        <span className="flex items-center gap-1.5 text-[10px] text-dim font-medium">
           <Brain className="h-3 w-3 text-primary" />
           {t('brandFooter')}
         </span>
-        <span className="ml-auto flex items-center gap-1.5">
+        <span className="flex items-center gap-1.5 text-[10px] text-dim font-medium">
           <Clock className="h-3 w-3" />
           {t('poweredBy')}
         </span>
-      </div>
+      </footer>
     </div>
   );
 }

@@ -237,10 +237,12 @@ export function TicketsCentral() {
         />
       </div>
       <Can permission="ticket.create">
-        <Button size="sm" onClick={openNewTicketWindow}>
-          <Plus className="h-3.5 w-3.5" aria-hidden />
-          {t('newTicket' as any)}
-        </Button>
+        <span data-tour="new-ticket">
+          <Button size="sm" onClick={openNewTicketWindow}>
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            {t('newTicket' as any)}
+          </Button>
+        </span>
       </Can>
     </>
   );

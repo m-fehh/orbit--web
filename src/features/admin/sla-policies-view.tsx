@@ -68,18 +68,18 @@ function BusinessHoursCard() {
       </div>
 
       {form.enabled && (
-        <div className="flex flex-wrap items-end gap-lg p-lg">
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-dim">{t('workDays')}</span>
-            <div className="flex flex-wrap gap-1">
+        <div className="flex flex-col gap-5 p-lg">
+          <div>
+            <span className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-dim">{t('workDays')}</span>
+            <div className="flex flex-wrap gap-1.5">
               {ISO_DAYS.map((iso) => (
                 <button
                   key={iso}
                   type="button"
                   onClick={() => toggleDay(iso)}
                   className={cn(
-                    'h-8 min-w-9 rounded-md border px-2 text-xs font-medium capitalize transition-colors',
-                    activeDays.has(iso) ? 'border-primary bg-primary/10 text-primary' : 'border-border text-dim hover:text-text',
+                    'grid h-9 min-w-[44px] place-items-center rounded-full border px-3 text-xs font-semibold capitalize transition-colors',
+                    activeDays.has(iso) ? 'border-info bg-info/10 text-info' : 'border-border text-dim hover:border-info/40 hover:text-text',
                   )}
                 >
                   {dayLabel(iso)}
@@ -87,18 +87,15 @@ function BusinessHoursCard() {
               ))}
             </div>
           </div>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-dim">{t('start')}</span>
-            <Input type="time" value={toHHMM(form.startMinute)} onChange={(e) => setForm({ ...form, startMinute: fromHHMM(e.target.value) })} className="h-9 w-32" />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-dim">{t('end')}</span>
-            <Input type="time" value={toHHMM(form.endMinute)} onChange={(e) => setForm({ ...form, endMinute: fromHHMM(e.target.value) })} className="h-9 w-32" />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-dim">{t('timezone')}</span>
-            <Input value={form.timeZoneId} onChange={(e) => setForm({ ...form, timeZoneId: e.target.value })} placeholder="America/Sao_Paulo" className="h-9 w-52" />
-          </label>
+          <div>
+            <span className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-dim">{t('start')} → {t('end')}</span>
+            <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-panel-2/40 px-3 py-2">
+              <CalendarClock className="h-4 w-4 shrink-0 text-info" />
+              <Input type="time" aria-label={t('start')} value={toHHMM(form.startMinute)} onChange={(e) => setForm({ ...form, startMinute: fromHHMM(e.target.value) })} className="h-8 w-28" />
+              <span className="text-dim">→</span>
+              <Input type="time" aria-label={t('end')} value={toHHMM(form.endMinute)} onChange={(e) => setForm({ ...form, endMinute: fromHHMM(e.target.value) })} className="h-8 w-28" />
+            </div>
+          </div>
         </div>
       )}
 
@@ -265,19 +262,21 @@ export function SlaPoliciesView() {
         </div>
       </header>
 
-      <DataGrid<GridRow>
-        gridId="admin-sla"
-        columns={columns}
-        data={rows}
-        rowKey="priority"
-        totalCount={rows.length}
-        onRefresh={() => refetch()}
-        loading={isLoading}
-        emptyMessage={t('empty')}
-        emptyIcon={Gauge}
-        labels={gridLabels}
-        onRowClick={(row) => setEditing(row)}
-      />
+      <div data-tour="sla-targets">
+        <DataGrid<GridRow>
+          gridId="admin-sla"
+          columns={columns}
+          data={rows}
+          rowKey="priority"
+          totalCount={rows.length}
+          onRefresh={() => refetch()}
+          loading={isLoading}
+          emptyMessage={t('empty')}
+          emptyIcon={Gauge}
+          labels={gridLabels}
+          onRowClick={(row) => setEditing(row)}
+        />
+      </div>
       <p className="text-xs text-dim">{t('hint')}</p>
 
       <BusinessHoursCard />
