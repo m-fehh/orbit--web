@@ -11,7 +11,6 @@ export type ViewKind =
   | 'admin'
   | 'audit'
   | 'sla'
-  | 'symptoms'
   | 'intelligence'
   | 'playbooks'
   | 'reliability'

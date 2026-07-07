@@ -118,6 +118,16 @@ function PlaybookCard({
             <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold ring-1', CONFIDENCE_STYLE[playbook.confidence])}>
               {t(`confidence.${playbook.confidence}` as 'confidence.Low')}
             </span>
+            {playbook.isDraft && (
+              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-warning ring-1 ring-warning/20" title={t('draftHint')}>
+                {t('draftBadge')}
+              </span>
+            )}
+            {playbook.isDecaying && (
+              <span className="rounded-full bg-danger/10 px-2 py-0.5 text-[10px] font-semibold text-danger ring-1 ring-danger/20" title={t('decayHint')}>
+                {t('decayBadge')}
+              </span>
+            )}
           </div>
           {playbook.summary && <p className="mt-1 text-xs leading-relaxed text-muted">{playbook.summary}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-1.5">

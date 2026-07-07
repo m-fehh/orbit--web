@@ -5,9 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
-  Radar as RadarLucide, Sparkles, X, ScanSearch, Layers, Wrench,
+  Radar as RadarLucide, Sparkles, X, ScanSearch, Layers, Wrench, Activity,
 } from 'lucide-react';
-import { problemsApi } from '@/shared/api/endpoints';
+import { problemsApi, intelligenceApi } from '@/shared/api/endpoints';
 import {
   apiErrorMessage, ProblemStatus,
   type ProblemResponse, type ProblemStatusName, type ProblemTicketRef,
@@ -253,6 +253,42 @@ function ProblemCard({ problem, onOpen }: { problem: ProblemResponse; onOpen: ()
   );
 }
 
+/* ---- Anomalias de volume (modelo próprio SR-CNN, Orbit.Ai) ---- */
+
+function AnomalyBanner() {
+  const t = useTranslations('problems');
+  const { data } = useQuery({
+    queryKey: ['intelligence', 'anomalies'],
+    queryFn: () => intelligenceApi.anomalies(60),
+    retry: false,
+    staleTime: 300_000,
+  });
+  if (!data || data.length === 0) return null;
+  return (
+    <div className="card-surface overflow-hidden border border-warning/25">
+      <div className="flex items-center gap-2 bg-gradient-to-r from-warning/10 to-transparent px-4 py-2.5">
+        <Activity className="h-4 w-4 text-warning" />
+        <p className="text-sm font-bold text-warning">{t('anomaliesTitle')}</p>
+        <span className="ml-auto rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold text-warning">{data.length}</span>
+      </div>
+      <p className="px-4 pt-2 text-xs text-muted">{t('anomaliesHint')}</p>
+      <ul className="flex flex-col gap-1.5 p-4">
+        {data.map((a, i) => (
+          <li key={i} className="flex items-center gap-2 rounded-lg border border-border bg-panel/60 px-3 py-2">
+            <span className="min-w-0 flex-1 truncate text-sm text-text">
+              {a.dimension === 'overall' ? t('anomalyOverall') : a.label}
+            </span>
+            <span className="shrink-0 text-[11px] text-dim">{formatShortDate(a.date)}</span>
+            <span className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning">
+              {t('anomalyCount', { count: a.count })}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /* ---- View principal ---- */
 
 export function ProblemsView() {
@@ -299,6 +335,8 @@ export function ProblemsView() {
           <ScanSearch className="h-4 w-4" /> {t('scanNow')}
         </Button>
       </div>
+
+      <AnomalyBanner />
 
       {/* Filtro por status */}
       <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-bg-subtle p-0.5">

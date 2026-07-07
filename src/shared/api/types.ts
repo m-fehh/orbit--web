@@ -90,6 +90,8 @@ export interface SuggestedAssigneeResponse {
   userName: string;
   resolvedCount: number;
   successRate: number;
+  /** Tickets abertos atualmente atribuídos (carga) — usado para não sobrecarregar. */
+  openTickets: number;
 }
 
 export interface TicketCommentResponse {
@@ -360,6 +362,10 @@ export interface PlaybookSuggestion {
   escalationTeamId: number | null;
   appliedCount: number;
   successRate: number;
+  /** Rascunho minerado ainda não publicado — ofertado "em aprendizado", confiança limitada. */
+  isDraft?: boolean;
+  /** Eficácia recente caiu frente ao histórico — candidato a revisão/despublicação. */
+  isDecaying?: boolean;
 }
 
 /**
@@ -374,6 +380,89 @@ export interface CopilotAnswerResponse {
   solutions: PlaybookSuggestion[];
   /** Resoluções de tickets já resolvidos, recuperadas do histórico. */
   resolutions: ResolutionSuggestion[];
+}
+
+/** Sintoma sugerido pelo Smart Intake (inferido dos tickets similares). */
+export interface IntakeSymptomSuggestion {
+  symptomTagId: number;
+  code: string;
+  name: string;
+  frequency: number;
+}
+
+/** Possível duplicata: ticket aberto parecido com o texto em digitação. */
+export interface IntakeDuplicate {
+  ticketId: number;
+  number: string;
+  title: string;
+  status: string;
+  score: number;
+}
+
+/** Resultado do Smart Intake (GET /intelligence/intake). */
+export interface IntakeAnalysis {
+  /** Prioridade sugerida como número do enum (formato de request); null se sem sinal. */
+  suggestedPriority: number | null;
+  suggestedTeamId: number | null;
+  symptoms: IntakeSymptomSuggestion[];
+  duplicates: IntakeDuplicate[];
+  /** Quantos tickets históricos entraram na análise. */
+  analyzed: number;
+}
+
+/** Resumo extractivo (TL;DR) do ticket (GET /intelligence/tickets/{id}/summary). */
+export interface TicketSummary {
+  /** Resumo em frases selecionadas do próprio conteúdo. Vazio quando o texto é curto demais. */
+  summary: string;
+  sentences: number;
+  sourceLength: number;
+}
+
+/** Anomalia de volume detectada pelo modelo próprio SR-CNN (GET /intelligence/anomalies). */
+export interface AnomalyResponse {
+  /** "overall" (volume total) ou "symptom". */
+  dimension: string;
+  /** Rótulo da dimensão (vazio para overall; nome do sintoma quando symptom). */
+  label: string;
+  /** Dia (ISO) do pico. */
+  date: string;
+  count: number;
+  score: number;
+}
+
+/** Saúde de um modelo de IA treinado. */
+export interface AiModelHealth {
+  name: string;
+  trained: boolean;
+  samples: number;
+  classes: number;
+  accuracy: number;
+  trainedAtUtc: string | null;
+}
+
+/** Panorama dos modelos de IA do tenant (GET /intelligence/ai-health). */
+export interface AiHealthResponse {
+  models: AiModelHealth[];
+}
+
+/** Triagem prevista pelo modelo treinado (GET /intelligence/triage). */
+export interface TriagePredictionResponse {
+  /** Prioridade prevista (número do enum) ou null. */
+  priority: number | null;
+  priorityConfidence: number;
+  teamId: number | null;
+  teamConfidence: number;
+  trainedSamples: number;
+  /** True se o modelo foi treinado (há histórico suficiente). */
+  trained: boolean;
+}
+
+/** Previsão de tempo de resolução (GET /intelligence/tickets/{id}/eta). */
+export interface ResolutionEta {
+  /** Tempo esperado em minutos; null se sem histórico similar suficiente. */
+  predictedMinutes: number | null;
+  basedOn: number;
+  confidence: number;
 }
 
 export interface IntelligenceReport {

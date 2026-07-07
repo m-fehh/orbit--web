@@ -317,6 +317,7 @@ export function TicketDetail({ id }: { id: number }) {
         {sub === 'overview' && (
           <div className="grid items-start gap-md lg:grid-cols-3">
             <div className="flex flex-col gap-md lg:col-span-2">
+              <TldrCard ticketId={id} />
               {/* Descrição */}
               <div className="card-surface overflow-hidden">
                 <CardHeader
@@ -353,6 +354,7 @@ export function TicketDetail({ id }: { id: number }) {
                 <>
                   <AssistantPanel
                     ticketId={id}
+                    status={ticket.status}
                     onExpand={() => openIntelligenceModal(id, ticket.title, tIntelMain('modalTitle', { title: ticket.title }))}
                     onInvestigate={() => setSub('investigation')}
                     onResolve={() => setShowResolveModal(true)}
@@ -387,6 +389,7 @@ export function TicketDetail({ id }: { id: number }) {
                 estimateMinutes={ticket.estimateMinutes}
                 completedMinutes={ticket.completedMinutes}
                 remainingMinutes={ticket.remainingMinutes}
+                canSuggest={ticket.status !== 'Resolved' && ticket.status !== 'Closed' && ticket.status !== 'Cancelled'}
               />
             </aside>
           </div>
@@ -431,12 +434,13 @@ export function TicketDetail({ id }: { id: number }) {
 }
 
 /* ---- Estimate Input ---- */
-function TimeTrackingCard({ ticketId, estimateMinutes, completedMinutes, remainingMinutes, bare = false }: {
+function TimeTrackingCard({ ticketId, estimateMinutes, completedMinutes, remainingMinutes, bare = false, canSuggest = true }: {
   ticketId: number;
   estimateMinutes: number | null;
   completedMinutes: number;
   remainingMinutes: number | null;
   bare?: boolean;
+  canSuggest?: boolean;
 }) {
   const t = useTranslations('worklog');
   const tTicket = useTranslations('ticket');
@@ -462,6 +466,27 @@ function TimeTrackingCard({ ticketId, estimateMinutes, completedMinutes, remaini
     },
     onError: (err) => toast.error(apiErrorMessage(err, t('trackingError'))),
   });
+
+  // Estimativa sugerida pelo modelo local (kNN sobre casos resolvidos) — o analista aceita ou recusa.
+  const [etaHandled, setEtaHandled] = useState(false);
+  const eta = useQuery({
+    queryKey: ['tickets', 'eta', ticketId],
+    queryFn: () => intelligenceApi.ticketEta(ticketId),
+    retry: false,
+    staleTime: 60_000,
+    enabled: canSuggest,
+  });
+  const applyEstimate = useMutation({
+    mutationFn: (minutes: number) => ticketsApi.updateTracking(ticketId, { estimateMinutes: minutes, remainingMinutes: null }),
+    onSuccess: () => {
+      toast.success(t('trackingUpdated'));
+      qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] });
+      setEtaHandled(true);
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, t('trackingError'))),
+  });
+  const predicted = eta.data?.predictedMinutes ?? null;
+  const showSuggestion = canSuggest && estMin === 0 && !editing && !etaHandled && predicted != null && predicted > 0;
 
   return (
     <div className={cn('overflow-hidden', !bare && 'card-surface')}>
@@ -522,39 +547,58 @@ function TimeTrackingCard({ ticketId, estimateMinutes, completedMinutes, remaini
         )}
       </div>
 
-      {/* Estimate setter */}
-      <div className="border-t border-border bg-panel-2/20 px-md py-2">
-        {editing ? (
+      {/* Estimativa sugerida pela IA local — aceitar aplica; recusar força digitar */}
+      {showSuggestion ? (
+        <div className="border-t border-primary/20 bg-primary/[0.04] px-md py-2.5">
           <div className="flex items-center gap-2">
-            <Input
-              type="number" min={0} step={0.5}
-              value={estimateInput}
-              onChange={(e) => setEstimateInput(e.target.value)}
-              placeholder="0"
-              className="h-7 flex-1 text-xs"
-              autoFocus
-              onKeyDown={(e) => { if (e.key === 'Enter') saveTracking.mutate(); if (e.key === 'Escape') setEditing(false); }}
-            />
-            <span className="text-[10px] text-dim shrink-0">h</span>
-            <Button size="sm" onClick={() => saveTracking.mutate()} loading={saveTracking.isPending} className="h-7 text-xs px-3">
-              {t('save')}
+            <TrendingUp className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span className="min-w-0 flex-1 text-[11px] text-text">
+              <span className="text-dim">{t('estimateSuggested')}:</span> <span className="font-bold tabular-nums">{fmtMin(predicted!)}</span>
+            </span>
+            <Button size="sm" onClick={() => applyEstimate.mutate(predicted!)} loading={applyEstimate.isPending} className="h-6 px-2.5 text-[11px]">
+              {t('estimateAccept')}
             </Button>
-            <button type="button" onClick={() => setEditing(false)} className="text-dim hover:text-text">
-              <X className="h-3.5 w-3.5" />
+            <button type="button" onClick={() => { setEtaHandled(true); setEstimateInput(''); setEditing(true); }} className="rounded-md border border-border px-2 py-0.5 text-[11px] text-dim transition-colors hover:text-text">
+              {t('estimateReject')}
             </button>
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="flex w-full items-center gap-1.5 text-[10px] text-dim hover:text-primary transition-colors"
-          >
-            <Timer className="h-3 w-3" />
-            {estMin > 0 ? t('estimate') + ': ' + fmtMin(estMin) : t('setEstimate')}
-            <Edit3 className="h-3 w-3 ml-auto opacity-50" />
-          </button>
-        )}
-      </div>
+          <p className="mt-1 text-[10px] text-dim">{t('estimateSuggestedHint', { count: eta.data!.basedOn })}</p>
+        </div>
+      ) : (
+        /* Estimate setter */
+        <div className="border-t border-border bg-panel-2/20 px-md py-2">
+          {editing ? (
+            <div className="flex items-center gap-2">
+              <Input
+                type="number" min={0} step={0.5}
+                value={estimateInput}
+                onChange={(e) => setEstimateInput(e.target.value)}
+                placeholder={t('estimateRequired')}
+                className="h-7 flex-1 text-xs"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter' && estimateInput.trim() !== '') saveTracking.mutate(); if (e.key === 'Escape') setEditing(false); }}
+              />
+              <span className="text-[10px] text-dim shrink-0">h</span>
+              <Button size="sm" onClick={() => saveTracking.mutate()} loading={saveTracking.isPending} disabled={estimateInput.trim() === ''} className="h-7 text-xs px-3">
+                {t('save')}
+              </Button>
+              <button type="button" onClick={() => setEditing(false)} className="text-dim hover:text-text">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="flex w-full items-center gap-1.5 text-[10px] text-dim hover:text-primary transition-colors"
+            >
+              <Timer className="h-3 w-3" />
+              {estMin > 0 ? t('estimate') + ': ' + fmtMin(estMin) : t('setEstimate')}
+              <Edit3 className="h-3 w-3 ml-auto opacity-50" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -636,13 +680,15 @@ function AssignControl({ ticketId, currentUserId, currentUserName, currentUserEm
                       key={s.userId}
                       type="button"
                       onClick={() => setUserId(s.userId)}
-                      title={t('suggestedResolved', { count: s.resolvedCount })}
+                      title={t('suggestedLoad', { resolved: s.resolvedCount, open: s.openTickets })}
                       className={cn(
                         'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors',
                         userId === s.userId ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted hover:text-text',
                       )}
                     >
-                      {s.userName}<span className="text-dim">· {s.resolvedCount}</span>
+                      {s.userName}
+                      <span className="text-dim">· {s.resolvedCount}✓</span>
+                      <span className={cn('rounded-full px-1 text-[10px]', s.openTickets >= 8 ? 'bg-danger/15 text-danger' : s.openTickets >= 4 ? 'bg-warning/15 text-warning' : 'bg-panel-2 text-dim')}>{s.openTickets}</span>
                     </button>
                   ))}
                 </div>
@@ -768,6 +814,7 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
   const t = useTranslations('resolution');
   const tTicket = useTranslations('ticket');
   const tWork = useTranslations('workItems');
+  const tInv = useTranslations('investigation');
   const locale = useLocale() as Locale;
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const resolution = useQuery({
@@ -832,82 +879,136 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
   const hasSteps = steps.length > 0;
   const hasTasks = tasks.length > 0;
 
+  const spentOverEstimate = efficiencyPct != null && efficiencyPct > 100;
+
+  // Traduz o enum de categoria de causa raiz (ex.: "UserError" → "Erro do usuário").
+  const catLabel = (c: string) => {
+    const k = `cat.${c}` as 'cat.Bug';
+    return tInv.has(k) ? tInv(k) : c;
+  };
+  // Passos vêm como "{ActionType} — {detalhe}"; traduz o prefixo do tipo de ação.
+  const translateStep = (step: string) => {
+    const idx = step.indexOf(' — ');
+    if (idx < 0) return step;
+    const head = step.slice(0, idx).trim();
+    const detail = step.slice(idx + 3).trim();
+    const k = `action.${head}` as 'action.Restart';
+    return t.has(k) ? `${t(k)} — ${detail}` : step;
+  };
+
+  const card = 'rounded-xl border border-border bg-panel-2/30 p-3.5';
+
   return (
-    <div className="flex flex-col gap-md">
-      {/* Card: Resumo da Resolução */}
-      <div className="card-surface overflow-hidden">
-        <CardHeader
-          icon={Check}
-          title={t('resolvedSummaryTitle')}
-          right={efficiencyPct != null ? (
-            <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold', efficiencyPct <= 100 ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning')}>{efficiencyPct}% · {t('efficiency')}</span>
-          ) : undefined}
-        />
-        <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
-          <ResStat label={tTicket('estimated')} value={fmtMin(estimateMinutes ?? 0)} />
-          <ResStat label={tTicket('completed')} value={fmtMin(completedMinutes)} accent />
-          <ResStat label={t('totalLifecycle')} value={totalTimeHours != null ? `${totalTimeHours}h` : '—'} />
+    <div className="card-surface overflow-hidden border border-success/20">
+      {/* Header */}
+      <div className="flex items-center gap-3 bg-gradient-to-r from-success/12 via-success/5 to-transparent px-lg py-3.5">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-success/15 ring-1 ring-success/25">
+          <Check className="h-5 w-5 text-success" />
         </div>
-        <div className="flex flex-col gap-4 p-md text-sm">
-          {rc && (
-            <div className="rounded-lg border border-border bg-panel-2/40 p-3">
-              <div className="mb-1.5 flex items-center gap-2">
-                <Target className="h-3.5 w-3.5 text-dim" />
-                <p className="text-[10px] font-bold uppercase tracking-wider text-dim">{t('rootCause')}</p>
-                <span className="ml-auto rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
-              </div>
-              <p className="font-medium text-text">{rc.title}</p>
-              {rc.description && <p className="mt-1 text-xs leading-relaxed text-muted">{rc.description}</p>}
-            </div>
-          )}
-
-          <div>
-            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-dim">{t('resolution')}</p>
-            <p className="leading-relaxed text-text">{res.summary}</p>
-          </div>
-
-          {res.outcome && (
-            <div className="rounded-lg border border-success/20 bg-success/5 p-3">
-              <div className="mb-1 flex items-center gap-2">
-                <TrendingUp className="h-3.5 w-3.5 text-success" />
-                <p className="text-[10px] font-bold uppercase tracking-wider text-success">{t('outcome')}</p>
-              </div>
-              <p className="leading-relaxed text-text">{res.outcome}</p>
-            </div>
-          )}
-
-          {closedAt && openedAt && (
-            <p className="text-[11px] text-dim">
-              {t('openToClose')}: <span className="tabular-nums">{formatDateTime(openedAt, { locale, timeZone })}</span> → <span className="tabular-nums">{formatDateTime(closedAt, { locale, timeZone })}</span>
-            </p>
-          )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-success">{t('resolvedSummaryTitle')}</p>
+          {res.resolvedAt && <p className="text-[11px] text-muted">{t('resolutionDate')}: {formatDateTime(res.resolvedAt, { locale, timeZone })}</p>}
         </div>
       </div>
 
-      {/* Card: Passos da solução */}
-      {(hasSteps || hasTasks) && (
-        <div className="card-surface overflow-hidden">
-          <CardHeader
-            icon={ListChecks}
-            title={t('solutionRoadmap')}
-            right={hasTasks ? <span className="shrink-0 text-[11px] text-dim">{tWork('tasksSummary', { done: tasksDone, total: tasks.length })}</span> : undefined}
-          />
-          <div className="flex flex-col gap-5 p-md text-sm">
-            {hasSteps && (
-              <ol className="flex flex-col gap-2.5">
-                {steps.map((step, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-success/10 text-[10px] font-bold text-success">{i + 1}</span>
-                    <p className="leading-relaxed text-text">{step}</p>
-                  </li>
-                ))}
-              </ol>
-            )}
+      {/* Métricas de tempo — completas */}
+      <div className="grid grid-cols-2 gap-px border-y border-border/60 bg-border/60 sm:grid-cols-4">
+        <ResStat label={tTicket('estimated')} value={estimateMinutes ? fmtMin(estimateMinutes) : '—'} />
+        <ResStat label={tTicket('completed')} value={fmtMin(completedMinutes)} accent />
+        <ResStat label={t('totalLifecycle')} value={totalTimeHours != null ? `${totalTimeHours}h` : '—'} />
+        <div className="bg-panel px-4 py-3 text-center">
+          <p className="text-[9px] font-medium uppercase tracking-wider text-dim">{t('efficiency')}</p>
+          <p className={cn('mt-0.5 text-base font-bold tabular-nums', efficiencyPct == null ? 'text-dim' : spentOverEstimate ? 'text-warning' : 'text-success')}>
+            {efficiencyPct != null ? `${efficiencyPct}%` : '—'}
+          </p>
+        </div>
+      </div>
 
-            {hasTasks && (
-              <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-5 p-lg text-sm">
+        {/* Janela de atendimento */}
+        {closedAt && openedAt && (
+          <div className="flex items-center gap-2 rounded-lg bg-panel-2/40 px-3 py-2 text-[11px] text-dim">
+            <Clock className="h-3.5 w-3.5 shrink-0 text-dim" />
+            <span>{tTicket('openedAt')}: <span className="font-medium text-text">{formatDateTime(openedAt, { locale, timeZone })}</span></span>
+            <ArrowRight className="h-3 w-3 shrink-0" />
+            <span>{t('resolutionDate')}: <span className="font-medium text-text">{formatDateTime(closedAt, { locale, timeZone })}</span></span>
+          </div>
+        )}
+
+        {/* Causa raiz */}
+        {rc && (
+          <section>
+            <SectionLabel icon={Target} tone="primary">{t('rootCause')}</SectionLabel>
+            <div className={card}>
+              <div className="mb-1 flex items-center gap-2">
+                <p className="font-semibold text-text">{rc.title}</p>
+                <span className="ml-auto rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{catLabel(rc.category)}</span>
+              </div>
+              {rc.description && <p className="text-xs leading-relaxed text-muted">{rc.description}</p>}
+            </div>
+          </section>
+        )}
+
+        {/* Resolução aplicada */}
+        <section>
+          <SectionLabel icon={Zap} tone="success">{t('resolution')}</SectionLabel>
+          <div className={card}>
+            <p className="leading-relaxed text-text">{res.summary}</p>
+          </div>
+        </section>
+
+        {/* Passos da tratativa */}
+        {hasSteps && (
+          <section>
+            <SectionLabel icon={ListChecks} tone="primary">{t('solutionRoadmap')}</SectionLabel>
+            <ol className={cn('flex flex-col gap-2.5', card)}>
+              {steps.map((step, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">{i + 1}</span>
+                  <p className="leading-relaxed text-text">{translateStep(step)}</p>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+
+        {/* Desfecho */}
+        {res.outcome && (
+          <section>
+            <SectionLabel icon={TrendingUp} tone="success">{t('outcome')}</SectionLabel>
+            <div className={card}>
+              <p className="leading-relaxed text-text">{res.outcome}</p>
+            </div>
+          </section>
+        )}
+
+        {/* Aprendizados */}
+        {res.learnings.length > 0 && (
+          <section>
+            <SectionLabel icon={Lightbulb} tone="dim">{t('learnings')}</SectionLabel>
+            <div className={cn('flex flex-col gap-2.5', card)}>
+              {res.learnings.map((l) => (
+                <div key={l.id} className="flex items-start gap-2.5">
+                  <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                  <div>
+                    <p className="text-text">{l.description}</p>
+                    {l.impact && <p className="mt-0.5 text-[11px] text-dim">{l.impact}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Tarefas */}
+        {hasTasks && (
+          <section>
+            <SectionLabel icon={ListChecks} tone="dim">{t('workItemsSummary')}</SectionLabel>
+            <div className={card}>
+              <p className="mb-2 text-[11px] text-dim">{tWork('tasksSummary', { done: tasksDone, total: tasks.length })}</p>
+              <div className="flex flex-col gap-1.5">
                 {tasks.map((wi) => (
-                  <div key={wi.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+                  <div key={wi.id} className="flex items-center gap-2 rounded-lg bg-panel-2/50 px-3 py-2">
                     {wi.status === 'Done'
                       ? <Check className="h-3.5 w-3.5 shrink-0 text-success" />
                       : wi.status === 'Cancelled'
@@ -921,28 +1022,10 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Card: Aprendizados */}
-      {res.learnings.length > 0 && (
-        <div className="card-surface overflow-hidden">
-          <CardHeader icon={Lightbulb} title={t('learnings')} />
-          <div className="flex flex-col gap-2 p-md text-sm">
-            {res.learnings.map(l => (
-              <div key={l.id} className="flex items-start gap-2.5 rounded-lg border border-warning/20 bg-warning/5 px-3 py-2.5">
-                <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-                <div>
-                  <p className="text-text">{l.description}</p>
-                  {l.impact && <p className="mt-0.5 text-[11px] text-dim">{l.impact}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
@@ -959,6 +1042,28 @@ function ResStat({ label, value, accent }: { label: string; value: string; accen
 function pct(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return '—';
   return `${Math.round(v * 100)}%`;
+}
+
+/* ---- TL;DR — resumo extractivo local do ticket ---- */
+function TldrCard({ ticketId }: { ticketId: number }) {
+  const t = useTranslations('intelligence');
+  const { data } = useQuery({
+    queryKey: ['tickets', 'summary', ticketId],
+    queryFn: () => intelligenceApi.ticketSummary(ticketId),
+    retry: false,
+    staleTime: 60_000,
+  });
+  if (!data?.summary) return null;
+  return (
+    <div className="card-surface overflow-hidden border border-primary/15">
+      <div className="flex items-center gap-2 bg-gradient-to-r from-primary/8 to-transparent px-md py-2">
+        <Sparkles className="h-3.5 w-3.5 text-primary" />
+        <p className="text-[10px] font-bold uppercase tracking-wider text-primary">{t('tldr')}</p>
+        <span className="ml-auto text-[10px] text-dim">{t('tldrSource')}</span>
+      </div>
+      <p className="p-md text-sm leading-relaxed text-text">{data.summary}</p>
+    </div>
+  );
 }
 
 /* ---- Resolution Assistant — unified, premium, always actionable ---- */
@@ -986,8 +1091,9 @@ function AssistantAction({ icon: Icon, label, onClick }: { icon: typeof User; la
   );
 }
 
-function AssistantPanel({ ticketId, onExpand, onInvestigate, onResolve }: {
+function AssistantPanel({ ticketId, status, onExpand, onInvestigate, onResolve }: {
   ticketId: number;
+  status: string;
   onExpand: () => void;
   onInvestigate: () => void;
   onResolve: () => void;
@@ -1042,6 +1148,27 @@ function AssistantPanel({ ticketId, onExpand, onInvestigate, onResolve }: {
         )}
       </div>
 
+      {/* Next-Best-Action — o próximo passo recomendado, um só e claro */}
+      {!report.isLoading && (() => {
+        const strong = suggestions.find((s) => s.similarityScore >= 0.45);
+        const nba: { key: 'nbaApply' | 'nbaFollowUp' | 'nbaInvestigate'; act: () => void } = strong
+          ? { key: 'nbaApply', act: onExpand }
+          : (status === 'PendingCustomer' || status === 'PendingInternal')
+            ? { key: 'nbaFollowUp', act: onExpand }
+            : { key: 'nbaInvestigate', act: onInvestigate };
+        return (
+          <div className="flex items-center gap-2 border-b border-border/50 bg-primary/[0.03] px-lg py-2">
+            <Target className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span className="min-w-0 flex-1 truncate text-xs text-text">
+              <span className="font-semibold">{t('nbaTitle')}</span> {t(nba.key)}
+            </span>
+            <button type="button" onClick={nba.act} className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/15">
+              {t('nbaGo')}
+            </button>
+          </div>
+        );
+      })()}
+
       <div className="p-lg">
         {report.isLoading ? (
           <div className="flex items-center gap-2 py-2">
@@ -1087,6 +1214,11 @@ function AssistantPanel({ ticketId, onExpand, onInvestigate, onResolve }: {
                               {r.successRate != null && !isNaN(r.successRate) && <MetricChip tone="success">{pct(r.successRate)} {t('success')}</MetricChip>}
                               {r.reusedCount > 0 && <MetricChip tone="dim">{r.reusedCount}× {t('reuse')}</MetricChip>}
                             </div>
+                            {(r.matchedTerms ?? []).length > 0 && (
+                              <p className="mt-1.5 text-[10px] leading-relaxed text-dim">
+                                <span className="font-semibold text-muted">{t('whySignals')}</span> {(r.matchedTerms ?? []).slice(0, 6).join(' · ')}
+                              </p>
+                            )}
                           </div>
                           {state ? (
                             <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold', state === 'accepted' ? 'bg-success/15 text-success' : 'bg-panel-2 text-dim')}>{state === 'accepted' ? t('accepted') : t('ignored')}</span>

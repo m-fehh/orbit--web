@@ -86,6 +86,12 @@ import type {
   PlaybookResponse,
   PlaybookSuggestion,
   CopilotAnswerResponse,
+  IntakeAnalysis,
+  TriagePredictionResponse,
+  AiHealthResponse,
+  TicketSummary,
+  ResolutionEta,
+  AnomalyResponse,
   ProblemResponse,
   ProblemDetailResponse,
 } from './types';
@@ -295,6 +301,25 @@ export const intelligenceApi = {
   /** Copiloto de Conhecimento: pergunta em texto livre → resposta + soluções comprovadas. */
   ask: (q: string, maxResults = 5) =>
     api.get<CopilotAnswerResponse>('/intelligence/ask', { params: { q, maxResults } }),
+  /** Smart Intake: título + descrição → sugestões de triagem + duplicatas abertas. */
+  intake: (title: string, description: string) =>
+    api.get<IntakeAnalysis>('/intelligence/intake', { params: { title, description } }),
+  /** Triagem treinada (modelo multiclasse Orbit.Ai): prevê prioridade/equipe. */
+  triage: (title: string, description: string) =>
+    api.get<TriagePredictionResponse>('/intelligence/triage', { params: { title, description } }),
+  /** Saúde da IA: métricas dos modelos treinados. */
+  aiHealth: () => api.get<AiHealthResponse>('/intelligence/ai-health'),
+  /** Treina/retreina agora os modelos de IA do tenant. */
+  trainModels: () => api.post<AiHealthResponse>('/intelligence/train', {}),
+  /** Resumo extractivo (TL;DR) do ticket. */
+  ticketSummary: (ticketId: number) =>
+    api.get<TicketSummary>(`/intelligence/tickets/${ticketId}/summary`),
+  /** Previsão de tempo de resolução (kNN sobre casos similares). */
+  ticketEta: (ticketId: number) =>
+    api.get<ResolutionEta>(`/intelligence/tickets/${ticketId}/eta`),
+  /** Anomalias de volume detectadas pelo modelo próprio SR-CNN (Orbit.Ai). */
+  anomalies: (days = 60) =>
+    api.get<AnomalyResponse[]>('/intelligence/anomalies', { params: { days } }),
 };
 
 /**

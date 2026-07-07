@@ -110,20 +110,16 @@ export function SuggestionCard({
 function ResolutionCard({ r }: { r: ResolutionSuggestion }) {
   const t = useTranslations('copilot');
   return (
-    <div className="card-surface flex flex-col gap-2 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 flex-1 text-sm font-medium text-text line-clamp-2">{r.summary}</p>
-        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
-          {formatPct(r.similarityScore)}
-        </span>
-      </div>
-      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted">
+    <div className="card-surface flex flex-col gap-1.5 p-3.5">
+      <p className="text-sm text-text">{r.summary}</p>
+      <div className="flex flex-wrap items-center gap-3 text-[11px] text-dim">
         <span>{t('sourceTicket')} #{r.ticketId}</span>
-        <span>{t('reuseCount', { count: r.reusedCount })}</span>
-        <span className="flex items-center gap-1">
-          {t('successRate')}
-          <span className={cn('font-semibold', healthTextClass(r.successRate))}>{formatPct(r.successRate)}</span>
-        </span>
+        {r.reusedCount > 0 && (
+          <span className="flex items-center gap-1">
+            {t('reuseCount', { count: r.reusedCount })} ·
+            <span className={cn('font-semibold', healthTextClass(r.successRate))}>{formatPct(r.successRate)}</span>
+          </span>
+        )}
       </div>
     </div>
   );

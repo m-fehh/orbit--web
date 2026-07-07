@@ -6,12 +6,12 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   Sparkles, Lightbulb, ArrowRight,
-  Target, Zap,
+  Target, Zap, AlertTriangle, Files,
 } from 'lucide-react';
 import { ticketsApi, usersApi, iterationsApi, tagsApi, intelligenceApi } from '@/shared/api/endpoints';
 import {
   Priority, apiErrorMessage,
-  type PriorityValue, type TicketCreatedResponse, type TagResponse, type CopilotAnswerResponse,
+  type PriorityValue, type TicketCreatedResponse, type TagResponse, type CopilotAnswerResponse, type IntakeAnalysis, type TriagePredictionResponse,
 } from '@/shared/api/types';
 import { SuggestionCard } from '@/features/copilot/copilot-view';
 import { useAuthStore } from '@/features/auth/auth-store';
@@ -24,6 +24,13 @@ import { CreatableCombobox, type CreatableOption } from '@/shared/ui/creatable-c
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { RichEditor } from '@/shared/ui/rich-editor';
+
+const PRIO_KEY: Record<PriorityValue, 'Low' | 'Medium' | 'High' | 'Critical'> = {
+  [Priority.Low]: 'Low',
+  [Priority.Medium]: 'Medium',
+  [Priority.High]: 'High',
+  [Priority.Critical]: 'Critical',
+};
 
 function suggestTagIds(description: string, tags: TagResponse[]): number[] {
   if (!description || description.length < 10 || tags.length === 0) return [];
@@ -57,6 +64,10 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
   const [suggestedIds, setSuggestedIds] = useState<number[]>([]);
   const [deflection, setDeflection] = useState<CopilotAnswerResponse | null>(null);
   const [deflectDismissed, setDeflectDismissed] = useState(false);
+  const [intake, setIntake] = useState<IntakeAnalysis | null>(null);
+  const [triage, setTriage] = useState<TriagePredictionResponse | null>(null);
+  const [dupDismissed, setDupDismissed] = useState(false);
+  const [prioApplied, setPrioApplied] = useState(false);
 
   const users = useQuery({ queryKey: ['users', 'options'], queryFn: () => usersApi.list(1, 100) });
   const iterations = useQuery({ queryKey: ['iterations'], queryFn: () => iterationsApi.list(1, 100, 'Active') });
@@ -96,6 +107,23 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
     }, 600);
     return () => clearTimeout(h);
   }, [title, description, result]);
+
+  // Smart Intake + triagem treinada: sugestões (prioridade/equipe) + duplicatas abertas.
+  useEffect(() => {
+    if (result) return;
+    const plain = description.replace(/<[^>]+>/g, ' ').trim();
+    if (`${title.trim()} ${plain}`.trim().length < 8) { setIntake(null); setTriage(null); return; }
+    const h = setTimeout(() => {
+      intelligenceApi.intake(title.trim(), plain).then(setIntake).catch(() => { /* silencioso */ });
+      intelligenceApi.triage(title.trim(), plain).then(setTriage).catch(() => { /* silencioso */ });
+    }, 600);
+    return () => clearTimeout(h);
+  }, [title, description, result]);
+
+  // Prioridade sugerida: o modelo TREINADO tem precedência quando confiante; senão, a heurística.
+  const trainedPrio = triage?.trained && triage.priority != null && triage.priorityConfidence >= 0.5 ? triage.priority : null;
+  const suggestedPrio = trainedPrio ?? intake?.suggestedPriority ?? null;
+  const suggestedIsAi = trainedPrio != null;
 
   const createTagMut = useMutation({
     mutationFn: (name: string) => tagsApi.create({ name }),
@@ -226,6 +254,35 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
           />
         </div>
 
+        {/* Smart Intake — duplicatas abertas parecidas (evita abrir chamado repetido) */}
+        {!dupDismissed && (intake?.duplicates?.length ?? 0) > 0 && (
+          <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+            <div className="mb-1.5 flex items-center gap-2">
+              <Files className="h-4 w-4 text-warning" />
+              <p className="text-sm font-semibold text-warning">{t('duplicatesTitle')}</p>
+              <button type="button" onClick={() => setDupDismissed(true)} className="ml-auto text-xs text-dim hover:text-text">
+                {t('deflectionDismiss')}
+              </button>
+            </div>
+            <p className="mb-3 text-xs text-muted">{t('duplicatesHint')}</p>
+            <div className="flex flex-col gap-2">
+              {intake!.duplicates.map((d) => (
+                <button
+                  key={d.ticketId}
+                  type="button"
+                  onClick={() => { openTicketTab({ id: d.ticketId, number: d.number, title: d.title }); closeWindow(windowId); }}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-panel p-3 text-left transition-colors hover:border-warning/40"
+                >
+                  <span className="shrink-0 font-mono text-[11px] font-semibold text-dim">#{d.number}</span>
+                  <span className="line-clamp-1 flex-1 text-sm text-text">{d.title}</span>
+                  <span className="shrink-0 rounded-full bg-panel-2 px-2 py-0.5 text-[10px] font-medium text-dim">{d.status}</span>
+                  <span className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning">{Math.round(d.score * 100)}%</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Deflexão — soluções comprovadas antes de abrir o chamado */}
         {!deflectDismissed && deflection && ((deflection.solutions?.length ?? 0) > 0 || (deflection.resolutions?.length ?? 0) > 0) && (
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
@@ -288,7 +345,7 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
             <span>{t('priority')}</span>
             <Select<PriorityValue>
               value={priority}
-              onChange={setPriority}
+              onChange={(v) => { setPriority(v); setPrioApplied(true); }}
               options={[
                 { value: Priority.Low, label: tPriority('Low') },
                 { value: Priority.Medium, label: tPriority('Medium') },
@@ -296,6 +353,15 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
                 { value: Priority.Critical, label: tPriority('Critical') },
               ]}
             />
+            {!prioApplied && suggestedPrio != null && suggestedPrio !== priority && (
+              <button
+                type="button"
+                onClick={() => { setPriority(suggestedPrio as PriorityValue); setPrioApplied(true); }}
+                className="inline-flex w-fit items-center gap-1 rounded-full border border-dashed border-primary/40 px-2 py-0.5 text-[11px] font-medium text-primary transition-all hover:border-primary hover:bg-primary/10"
+              >
+                <Sparkles className="h-3 w-3" /> {t(suggestedIsAi ? 'suggestedPriorityAi' : 'suggestedPriority', { level: tPriority(PRIO_KEY[suggestedPrio as PriorityValue]) })}
+              </button>
+            )}
           </div>
           <div className="flex flex-col gap-1.5 text-sm font-medium">
             <span>{t('iteration')} <span className="text-danger">*</span></span>

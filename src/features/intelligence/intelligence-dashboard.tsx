@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import {
   Brain,
@@ -31,6 +32,50 @@ import {
   SERIES_PALETTE,
 } from '@/shared/ui/charts';
 import { cn } from '@/shared/lib/utils';
+
+/* ---- Saúde da IA (modelos treinados — Orbit.Ai) ---- */
+function AiHealthCard() {
+  const t = useTranslations('intelligence');
+  const qc = useQueryClient();
+  const { data } = useQuery({ queryKey: ['intelligence', 'ai-health'], queryFn: () => intelligenceApi.aiHealth(), retry: false });
+  const train = useMutation({
+    mutationFn: () => intelligenceApi.trainModels(),
+    onSuccess: (res) => { qc.setQueryData(['intelligence', 'ai-health'], res); toast.success(t('aiTrained')); },
+    onError: () => toast.error(t('aiTrainError')),
+  });
+  const models = data?.models ?? [];
+  return (
+    <div className="card-surface overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-border bg-gradient-to-r from-primary/8 to-transparent px-lg py-3">
+        <Brain className="h-4 w-4 text-primary" />
+        <p className="text-sm font-bold text-text">{t('aiHealthTitle')}</p>
+        <button
+          type="button"
+          onClick={() => train.mutate()}
+          disabled={train.isPending}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/15 disabled:opacity-50"
+        >
+          <RefreshCw className={cn('h-3.5 w-3.5', train.isPending && 'animate-spin')} /> {t('aiTrainNow')}
+        </button>
+      </div>
+      <div className="grid gap-px bg-border/60 sm:grid-cols-2">
+        {models.map((m) => (
+          <div key={m.name} className="flex flex-col gap-1 bg-panel p-md">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-text">{t(`aiModel.${m.name}` as 'aiModel.priority')}</p>
+              {m.trained
+                ? <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-bold text-success">{formatPct(m.accuracy)}</span>
+                : <span className="rounded-full bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{t('aiNotTrained')}</span>}
+            </div>
+            <p className="text-[11px] text-dim">
+              {m.trained ? t('aiModelMeta', { samples: m.samples, classes: m.classes }) : t('aiColdStart')}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function IntelligenceDashboard() {
   const t = useTranslations('intelligence');
@@ -154,6 +199,8 @@ export function IntelligenceDashboard() {
               />
             </div>
           )}
+
+          <AiHealthCard />
 
           {/* Confiabilidade por faixa + causas raiz */}
           <div className="grid gap-lg lg:grid-cols-2">

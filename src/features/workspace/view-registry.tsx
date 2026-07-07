@@ -8,7 +8,6 @@ import { UsersView } from '@/features/admin/users-view';
 import { ProfileGroupsView } from '@/features/admin/profile-groups-view';
 import { AuditLogsView } from '@/features/admin/audit-logs-view';
 import { SlaPoliciesView } from '@/features/admin/sla-policies-view';
-import { SymptomsCatalogView } from '@/features/admin/symptoms-catalog-view';
 import { SettingsView } from '@/features/settings/settings-view';
 import { DashboardView } from '@/features/dashboard/dashboard-view';
 import { InvestigationsView } from '@/features/investigations/investigations-view';
@@ -45,8 +44,6 @@ export function renderView(loc: TabLocation) {
       return wrap(<AuditLogsView />);
     case 'sla':
       return wrap(<SlaPoliciesView />);
-    case 'symptoms':
-      return wrap(<SymptomsCatalogView />);
     case 'settings':
       return wrap(<SettingsView />);
     case 'investigations':
