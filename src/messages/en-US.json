@@ -1214,7 +1214,16 @@
       "RemainingMinutes": "Remaining (min)",
       "Number": "Number",
       "OpenedAt": "Opened at",
-      "ClosedAt": "Closed at"
+      "ClosedAt": "Closed at",
+      "IsRead": "Read",
+      "ReadAt": "Read at",
+      "Message": "Message",
+      "Email": "Email",
+      "IsActive": "Active",
+      "Severity": "Severity",
+      "Impact": "Impact",
+      "ResolutionSteps": "Resolution steps",
+      "Outcome": "Outcome"
     }
   },
   "teamForm": {
