@@ -472,6 +472,7 @@
     "assistantSubtitle": "Basado en el historial de tu operación",
     "recommendedPlaybook": "Playbook recomendado",
     "contextSignals": "Señales de contexto",
+    "contextDetected": "Detectado en {count, plural, one {# ticket similar} other {# tickets similares}}",
     "noMatchTitle": "Sin coincidencia fuerte aún",
     "noMatchHint": "El motor no encontró historial similar suficiente para recomendar con confianza — y prefiere decirlo a inventar. Mientras tanto, avanza con los siguientes pasos:",
     "actionInvestigate": "Abrir investigación (5 Porqués)",

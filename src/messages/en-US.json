@@ -472,6 +472,7 @@
     "assistantSubtitle": "Based on your operation history",
     "recommendedPlaybook": "Recommended playbook",
     "contextSignals": "Context signals",
+    "contextDetected": "Seen in {count, plural, one {# similar ticket} other {# similar tickets}}",
     "noMatchTitle": "No strong match yet",
     "noMatchHint": "The engine didn't find enough similar history to recommend with confidence — and prefers to say so rather than invent. In the meantime, move forward with the next steps:",
     "actionInvestigate": "Open investigation (5 Whys)",

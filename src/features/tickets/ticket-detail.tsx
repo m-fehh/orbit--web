@@ -1254,7 +1254,11 @@ function AssistantPanel({ ticketId, status, onExpand, onInvestigate, onResolve }
                             </button>
                           )}
                         </div>
-                        {rc.description && <p className="line-clamp-2 text-xs leading-relaxed text-muted">{rc.description}</p>}
+                        <p className="line-clamp-2 text-xs leading-relaxed text-muted">
+                          {rc.aiEnhanced && rc.description
+                            ? rc.description
+                            : t('contextDetected', { count: relatedCount })}
+                        </p>
                       </div>
                     );
                   })}

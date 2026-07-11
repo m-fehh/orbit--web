@@ -472,6 +472,7 @@
     "assistantSubtitle": "Com base no histórico da sua operação",
     "recommendedPlaybook": "Playbook recomendado",
     "contextSignals": "Sinais de contexto",
+    "contextDetected": "Detectado em {count, plural, one {# chamado similar} other {# chamados similares}}",
     "noMatchTitle": "Sem correspondência forte ainda",
     "noMatchHint": "O motor não encontrou histórico similar o suficiente para recomendar com confiança — e prefere dizer isso a inventar. Enquanto isso, avance com os próximos passos:",
     "actionInvestigate": "Abrir investigação (5 Porquês)",
