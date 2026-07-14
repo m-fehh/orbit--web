@@ -19,6 +19,7 @@ import { PlaybooksView } from '@/features/playbooks/playbooks-view';
 import { ReliabilityView } from '@/features/reliability/reliability-view';
 import { CopilotView } from '@/features/copilot/copilot-view';
 import { ProblemsView } from '@/features/problems/problems-view';
+import { PerformanceView } from '@/features/gamification/performance-view';
 import { EmptyState } from '@/shared/ui/states';
 import { PageTransition } from '@/shared/ui/page-transition';
 import { ICONS } from './icons';
@@ -44,6 +45,8 @@ export function renderView(loc: TabLocation) {
       return wrap(<AuditLogsView />);
     case 'sla':
       return wrap(<SlaPoliciesView />);
+    case 'performance':
+      return wrap(<PerformanceView />);
     case 'settings':
       return wrap(<SettingsView />);
     case 'investigations':

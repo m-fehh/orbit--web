@@ -50,6 +50,16 @@ const SCREEN_TOURS: Partial<Record<ViewKind, TourStep[]>> = {
     { key: 'sc.problems.escalate' },
   ],
   reliability: [{ key: 'sc.reliability.intro' }],
+  performance: [
+    { key: 'sc.performance.intro' },
+    { key: 'sc.performance.me', target: '[data-tour="my-performance"]' },
+    { key: 'sc.performance.history', target: '[data-tour="history"]' },
+    { key: 'sc.performance.achievements', target: '[data-tour="achievements"]' },
+    { key: 'sc.performance.goals', target: '[data-tour="goals"]' },
+    { key: 'sc.performance.manageGoals', target: '[data-tour="manage-goals"]' },
+    { key: 'sc.performance.ranking', target: '[data-tour="leaderboard"]' },
+    { key: 'sc.performance.season', target: '[data-tour="season"]' },
+  ],
   copilot: [
     { key: 'sc.copilot.intro' },
     { key: 'sc.copilot.input', target: '[data-tour="copilot-input"]' },

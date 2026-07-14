@@ -85,6 +85,146 @@ export interface TicketResponse {
 }
 
 /** Analista sugerido para um ticket (roteamento por skill). */
+/** Uma posição no ranking de produtividade (Desempenho). */
+export interface LeaderboardEntry {
+  rank: number;
+  userId: number;
+  userName: string;
+  points: number;
+  resolved: number;
+  level: number;
+}
+
+/** Desempenho do usuário corrente no período. */
+/** Composição do score — "de onde vêm seus pontos" (qualidade > volume). */
+export interface ScoreBreakdown {
+  volume: number;
+  priority: number;
+  validation: number;
+  knowledge: number;
+  sla: number;
+  reopenPenalty: number;
+}
+
+export interface MyPerformance {
+  userId: number;
+  userName: string;
+  points: number;
+  resolved: number;
+  validated: number;
+  level: number;
+  rank: number;
+  pointsToNext: number;
+  nextLevelAt: number;
+  isMaxLevel: boolean;
+  breakdown: ScoreBreakdown;
+}
+
+/** Métrica de uma meta (número no request; nome no response). */
+export const GoalMetric = { Points: 1, Resolved: 2, Validated: 3 } as const;
+export type GoalMetricName = 'Points' | 'Resolved' | 'Validated';
+
+/** Meta de produtividade + progresso do usuário (GET /gamification/goals). */
+export interface GamificationGoalResponse {
+  id: number;
+  name: string;
+  metric: GoalMetricName;
+  target: number;
+  periodDays: number;
+  reward: string | null;
+  active: boolean;
+  myValue: number;
+  progress: number;
+  achieved: boolean;
+}
+
+/** Criação/edição de meta pelo gestor. */
+export interface SaveGoalRequest {
+  id?: number | null;
+  name: string;
+  metric: number;
+  target: number;
+  periodDays: number;
+  reward?: string | null;
+  active: boolean;
+}
+
+/** Painel de Desempenho (gamificação) — GET /gamification/performance. */
+export interface PerformanceResponse {
+  me: MyPerformance;
+  leaderboard: LeaderboardEntry[];
+  days: number;
+  participants: number;
+}
+
+/** Selo/conquista (marco profissional) — GET /gamification/achievements. */
+export interface AchievementResponse {
+  key: string;
+  current: number;
+  target: number;
+  progress: number;
+  earned: boolean;
+}
+
+/** Campeão de uma temporada passada (Hall da Fama). */
+export interface HallOfFameEntry {
+  label: string;
+  userId: number;
+  userName: string;
+  points: number;
+}
+
+/** Temporada mensal — GET /gamification/season. */
+export interface SeasonResponse {
+  currentLabel: string;
+  leaderboard: LeaderboardEntry[];
+  hallOfFame: HallOfFameEntry[];
+}
+
+/** Uma posição no ranking de equipes. */
+export interface TeamLeaderboardEntry {
+  rank: number;
+  teamId: number;
+  teamName: string;
+  points: number;
+  resolved: number;
+  members: number;
+}
+
+/** Ranking de equipes — GET /gamification/teams. */
+export interface TeamLeaderboardResponse {
+  teams: TeamLeaderboardEntry[];
+  days: number;
+}
+
+/** Um ponto da série temporal de evolução (bucket semanal). */
+export interface HistoryPoint {
+  label: string;
+  points: number;
+  resolved: number;
+}
+
+/** Evolução do desempenho ao longo do tempo — GET /gamification/history. */
+export interface PerformanceHistoryResponse {
+  points: HistoryPoint[];
+  totalPoints: number;
+  totalResolved: number;
+}
+
+/** Conquista de meta (ciclo da meta) — concessão de premiação auditável. */
+export interface GoalAchievementResponse {
+  id: number;
+  goalId: number;
+  goalName: string;
+  userId: number;
+  userName: string;
+  reward: string | null;
+  achievedAt: string;
+  awarded: boolean;
+  awardedAt: string | null;
+  awardNote: string | null;
+}
+
 export interface SuggestedAssigneeResponse {
   userId: number;
   userName: string;
@@ -384,6 +524,14 @@ export interface CopilotAnswerResponse {
   resolutions: ResolutionSuggestion[];
   /** Guias do próprio Orbit (mapa de telas/recursos) usados para responder dúvidas de uso. */
   guides: CopilotGuide[];
+}
+
+/** Uso diário do copiloto pelo usuário (como IAs free) — GET /intelligence/copilot-usage. */
+export interface CopilotUsageResponse {
+  used: number;
+  limit: number;
+  remaining: number;
+  unlimited: boolean;
 }
 
 /** Guia do próprio Orbit (autoconhecimento do produto) usado pelo copiloto. */

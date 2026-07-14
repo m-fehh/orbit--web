@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import {
   Sparkles, CheckCircle2, GitBranch, Zap, Star, Send, Loader2, User, BookOpen, ArrowUpRight,
@@ -177,6 +178,11 @@ export function CopilotView() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pending, setPending] = useState(false);
+  const qc = useQueryClient();
+
+  const usage = useQuery({ queryKey: ['copilot', 'usage'], queryFn: () => intelligenceApi.copilotUsage(), retry: false });
+  const limited = !!usage.data && !usage.data.unlimited;
+  const exhausted = limited && usage.data!.remaining <= 0;
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -222,6 +228,7 @@ export function CopilotView() {
       ]);
     } finally {
       setPending(false);
+      qc.invalidateQueries({ queryKey: ['copilot', 'usage'] });
     }
   }
 
@@ -241,10 +248,21 @@ export function CopilotView() {
         <div className="grid h-11 w-11 place-items-center rounded-xl border border-primary/20 bg-gradient-to-br from-primary/20 to-primary/5">
           <Sparkles className="h-5 w-5 text-primary" />
         </div>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold text-text">{t('title')}</h1>
           <p className="text-xs text-muted">{t('subtitle')}</p>
         </div>
+        {limited && (
+          <span
+            className={cn(
+              'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold',
+              exhausted ? 'bg-danger/10 text-danger' : usage.data!.remaining <= 5 ? 'bg-warning/10 text-warning' : 'bg-panel-2 text-dim',
+            )}
+            title={t('usageTooltip', { used: usage.data!.used, limit: usage.data!.limit })}
+          >
+            {exhausted ? t('usageReached') : t('usageRemaining', { remaining: usage.data!.remaining })}
+          </span>
+        )}
       </div>
 
       {/* Histórico da conversa */}
@@ -361,16 +379,17 @@ export function CopilotView() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={t('inputPlaceholder')}
+            placeholder={exhausted ? t('usageReached') : t('inputPlaceholder')}
             rows={1}
+            disabled={exhausted}
             aria-label={t('inputPlaceholder')}
             autoFocus
-            className="max-h-40 min-h-[46px] flex-1 resize-none rounded-xl border border-border bg-bg-subtle px-4 py-3 text-sm text-text outline-none placeholder:text-dim focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="max-h-40 min-h-[46px] flex-1 resize-none rounded-xl border border-border bg-bg-subtle px-4 py-3 text-sm text-text outline-none placeholder:text-dim focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
           />
           <button
             type="button"
             onClick={() => void send(input)}
-            disabled={pending || input.trim().length === 0}
+            disabled={pending || input.trim().length === 0 || exhausted}
             aria-label={t('send')}
             className="grid h-[46px] w-[46px] shrink-0 place-items-center rounded-xl bg-primary text-primary-fg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >

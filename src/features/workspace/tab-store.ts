@@ -16,6 +16,7 @@ export type ViewKind =
   | 'reliability'
   | 'copilot'
   | 'problems'
+  | 'performance'
   | 'iterations'
   | 'tags'
   | 'settings';

@@ -86,12 +86,21 @@ import type {
   PlaybookResponse,
   PlaybookSuggestion,
   CopilotAnswerResponse,
+  CopilotUsageResponse,
   IntakeAnalysis,
   TriagePredictionResponse,
   AiHealthResponse,
   TicketSummary,
   ResolutionEta,
   AnomalyResponse,
+  PerformanceResponse,
+  SeasonResponse,
+  TeamLeaderboardResponse,
+  AchievementResponse,
+  PerformanceHistoryResponse,
+  GoalAchievementResponse,
+  GamificationGoalResponse,
+  SaveGoalRequest,
   ProblemResponse,
   ProblemDetailResponse,
 } from './types';
@@ -301,6 +310,8 @@ export const intelligenceApi = {
   /** Copiloto de Conhecimento: pergunta em texto livre → resposta + soluções comprovadas. */
   ask: (q: string, maxResults = 5) =>
     api.get<CopilotAnswerResponse>('/intelligence/ask', { params: { q, maxResults } }),
+  /** Uso diário do copiloto (usado/limite/restante). */
+  copilotUsage: () => api.get<CopilotUsageResponse>('/intelligence/copilot-usage'),
   /** Smart Intake: título + descrição → sugestões de triagem + duplicatas abertas. */
   intake: (title: string, description: string) =>
     api.get<IntakeAnalysis>('/intelligence/intake', { params: { title, description } }),
@@ -320,6 +331,34 @@ export const intelligenceApi = {
   /** Anomalias de volume detectadas pelo modelo próprio SR-CNN (Orbit.Ai). */
   anomalies: (days = 60) =>
     api.get<AnomalyResponse[]>('/intelligence/anomalies', { params: { days } }),
+};
+
+/** Desempenho & produtividade (gamificação). */
+export const gamificationApi = {
+  performance: (days = 30) =>
+    api.get<PerformanceResponse>('/gamification/performance', { params: { days } }),
+  /** Ranking de equipes no período. */
+  teams: (days = 30) => api.get<TeamLeaderboardResponse>('/gamification/teams', { params: { days } }),
+  /** Temporada mensal: ranking do mês + Hall da Fama. */
+  season: () => api.get<SeasonResponse>('/gamification/season'),
+  /** Conquistas/selos do usuário. */
+  achievements: () => api.get<AchievementResponse[]>('/gamification/achievements'),
+  /** Evolução do desempenho ao longo do tempo. */
+  history: (days = 90) => api.get<PerformanceHistoryResponse>('/gamification/history', { params: { days } }),
+  /** Premiações já recebidas pelo usuário. */
+  myAwards: () => api.get<GoalAchievementResponse[]>('/gamification/awards/mine'),
+  /** Conquistas de meta para o gestor conceder. */
+  awards: () => api.get<GoalAchievementResponse[]>('/gamification/awards'),
+  /** Concede a premiação de uma conquista (gestor). */
+  grantAward: (id: number, note?: string) => api.post<void>(`/gamification/awards/${id}/grant`, { note: note ?? null }),
+  /** Metas ativas + progresso do usuário. */
+  goals: () => api.get<GamificationGoalResponse[]>('/gamification/goals'),
+  /** Todas as metas (gestor). */
+  allGoals: () => api.get<GamificationGoalResponse[]>('/gamification/goals/all'),
+  /** Cria/atualiza uma meta (gestor). */
+  saveGoal: (body: SaveGoalRequest) => api.post<GamificationGoalResponse>('/gamification/goals', body),
+  /** Remove uma meta (gestor). */
+  deleteGoal: (id: number) => api.delete<void>(`/gamification/goals/${id}`),
 };
 
 /**
