@@ -61,7 +61,8 @@ export function PerformanceView() {
     : 0;
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-lg overflow-auto p-lg">
+    <div className="h-full overflow-y-auto">
+     <div className="mx-auto flex w-full max-w-5xl flex-col gap-lg p-lg">
       {/* Header */}
       <header className="flex flex-wrap items-center gap-3">
         <span className="grid h-11 w-11 place-items-center rounded-xl border border-primary/20 bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
@@ -173,6 +174,7 @@ export function PerformanceView() {
       )}
 
       {managing && <ManageGoalsDrawer onClose={() => setManaging(false)} />}
+     </div>
     </div>
   );
 }
