@@ -38,6 +38,7 @@ import { SlaPanel } from './sla-panel';
 import { TicketTimeline } from './timeline';
 import { tokenStore } from '@/shared/api/token-store';
 import { Portal } from '@/shared/ui/portal';
+import { Drawer } from '@/shared/ui/modal';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { RichEditor } from '@/shared/ui/rich-editor';
 import { MarkdownEditor, MarkdownContent, attachmentRef } from '@/shared/ui/markdown-editor';
@@ -1741,25 +1742,30 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
   };
 
   return (
-    <Portal>
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-border bg-panel shadow-2xl">
-          {/* Header */}
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-panel px-6 py-4">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-lg bg-success/15">
-                <Zap className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold">{t('resolveTicket')}</h2>
-                <p className="text-xs text-dim">{ticketTitle}</p>
-              </div>
-            </div>
-            <button type="button" onClick={onClose} className="grid h-8 w-8 place-items-center rounded-md hover:bg-bg-subtle"><X className="h-4 w-4" /></button>
-          </div>
-
-          <div className="p-6 flex flex-col gap-5">
+    <Drawer
+      open
+      onClose={onClose}
+      size="xl"
+      title={t('resolveTicket')}
+      subtitle={ticketTitle}
+      footer={
+        <div className="flex w-full items-center justify-between">
+          <Button variant="secondary" disabled={step === 0} onClick={() => setStep(step - 1)}>
+            {t('back')}
+          </Button>
+          {step < LAST_STEP ? (
+            <Button disabled={!canNext} onClick={() => setStep(step + 1)}>
+              {t('next')} <ArrowRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button onClick={() => resolve.mutate()} loading={resolve.isPending} className="bg-success hover:bg-success/90">
+              <Zap className="h-4 w-4" /> {t('resolveTicket')}
+            </Button>
+          )}
+        </div>
+      }
+    >
+          <div className="flex flex-col gap-5">
             {/* Wizard stepper */}
             <div className="flex items-center">
               {steps.map((s, i) => {
@@ -1795,10 +1801,10 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
                 <div className="flex flex-col gap-1.5">
                   {aiRootCauses.slice(0, 3).map((rc, i) => (
                     <div key={i} className="flex items-start gap-2 text-xs text-muted">
-                      <span className="shrink-0 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
+                      <span className="shrink-0 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{translateCauseCategory(rc.category, tIntel)}</span>
                       <p className="leading-relaxed">{rc.description}</p>
                       {rc.supportingTicketIds.length > 0 && (
-                        <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{rc.supportingTicketIds.length} similar</span>
+                        <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{tIntel('similarCount', { count: rc.supportingTicketIds.length })}</span>
                       )}
                     </div>
                   ))}
@@ -1846,7 +1852,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
                         <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-bold text-primary">{Math.round(rc.confidenceScore * 100)}%</span>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium truncate">{rc.title}</p>
-                          <p className="text-xs text-dim truncate">{rc.category} · {rc.description}</p>
+                          <p className="text-xs text-dim truncate">{translateCauseCategory(rc.category, tIntel)} · {rc.description}</p>
                         </div>
                         {selectedRootCauseId === rc.id && <Check className="h-4 w-4 text-primary shrink-0" />}
                       </button>
@@ -1867,7 +1873,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
                       </label>
                       <label className="flex flex-col gap-1.5 text-xs text-muted">
                         <span className="font-medium">{t('category')}</span>
-                        <Select<RootCauseCategoryValue> value={rootCauseCategory} onChange={setRootCauseCategory} options={Object.entries(RootCauseCategory).map(([k, v]) => ({ value: v as RootCauseCategoryValue, label: k }))} />
+                        <Select<RootCauseCategoryValue> value={rootCauseCategory} onChange={setRootCauseCategory} options={Object.entries(RootCauseCategory).map(([k, v]) => ({ value: v as RootCauseCategoryValue, label: translateCauseCategory(k, tIntel) }))} />
                       </label>
                     </div>
                     <label className="flex flex-col gap-1.5 text-xs text-muted">
@@ -1972,9 +1978,12 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
                     <div>
                       <p className="text-[10px] font-medium uppercase text-dim">{t('actions')}</p>
                       <ol className="mt-1 list-decimal list-inside text-xs text-muted space-y-0.5">
-                        {actions.map((a, i) => (
-                          <li key={i}><span className="font-medium text-text">{ACTION_TYPES.find(at => at.value === a.actionType)?.key}</span>{a.detail && ` — ${a.detail}`}</li>
-                        ))}
+                        {actions.map((a, i) => {
+                          const atKey = ACTION_TYPES.find(at => at.value === a.actionType)?.key;
+                          return (
+                            <li key={i}><span className="font-medium text-text">{atKey ? t(`actionTypes.${atKey}` as 'actionType') : ''}</span>{a.detail && ` — ${a.detail}`}</li>
+                          );
+                        })}
                       </ol>
                     </div>
                   </div>
@@ -1988,25 +1997,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
             )}
 
           </div>
-
-          {/* Footer */}
-          <div className="sticky bottom-0 flex items-center justify-between border-t border-border bg-panel px-6 py-4">
-            <Button variant="secondary" disabled={step === 0} onClick={() => setStep(step - 1)}>
-              {t('back')}
-            </Button>
-            {step < LAST_STEP ? (
-              <Button disabled={!canNext} onClick={() => setStep(step + 1)}>
-                {t('next')} <ArrowRight className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button onClick={() => resolve.mutate()} loading={resolve.isPending} className="bg-success hover:bg-success/90">
-                <Zap className="h-4 w-4" /> {t('resolveTicket')}
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </Portal>
+    </Drawer>
   );
 }
 
