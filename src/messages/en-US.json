@@ -547,6 +547,7 @@
     "viewTickets": "View tickets",
     "viewAllCauses": "{count, plural, one {View # more cause} other {View # more causes}}",
     "viewAllResolutions": "{count, plural, one {View # more resolution} other {View # more resolutions}}",
+    "aiBadge": "AI",
     "causeCategories": {
       "userError": "User Error",
       "infrastructure": "Infrastructure",
@@ -557,6 +558,11 @@
       "network": "Network",
       "database": "Database",
       "thirdParty": "Third Party",
+      "code": "Code",
+      "process": "Process",
+      "data": "Data",
+      "external": "External",
+      "human": "Human",
       "unknown": "Unknown"
     }
   },
