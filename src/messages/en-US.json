@@ -548,6 +548,7 @@
     "viewAllCauses": "{count, plural, one {View # more cause} other {View # more causes}}",
     "viewAllResolutions": "{count, plural, one {View # more resolution} other {View # more resolutions}}",
     "aiBadge": "AI",
+    "similarCount": "{count, plural, one {# similar} other {# similar}}",
     "causeCategories": {
       "userError": "User Error",
       "infrastructure": "Infrastructure",

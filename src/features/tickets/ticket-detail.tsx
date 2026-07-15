@@ -42,6 +42,7 @@ import { Checkbox } from '@/shared/ui/checkbox';
 import { RichEditor } from '@/shared/ui/rich-editor';
 import { MarkdownEditor, MarkdownContent, attachmentRef } from '@/shared/ui/markdown-editor';
 import { openIntelligenceModal } from './intelligence-modal';
+import { translateCauseCategory } from '@/features/intelligence/cards';
 import { PlaybookPanel } from './playbook-panel';
 import { useSignalRGroup } from '@/features/notifications/use-signalr';
 
@@ -2696,9 +2697,9 @@ function InvestigationTab({ ticketId, investigations }: { ticketId: number; inve
             {aiCauses.slice(0, 3).map((rc, i) => (
               <div key={i} className="flex-1 min-w-[180px] rounded-lg border border-border bg-panel/80 p-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{rc.category}</span>
+                  <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{translateCauseCategory(rc.category, tIntel)}</span>
                   {rc.supportingTicketIds.length > 0 && (
-                    <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{rc.supportingTicketIds.length} similar</span>
+                    <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{tIntel('similarCount', { count: rc.supportingTicketIds.length })}</span>
                   )}
                 </div>
                 {rc.description && <p className="text-xs text-muted line-clamp-2">{rc.description}</p>}

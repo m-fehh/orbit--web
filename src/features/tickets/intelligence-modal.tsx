@@ -437,7 +437,7 @@ function ResolutionCard({
               <span className="text-[11px] font-semibold text-dim tabular-nums">
                 {resolution.reusedCount}×
               </span>
-              <span className="text-[10px] text-dim font-medium">reuso</span>
+              <span className="text-[10px] text-dim font-medium">{t('reuse')}</span>
             </div>
           )}
         </div>

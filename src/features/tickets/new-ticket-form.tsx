@@ -14,6 +14,7 @@ import {
   type PriorityValue, type TicketCreatedResponse, type TagResponse, type CopilotAnswerResponse, type IntakeAnalysis, type TriagePredictionResponse,
 } from '@/shared/api/types';
 import { SuggestionCard } from '@/features/copilot/copilot-view';
+import { DuplicateCard } from '@/features/intelligence/cards';
 import { useAuthStore } from '@/features/auth/auth-store';
 import { useWindowStore } from '@/features/windows/window-store';
 import { openTicketTab } from '@/features/tickets/ticket-actions';
@@ -267,17 +268,11 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
             <p className="mb-3 text-xs text-muted">{t('duplicatesHint')}</p>
             <div className="flex flex-col gap-2">
               {intake!.duplicates.map((d) => (
-                <button
+                <DuplicateCard
                   key={d.ticketId}
-                  type="button"
-                  onClick={() => { openTicketTab({ id: d.ticketId, number: d.number, title: d.title }); closeWindow(windowId); }}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-panel p-3 text-left transition-colors hover:border-warning/40"
-                >
-                  <span className="shrink-0 font-mono text-[11px] font-semibold text-dim">#{d.number}</span>
-                  <span className="line-clamp-1 flex-1 text-sm text-text">{d.title}</span>
-                  <span className="shrink-0 rounded-full bg-panel-2 px-2 py-0.5 text-[10px] font-medium text-dim">{d.status}</span>
-                  <span className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning">{Math.round(d.score * 100)}%</span>
-                </button>
+                  dup={d}
+                  onOpen={(dup) => { openTicketTab({ id: dup.ticketId, number: dup.number, title: dup.title }); closeWindow(windowId); }}
+                />
               ))}
             </div>
           </div>
