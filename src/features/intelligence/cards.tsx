@@ -149,6 +149,9 @@ export function ResolutionSuggestionCard({
   onFeedback,
   onApply,
   isApplying,
+  onIgnore,
+  isIgnoring,
+  state,
   onOpenSource,
 }: {
   resolution: ResolutionSuggestion;
@@ -157,9 +160,15 @@ export function ResolutionSuggestionCard({
   onFeedback?: (resolutionId: number, accepted: boolean) => void;
   onApply?: (resolution: ResolutionSuggestion) => void;
   isApplying?: boolean;
+  /** Descarta a sugestão (assistente do ticket). */
+  onIgnore?: (resolutionId: number) => void;
+  isIgnoring?: boolean;
+  /** Estado final: mostra selo "aplicada"/"ignorada" em vez das ações. */
+  state?: 'accepted' | 'ignored';
   onOpenSource?: (resolution: ResolutionSuggestion) => void;
 }) {
   const t = useTranslations('intelligence');
+  const hasFooter = state != null || !!onApply || (!!onIgnore && resolution.resolutionId != null) || (!!onFeedback && resolution.resolutionId != null);
   const hasSuccess = resolution.successRate != null && !Number.isNaN(resolution.successRate);
   const hasMatch = resolution.similarityScore != null && !Number.isNaN(resolution.similarityScore);
 
@@ -168,7 +177,7 @@ export function ResolutionSuggestionCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.3 }}
-      className="group rounded-xl border border-border bg-panel transition-all hover:border-success/20 hover:shadow-sm"
+      className={cn('group rounded-xl border border-border bg-panel transition-all hover:border-success/20 hover:shadow-sm', state === 'ignored' && 'opacity-60')}
     >
       <div className="p-4">
         <div className="mb-3 flex items-start gap-3">
@@ -225,13 +234,25 @@ export function ResolutionSuggestionCard({
         )}
       </div>
 
-      {(onApply || (onFeedback && resolution.resolutionId != null)) && (
+      {hasFooter && (
         <div className="flex items-center justify-between rounded-b-xl border-t border-border bg-panel/30 px-4 py-3">
-          {onApply ? (
-            <Button size="sm" className="h-8 gap-1.5 text-[12px] shadow-sm" loading={isApplying} onClick={() => onApply(resolution)}>
-              <Play className="h-3 w-3" /> {t('applySolution')}
-            </Button>
-          ) : <span />}
+          {state != null ? (
+            <span className={cn('rounded-md px-2 py-0.5 text-[11px] font-semibold', state === 'accepted' ? 'bg-success/15 text-success' : 'bg-panel-2 text-dim')}>
+              {state === 'accepted' ? t('accepted') : t('ignored')}
+            </span>
+          ) : (<>
+          <div className="flex items-center gap-1.5">
+            {onApply && (
+              <Button size="sm" className="h-8 gap-1.5 text-[12px] shadow-sm" loading={isApplying} onClick={() => onApply(resolution)}>
+                <Play className="h-3 w-3" /> {t('applySolution')}
+              </Button>
+            )}
+            {onIgnore && resolution.resolutionId != null && (
+              <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[12px]" loading={isIgnoring} onClick={() => onIgnore(resolution.resolutionId)}>
+                {t('ignored')}
+              </Button>
+            )}
+          </div>
 
           {onFeedback && resolution.resolutionId != null && (
             <div className="flex items-center gap-2">
@@ -260,6 +281,7 @@ export function ResolutionSuggestionCard({
               </div>
             </div>
           )}
+          </>)}
         </div>
       )}
     </motion.article>

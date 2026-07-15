@@ -42,7 +42,7 @@ import { Checkbox } from '@/shared/ui/checkbox';
 import { RichEditor } from '@/shared/ui/rich-editor';
 import { MarkdownEditor, MarkdownContent, attachmentRef } from '@/shared/ui/markdown-editor';
 import { openIntelligenceModal } from './intelligence-modal';
-import { translateCauseCategory } from '@/features/intelligence/cards';
+import { translateCauseCategory, RootCauseCard, ResolutionSuggestionCard } from '@/features/intelligence/cards';
 import { PlaybookPanel } from './playbook-panel';
 import { useSignalRGroup } from '@/features/notifications/use-signalr';
 
@@ -1100,9 +1100,6 @@ function AssistantPanel({ ticketId, status, onExpand, onInvestigate, onResolve }
   onResolve: () => void;
 }) {
   const t = useTranslations('intelligence');
-  const tTicket = useTranslations('ticket');
-  const tInv = useTranslations('investigation');
-  const catLabel = (c: string) => { const k = `cat.${c}` as 'cat.Bug'; return tInv.has(k) ? tInv(k) : c; };
   const qc = useQueryClient();
   const [handled, setHandled] = useState<Record<number, 'accepted' | 'ignored'>>({});
   const report = useQuery({ queryKey: ['tickets', 'intelligence', ticketId], queryFn: () => intelligenceApi.ticketReport(ticketId), retry: false });
@@ -1196,45 +1193,19 @@ function AssistantPanel({ ticketId, status, onExpand, onInvestigate, onResolve }
             {suggestions.length > 0 && (
               <div>
                 <SectionLabel icon={Zap} tone="success">{t('smartRecommendations')}</SectionLabel>
-                <div className="flex flex-col gap-2">
-                  {suggestions.map((r) => {
-                    const state = handled[r.resolutionId];
-                    const applying = apply.isPending && apply.variables?.resolutionId === r.resolutionId;
-                    const ignoring = ignore.isPending && ignore.variables === r.resolutionId;
-                    const busy = apply.isPending || ignore.isPending;
-                    return (
-                      <div key={r.resolutionId} className={cn('rounded-xl border border-border bg-panel/60 p-3 transition-all hover:border-success/30', state === 'ignored' && 'opacity-50')}>
-                        <div className="flex items-start gap-3">
-                          <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-success/15 text-success"><Lightbulb className="h-3.5 w-3.5" /></span>
-                          <div className="min-w-0 flex-1">
-                            <p className="line-clamp-2 text-sm font-medium leading-snug text-text">{r.summary}</p>
-                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                              <MetricChip tone="primary">{pct(r.similarityScore)} {t('matchLabel')}</MetricChip>
-                              {r.successRate != null && !isNaN(r.successRate) && <MetricChip tone="success">{pct(r.successRate)} {t('success')}</MetricChip>}
-                              {r.reusedCount > 0 && <MetricChip tone="dim">{r.reusedCount}× {t('reuse')}</MetricChip>}
-                            </div>
-                            {(r.matchedTerms ?? []).length > 0 && (
-                              <p className="mt-1.5 text-[10px] leading-relaxed text-dim">
-                                <span className="font-semibold text-muted">{t('whySignals')}</span> {(r.matchedTerms ?? []).slice(0, 6).join(' · ')}
-                              </p>
-                            )}
-                          </div>
-                          {state ? (
-                            <span className={cn('shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold', state === 'accepted' ? 'bg-success/15 text-success' : 'bg-panel-2 text-dim')}>{state === 'accepted' ? t('accepted') : t('ignored')}</span>
-                          ) : (
-                            <div className="flex shrink-0 gap-1">
-                              <button type="button" onClick={() => apply.mutate({ resolutionId: r.resolutionId, summary: r.summary })} disabled={busy} className="grid h-7 w-7 place-items-center rounded-lg text-success hover:bg-success/10 disabled:opacity-50" title={t('applySolution')} aria-label={t('applySolution')}>
-                                {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                              </button>
-                              <button type="button" onClick={() => ignore.mutate(r.resolutionId)} disabled={busy} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-panel-2 disabled:opacity-50" title={t('ignored')} aria-label={t('ignored')}>
-                                {ignoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="flex flex-col gap-2.5">
+                  {suggestions.map((r, i) => (
+                    <ResolutionSuggestionCard
+                      key={r.resolutionId}
+                      resolution={r}
+                      index={i}
+                      state={handled[r.resolutionId]}
+                      isApplying={apply.isPending && apply.variables?.resolutionId === r.resolutionId}
+                      isIgnoring={ignore.isPending && ignore.variables === r.resolutionId}
+                      onApply={(res) => apply.mutate({ resolutionId: res.resolutionId, summary: res.summary })}
+                      onIgnore={(id) => ignore.mutate(id)}
+                    />
+                  ))}
                 </div>
               </div>
             )}
@@ -1242,27 +1213,15 @@ function AssistantPanel({ ticketId, status, onExpand, onInvestigate, onResolve }
             {causes.length > 0 && (
               <div>
                 <SectionLabel icon={Layers} tone="primary">{t('contextSignals')}</SectionLabel>
-                <div className="flex flex-col gap-2">
-                  {causes.map((rc, i) => {
-                    const relatedCount = rc.supportingTicketIds.length;
-                    return (
-                      <div key={i} className="rounded-xl border border-border bg-panel/60 p-3">
-                        <div className="mb-1 flex items-center gap-1.5">
-                          <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{catLabel(rc.category)}</span>
-                          {relatedCount > 0 && (
-                            <button type="button" onClick={() => openRelatedTicketsModal(rc.supportingTicketIds, t('relatedTicketsTitle'))} className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/15">
-                              <Layers className="h-2.5 w-2.5" /> {relatedCount} {tTicket('relatedTickets')}
-                            </button>
-                          )}
-                        </div>
-                        <p className="line-clamp-2 text-xs leading-relaxed text-muted">
-                          {rc.aiEnhanced && rc.description
-                            ? rc.description
-                            : t('contextDetected', { count: relatedCount })}
-                        </p>
-                      </div>
-                    );
-                  })}
+                <div className="flex flex-col gap-2.5">
+                  {causes.map((rc, i) => (
+                    <RootCauseCard
+                      key={i}
+                      cause={rc}
+                      index={i}
+                      onViewTickets={(ids) => openRelatedTicketsModal(ids, t('relatedTicketsTitle'))}
+                    />
+                  ))}
                 </div>
               </div>
             )}
