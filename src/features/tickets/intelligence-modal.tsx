@@ -16,6 +16,7 @@ import { ticketResolutionApi } from '@/shared/api/endpoints';
 import { apiErrorMessage } from '@/shared/api/types';
 import type { RootCauseCandidate, ResolutionSuggestion, KnowledgeSuggestion } from '@/shared/api/types';
 import { useWindowStore } from '@/features/windows/window-store';
+import { CopilotView } from '@/features/copilot/copilot-view';
 import { openTicketTab } from './ticket-actions';
 import { Button } from '@/shared/ui/button';
 import { cn } from '@/shared/lib/utils';
@@ -84,7 +85,7 @@ export function openIntelligenceModal(
 }
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-type TabKey = 'overview' | 'causes' | 'resolutions' | 'knowledge';
+type TabKey = 'overview' | 'causes' | 'resolutions' | 'copilot';
 type FeedbackState = Record<string, 'up' | 'down'>;
 
 // ─── Analyzing State ────────────────────────────────────────────────────────
@@ -742,11 +743,6 @@ function IntelligenceModalContent({
 
   const causes = report.data?.rootCauseCandidates ?? [];
   const resolutions = report.data?.resolutionSuggestions ?? [];
-  const knowledgeItems = report.data?.relatedKnowledge ?? [];
-
-  if (causes.length === 0 && resolutions.length === 0 && knowledgeItems.length === 0) {
-    return <EmptyState />;
-  }
 
   const handleApplyResolution = (resolution: ResolutionSuggestion) => {
     applyResolution.mutate({
@@ -784,11 +780,9 @@ function IntelligenceModalContent({
       color: 'success' as const,
     },
     {
-      key: 'knowledge' as TabKey,
-      icon: BookOpen,
-      label: t('relatedKnowledge'),
-      count: knowledgeItems.length,
-      color: 'warning' as const,
+      key: 'copilot' as TabKey,
+      icon: Sparkles,
+      label: t('copilotTab'),
     },
   ];
 
@@ -811,15 +805,6 @@ function IntelligenceModalContent({
       ring: 'ring-success/20',
       border: 'border-success/20',
     },
-    {
-      icon: BookOpen,
-      label: t('relatedKnowledge'),
-      count: knowledgeItems.length,
-      color: 'text-warning',
-      bg: 'bg-warning/10',
-      ring: 'ring-warning/20',
-      border: 'border-warning/20',
-    },
   ];
 
   const topResolution = resolutions[0];
@@ -833,7 +818,6 @@ function IntelligenceModalContent({
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
           const isResolutions = tab.key === 'resolutions';
-          const isKnowledge = tab.key === 'knowledge';
 
           return (
             <button
@@ -853,7 +837,6 @@ function IntelligenceModalContent({
                 className={cn(
                   'h-4 w-4 transition-colors',
                   isActive && isResolutions && 'text-success',
-                  isActive && isKnowledge && 'text-warning',
                 )}
               />
               <span>{tab.label}</span>
@@ -862,8 +845,7 @@ function IntelligenceModalContent({
                   className={cn(
                     'ml-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold tabular-nums transition-colors',
                     isActive && isResolutions && 'bg-success/10 text-success',
-                    isActive && isKnowledge && 'bg-warning/10 text-warning',
-                    isActive && !isResolutions && !isKnowledge && 'bg-primary/10 text-primary',
+                    isActive && !isResolutions && 'bg-primary/10 text-primary',
                     !isActive && 'bg-border/30 text-dim'
                   )}
                 >
@@ -1139,21 +1121,16 @@ function IntelligenceModalContent({
             </motion.div>
           )}
 
-          {activeTab === 'knowledge' && (
+          {activeTab === 'copilot' && (
             <motion.div
-              key="knowledge"
+              key="copilot"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="p-5 space-y-2.5"
+              className="h-full"
             >
-              {knowledgeItems.map((item, index) => (
-                <KnowledgeCard key={item.assetId} knowledge={item} index={index} />
-              ))}
-              {knowledgeItems.length === 0 && (
-                <p className="py-12 text-center text-sm text-dim">{t('noKnowledge')}</p>
-              )}
+              <CopilotView ticketId={ticketId} embedded />
             </motion.div>
           )}
         </AnimatePresence>

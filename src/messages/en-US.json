@@ -447,6 +447,7 @@
     "ticketAlreadyResolved": "This ticket has already been resolved.",
     "otherPossibleCauses": "Other possible causes",
     "relatedKnowledge": "Related knowledge",
+    "copilotTab": "Copilot",
     "appliedSuccess": "Solution applied successfully",
     "applyError": "Error applying solution",
     "feedbackSent": "Feedback recorded",
@@ -2061,6 +2062,13 @@
       "ex2": "Customer not receiving confirmation email",
       "ex3": "Slowness in monthly report",
       "ex4": "Login failure after update"
+    },
+    "ticketGreetingTitle": "Ask about this ticket",
+    "ticketGreetingBody": "I answer from this ticket's real data — comments, worklogs, resolution and who did what. Try:",
+    "ticketExamples": {
+      "tex1": "Who worked on this ticket?",
+      "tex2": "What was the fix applied?",
+      "tex3": "Summarize what happened so far"
     }
   },
   "problems": {

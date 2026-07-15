@@ -447,6 +447,7 @@
     "ticketAlreadyResolved": "Este ticket já foi resolvido.",
     "otherPossibleCauses": "Outras causas possíveis",
     "relatedKnowledge": "Conhecimento relacionado",
+    "copilotTab": "Copiloto",
     "appliedSuccess": "Solução aplicada com sucesso",
     "applyError": "Erro ao aplicar solução",
     "feedbackSent": "Feedback registrado",
@@ -2061,6 +2062,13 @@
       "ex2": "Cliente não recebe e-mail de confirmação",
       "ex3": "Lentidão no relatório mensal",
       "ex4": "Falha de login após atualização"
+    },
+    "ticketGreetingTitle": "Pergunte sobre este ticket",
+    "ticketGreetingBody": "Respondo com base nos dados reais deste chamado — comentários, worklogs, resolução e quem fez o quê. Experimente:",
+    "ticketExamples": {
+      "tex1": "Quem trabalhou neste ticket?",
+      "tex2": "Qual foi a correção aplicada?",
+      "tex3": "Resuma o que aconteceu até agora"
     }
   },
   "problems": {

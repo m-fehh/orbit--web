@@ -171,7 +171,7 @@ interface ChatMessage {
 let messageSeq = 0;
 const nextId = () => `m${++messageSeq}`;
 
-export function CopilotView() {
+export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedded?: boolean } = {}) {
   const t = useTranslations('copilot');
   const tc = useTranslations('common');
 
@@ -201,7 +201,7 @@ export function CopilotView() {
     setPending(true);
 
     try {
-      const res = await intelligenceApi.ask(q);
+      const res = await intelligenceApi.ask(q, 5, ticketId);
       const hasAnswer = !!res.answer?.trim();
       const solutions = res.solutions ?? [];
       const resolutions = res.resolutions ?? [];
@@ -243,7 +243,8 @@ export function CopilotView() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
+      {/* Header (oculto quando embutido, ex.: aba do painel do ticket) */}
+      {!embedded && (
       <div className="flex items-center gap-3 border-b border-border px-6 py-4">
         <div className="grid h-11 w-11 place-items-center rounded-xl border border-primary/20 bg-gradient-to-br from-primary/20 to-primary/5">
           <Sparkles className="h-5 w-5 text-primary" />
@@ -264,6 +265,7 @@ export function CopilotView() {
           </span>
         )}
       </div>
+      )}
 
       {/* Histórico da conversa */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 md:px-6" aria-live="polite">
@@ -274,12 +276,12 @@ export function CopilotView() {
               <Sparkles className="h-7 w-7 text-primary" />
             </div>
             <div>
-              <p className="text-base font-semibold text-text">{t('greetingTitle')}</p>
-              <p className="mt-1 text-sm text-muted">{t('greetingBody')}</p>
+              <p className="text-base font-semibold text-text">{embedded ? t('ticketGreetingTitle') : t('greetingTitle')}</p>
+              <p className="mt-1 text-sm text-muted">{embedded ? t('ticketGreetingBody') : t('greetingBody')}</p>
             </div>
             <div className="flex flex-wrap justify-center gap-2">
-              {EXAMPLE_KEYS.map((k) => {
-                const ex = t(`examples.${k}` as 'examples.ex1');
+              {(embedded ? (['tex1', 'tex2', 'tex3'] as const) : EXAMPLE_KEYS).map((k) => {
+                const ex = embedded ? t(`ticketExamples.${k}` as 'ticketExamples.tex1') : t(`examples.${k}` as 'examples.ex1');
                 return (
                   <button
                     key={k}

@@ -447,6 +447,7 @@
     "ticketAlreadyResolved": "Este ticket ya ha sido resuelto.",
     "otherPossibleCauses": "Otras causas posibles",
     "relatedKnowledge": "Conocimiento relacionado",
+    "copilotTab": "Copiloto",
     "appliedSuccess": "Solución aplicada exitosamente",
     "applyError": "Error al aplicar solución",
     "feedbackSent": "Feedback registrado",
@@ -2061,6 +2062,13 @@
       "ex2": "Cliente no recibe correo de confirmación",
       "ex3": "Lentitud en el informe mensual",
       "ex4": "Fallo de inicio de sesión después de actualización"
+    },
+    "ticketGreetingTitle": "Pregunta sobre este ticket",
+    "ticketGreetingBody": "Respondo con los datos reales de este ticket — comentarios, registros de trabajo, resolución y quién hizo qué. Prueba:",
+    "ticketExamples": {
+      "tex1": "¿Quién trabajó en este ticket?",
+      "tex2": "¿Cuál fue la corrección aplicada?",
+      "tex3": "Resume lo que pasó hasta ahora"
     }
   },
   "problems": {

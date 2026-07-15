@@ -307,9 +307,10 @@ export const intelligenceApi = {
   /** Confiabilidade do assistente (calibração da confiança + playbooks mais efetivos). */
   reliability: (days = 90) =>
     api.get<TaasReliabilityResponse>('/intelligence/reliability', { params: { days } }),
-  /** Copiloto de Conhecimento: pergunta em texto livre → resposta + soluções comprovadas. */
-  ask: (q: string, maxResults = 5) =>
-    api.get<CopilotAnswerResponse>('/intelligence/ask', { params: { q, maxResults } }),
+  /** Copiloto de Conhecimento: pergunta em texto livre → resposta + soluções comprovadas.
+   *  Passe ticketId para escopar a resposta ao contexto real daquele ticket. */
+  ask: (q: string, maxResults = 5, ticketId?: number) =>
+    api.get<CopilotAnswerResponse>('/intelligence/ask', { params: { q, maxResults, ...(ticketId ? { ticketId } : {}) } }),
   /** Uso diário do copiloto (usado/limite/restante). */
   copilotUsage: () => api.get<CopilotUsageResponse>('/intelligence/copilot-usage'),
   /** Smart Intake: título + descrição → sugestões de triagem + duplicatas abertas. */
