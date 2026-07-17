@@ -9,6 +9,9 @@ import type {
   NotificationResponse,
   PagedResponse,
   UnreadCountResponse,
+  ChatConversationResponse,
+  ChatMessageResponse,
+  CreateConversationRequest,
   UserResponse,
   TicketResponse,
   TicketDetailResponse,
@@ -579,4 +582,15 @@ export const notificationsApi = {
   unreadCount: () => api.get<UnreadCountResponse>('/notifications/unread-count'),
   markRead: (id: number) => api.patch<void>(`/notifications/${id}/read`),
   markAllRead: () => api.post<void>('/notifications/read-all'),
+};
+
+/** Chat interno entre usuários (1:1 e grupos). */
+export const chatApi = {
+  conversations: () => api.get<ChatConversationResponse[]>('/chat/conversations'),
+  unreadCount: () => api.get<UnreadCountResponse>('/chat/unread-count'),
+  messages: (id: number, beforeId?: number, take = 50) =>
+    api.get<ChatMessageResponse[]>(`/chat/conversations/${id}/messages`, { params: { ...(beforeId ? { beforeId } : {}), take } }),
+  create: (body: CreateConversationRequest) => api.post<ChatConversationResponse>('/chat/conversations', body),
+  send: (id: number, body: string) => api.post<ChatMessageResponse>(`/chat/conversations/${id}/messages`, { body }),
+  markRead: (id: number) => api.post<void>(`/chat/conversations/${id}/read`, {}),
 };

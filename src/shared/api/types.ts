@@ -1006,6 +1006,34 @@ export interface UnreadCountResponse {
   unread: number;
 }
 
+/* ---- Chat interno ---- */
+export interface ChatParticipant {
+  userId: number;
+  name: string;
+}
+export interface ChatConversationResponse {
+  id: number;
+  isGroup: boolean;
+  name: string;
+  participants: ChatParticipant[];
+  lastMessage: string | null;
+  lastMessageAt: string | null;
+  unreadCount: number;
+}
+export interface ChatMessageResponse {
+  id: number;
+  conversationId: number;
+  senderId: number;
+  senderName: string;
+  body: string;
+  createdAt: string;
+}
+export interface CreateConversationRequest {
+  userIds: number[];
+  isGroup: boolean;
+  name?: string | null;
+}
+
 /* ---- Resolutions ---- */
 export interface ResolutionResponse {
   id: number;

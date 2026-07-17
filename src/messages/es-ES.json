@@ -340,6 +340,21 @@
     "Closed": "Cerrado",
     "Cancelled": "Cancelado"
   },
+  "chat": {
+    "title": "Chat",
+    "back": "Volver",
+    "close": "Cerrar",
+    "newConversation": "Nueva conversación",
+    "empty": "Aún no hay conversaciones. Empieza una nueva.",
+    "threadEmpty": "Aún no hay mensajes. ¡Saluda!",
+    "messagePlaceholder": "Escribe un mensaje…",
+    "send": "Enviar",
+    "searchUsers": "Buscar usuarios…",
+    "groupNamePlaceholder": "Nombre del grupo (opcional)",
+    "noUsers": "Ningún usuario encontrado",
+    "createGroup": "Crear grupo ({count})",
+    "startChat": "Iniciar conversación"
+  },
   "priority": {
     "Low": "Baja",
     "Medium": "Media",
