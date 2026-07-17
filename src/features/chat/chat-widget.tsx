@@ -27,6 +27,9 @@ import { Input } from '@/shared/ui/input';
 import { LoadingState } from '@/shared/ui/states';
 import { cn } from '@/shared/lib/utils';
 
+/** Tamanho de página do histórico do chat. */
+const PAGE_SIZE = 30;
+
 function initials(name: string): string {
   const p = name.trim().split(/\s+/).filter(Boolean);
   return ((p[0]?.[0] ?? '') + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase() || '?';
@@ -40,6 +43,7 @@ function OnlineDot({ online }: { online: boolean }) {
 export function ChatWidget() {
   const t = useTranslations('chat');
   const qc = useQueryClient();
+  const meId = useAuthStore((s) => s.user?.id);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'list' | 'thread' | 'new' | 'manage'>('list');
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -61,8 +65,18 @@ export function ChatWidget() {
       qc.invalidateQueries({ queryKey: ['chat', 'unread'] });
       // Se a thread está aberta na conversa que recebeu, marca como lida na hora.
       const convId = Number(payload?.conversationId);
-      if (ev === 'chat.message' && open && convId === activeId) {
+      const viewing = open && view === 'thread' && convId === activeId;
+      if (ev === 'chat.message' && viewing) {
         chatApi.markRead(convId).then(() => qc.invalidateQueries({ queryKey: ['chat', 'unread'] })).catch(() => {});
+      }
+      // Toast quando chega mensagem de outro e não estou olhando a conversa.
+      if (ev === 'chat.message' && !viewing && Number(payload?.senderId) !== meId) {
+        const who = String(payload?.senderName ?? '');
+        const body = payload?.attachmentName ? `📎 ${payload.attachmentName}` : String(payload?.body ?? '');
+        toast(who, {
+          description: body.length > 80 ? `${body.slice(0, 80)}…` : body,
+          action: { label: t('open'), onClick: () => { setOpen(true); openConversation(convId); } },
+        });
       }
     } else if (ev === 'chat.read') {
       qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
@@ -123,7 +137,7 @@ export function ChatWidget() {
       {open && (
         <Portal>
           <div className="fixed inset-0 z-[80] flex" role="dialog" aria-modal="true" aria-label={t('title')}>
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setOpen(false)} aria-hidden />
+            <div className="absolute inset-0" onClick={() => setOpen(false)} aria-hidden />
             <aside className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-border bg-panel shadow-2xl animate-slide-in">
             <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-gradient-to-r from-primary/8 to-transparent px-4">
               {view !== 'list' ? (
@@ -172,6 +186,7 @@ function ConversationList({ data, loading, onlineSet, onOpen, onNew, t }: {
   t: ReturnType<typeof useTranslations>;
 }) {
   const meId = useAuthStore((s) => s.user?.id);
+  const [term, setTerm] = useState('');
   if (loading) return <LoadingState />;
   if (!data || data.length === 0) {
     return (
@@ -182,9 +197,26 @@ function ConversationList({ data, loading, onlineSet, onOpen, onNew, t }: {
       </div>
     );
   }
+  const q = term.trim().toLowerCase();
+  const filtered = q ? data.filter((c) => (c.name ?? '').toLowerCase().includes(q) || (c.lastMessage ?? '').toLowerCase().includes(q)) : data;
   return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 border-b border-border/60 p-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-dim" />
+          <input
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder={t('searchConversations')}
+            className="w-full rounded-lg border border-border bg-bg-subtle py-1.5 pl-8 pr-3 text-sm outline-none focus:border-primary"
+          />
+        </div>
+      </div>
+      {filtered.length === 0 ? (
+        <p className="p-6 text-center text-sm text-dim">{t('noConversationMatch')}</p>
+      ) : (
     <ul className="flex-1 space-y-0.5 overflow-y-auto p-2">
-      {data.map((c) => {
+      {filtered.map((c) => {
         const other = c.isGroup ? null : c.participants.find((p) => p.userId !== meId);
         const online = other ? onlineSet.has(other.userId) : false;
         const unread = c.unreadCount > 0;
@@ -212,6 +244,8 @@ function ConversationList({ data, loading, onlineSet, onOpen, onNew, t }: {
         );
       })}
     </ul>
+      )}
+    </div>
   );
 }
 
@@ -249,16 +283,28 @@ function Thread({ conversationId, conv, typingName, t }: { conversationId: numbe
 
   const messages = useQuery({
     queryKey: ['chat', 'messages', conversationId],
-    queryFn: () => chatApi.messages(conversationId),
+    queryFn: () => chatApi.messages(conversationId, undefined, PAGE_SIZE),
     retry: false,
+  });
+
+  // Páginas anteriores carregadas sob demanda (prepend).
+  const [older, setOlder] = useState<ChatMessageResponse[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  useEffect(() => { setOlder([]); setHasMore(true); }, [conversationId]);
+  const all = useMemo(() => [...older, ...(messages.data ?? [])], [older, messages.data]);
+  const loadOlder = useMutation({
+    mutationFn: () => chatApi.messages(conversationId, all[0]?.id, PAGE_SIZE),
+    onSuccess: (page) => {
+      if (page.length < PAGE_SIZE) setHasMore(false);
+      if (page.length > 0) setOlder((prev) => [...page, ...prev]);
+    },
   });
 
   // Recibo de leitura: id da minha última mensagem + quem já leu.
   const myLastId = useMemo(() => {
-    const arr = messages.data ?? [];
-    for (let i = arr.length - 1; i >= 0; i--) if (arr[i].senderId === meId) return arr[i].id;
+    for (let i = all.length - 1; i >= 0; i--) if (all[i].senderId === meId) return all[i].id;
     return null;
-  }, [messages.data, meId]);
+  }, [all, meId]);
   const others = (conv?.participants ?? []).filter((p) => p.userId !== meId);
   const renderReceipt = (createdAt: string) => {
     const seen = others.filter((p) => p.lastReadAt && new Date(p.lastReadAt) >= new Date(createdAt));
@@ -315,14 +361,22 @@ function Thread({ conversationId, conv, typingName, t }: { conversationId: numbe
       <div ref={scrollRef} className="flex-1 space-y-1 overflow-y-auto bg-bg-subtle/40 p-4">
         {messages.isLoading ? (
           <LoadingState />
-        ) : (messages.data?.length ?? 0) === 0 ? (
+        ) : all.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <span className="grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary"><MessageSquare className="h-5 w-5" /></span>
             <p className="text-sm text-dim">{t('threadEmpty')}</p>
           </div>
         ) : (
-          messages.data!.map((m, i) => {
-            const arr = messages.data!;
+          <>
+          {hasMore && all.length >= PAGE_SIZE && (
+            <div className="flex justify-center pb-1">
+              <button type="button" onClick={() => loadOlder.mutate()} disabled={loadOlder.isPending} className="rounded-full border border-border bg-panel px-3 py-1 text-[11px] text-muted hover:text-text disabled:opacity-50">
+                {loadOlder.isPending ? '…' : t('loadOlder')}
+              </button>
+            </div>
+          )}
+          {all.map((m, i) => {
+            const arr = all;
             const prev = arr[i - 1];
             const mine = m.senderId === meId;
             const sameDay = prev && new Date(prev.createdAt).toDateString() === new Date(m.createdAt).toDateString();
@@ -348,7 +402,8 @@ function Thread({ conversationId, conv, typingName, t }: { conversationId: numbe
                 />
               </div>
             );
-          })
+          })}
+          </>
         )}
         {typingName && (
           <div className="flex items-center gap-2 px-1 pt-1">
