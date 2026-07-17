@@ -356,6 +356,7 @@
     "searchConversations": "Buscar conversas…",
     "noConversationMatch": "Nenhuma conversa encontrada.",
     "loadOlder": "Carregar mensagens anteriores",
+    "cancelEdit": "Cancelar",
     "groupNamePlaceholder": "Nome do grupo (opcional)",
     "noUsers": "Nenhum usuário encontrado",
     "createGroup": "Criar grupo ({count})",

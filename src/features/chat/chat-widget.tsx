@@ -499,8 +499,12 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
             autoFocus
           />
           <div className="mt-1 flex justify-end gap-1.5">
-            <button type="button" onClick={onCancelEdit} className="rounded px-2 py-0.5 text-[11px] text-dim hover:text-text">{t('cancel')}</button>
-            <button type="button" onClick={onSaveEdit} className="rounded bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-fg">{t('saveEdit')}</button>
+            <button type="button" onClick={onCancelEdit} className="grid h-7 w-7 place-items-center rounded-lg text-dim hover:bg-panel-2 hover:text-text" aria-label={t('cancelEdit')} title={t('cancelEdit')}>
+              <X className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={onSaveEdit} className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-fg hover:bg-primary/90" aria-label={t('saveEdit')} title={t('saveEdit')}>
+              <Check className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>
