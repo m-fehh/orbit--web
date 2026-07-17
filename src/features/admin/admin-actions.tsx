@@ -2,9 +2,11 @@
 
 import { Users, KeyRound, Users2 } from 'lucide-react';
 import { useWindowStore } from '@/features/windows/window-store';
+import type { TeamResponse } from '@/shared/api/types';
 import { UsersView } from './users-view';
 import { RolesView } from './roles-view';
 import { TeamsView } from './teams-view';
+import { TeamForm } from './team-form';
 
 export function openUsersIndexWindow(title?: string) {
   useWindowStore.getState().open({
@@ -33,5 +35,21 @@ export function openTeamsIndexWindow(title?: string) {
     icon: <Users2 className="h-4 w-4" />,
     modal: true,
     content: <TeamsView />,
+  });
+}
+
+/**
+ * Abre o cadastro de equipe como drawer (por cima do formulário atual). Ao criar, `onCreated`
+ * devolve a equipe para o chamador auto-selecionar e voltar ao formulário — o "+" do select2.
+ */
+export function openTeamFormWindow(title: string, onCreated?: (team: TeamResponse) => void) {
+  const id = 'team-form-create';
+  useWindowStore.getState().open({
+    id,
+    title,
+    icon: <Users2 className="h-4 w-4" />,
+    modal: true,
+    width: 420,
+    content: <TeamForm windowId={id} onCreated={onCreated} />,
   });
 }

@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { usersApi, rolesApi, teamsApi, internalApi } from '@/shared/api/endpoints';
 import { apiErrorMessage, type UserResponse } from '@/shared/api/types';
 import { useWindowStore } from '@/features/windows/window-store';
-import { openRolesIndexWindow, openTeamsIndexWindow } from './admin-actions';
+import { openRolesIndexWindow, openTeamFormWindow } from './admin-actions';
 import { AsyncCombobox, type ComboOption } from '@/shared/ui/async-combobox';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -94,7 +94,7 @@ export function UserForm({ windowId, user }: { windowId: string; user?: UserResp
 
       <div className="flex flex-col gap-1.5 text-sm font-medium">
         {t('teamOptional')}
-        <AsyncCombobox options={teamOptions} value={teamId} onChange={setTeamId} loading={teams.isLoading} placeholder={t('selectTeam')} onCreate={() => openTeamsIndexWindow(tTeams('title'))} createLabel={t('manageTeams')} />
+        <AsyncCombobox options={teamOptions} value={teamId} onChange={setTeamId} loading={teams.isLoading} placeholder={t('selectTeam')} onCreate={() => openTeamFormWindow(tTeams('newTeam'), (team) => { setTeamId(team.id); teams.refetch(); })} createLabel={tTeams('newTeam')} />
       </div>
 
       </div>

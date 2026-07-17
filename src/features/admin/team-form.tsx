@@ -5,12 +5,16 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { teamsApi } from '@/shared/api/endpoints';
-import { apiErrorMessage } from '@/shared/api/types';
+import { apiErrorMessage, type TeamResponse } from '@/shared/api/types';
 import { useWindowStore } from '@/features/windows/window-store';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 
-export function TeamForm({ windowId }: { windowId: string }) {
+/**
+ * Formulário de criação de equipe. Quando aberto a partir de um "+" (select2), passe
+ * `onCreated` para o chamador auto-selecionar a equipe recém-criada e voltar ao formulário.
+ */
+export function TeamForm({ windowId, onCreated }: { windowId: string; onCreated?: (team: TeamResponse) => void }) {
   const t = useTranslations('teamForm');
   const qc = useQueryClient();
   const closeWindow = useWindowStore((s) => s.close);
@@ -19,9 +23,10 @@ export function TeamForm({ windowId }: { windowId: string }) {
 
   const save = useMutation({
     mutationFn: () => teamsApi.create({ name: name.trim(), description: description.trim() || null }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       toast.success(t('created'));
       qc.invalidateQueries({ queryKey: ['teams'] });
+      onCreated?.(created);
       closeWindow(windowId);
     },
     onError: (err) => toast.error(apiErrorMessage(err, t('createError'))),
