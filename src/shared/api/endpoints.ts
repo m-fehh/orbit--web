@@ -593,4 +593,14 @@ export const chatApi = {
   create: (body: CreateConversationRequest) => api.post<ChatConversationResponse>('/chat/conversations', body),
   send: (id: number, body: string) => api.post<ChatMessageResponse>(`/chat/conversations/${id}/messages`, { body }),
   markRead: (id: number) => api.post<void>(`/chat/conversations/${id}/read`, {}),
+  typing: (id: number) => api.post<void>(`/chat/conversations/${id}/typing`, {}),
+  editMessage: (id: number, body: string) => api.patch<ChatMessageResponse>(`/chat/messages/${id}`, { body }),
+  deleteMessage: (id: number) => api.delete<void>(`/chat/messages/${id}`),
+  sendAttachment: (id: number, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post<ChatMessageResponse>(`/chat/conversations/${id}/attachment`, form);
+  },
+  attachmentBlob: (messageId: number) => api.raw(`/chat/messages/${messageId}/attachment`, { method: 'GET' }).then((r) => r.blob()),
+  presence: () => api.get<number[]>('/chat/presence'),
 };

@@ -353,7 +353,17 @@
     "groupNamePlaceholder": "Group name (optional)",
     "noUsers": "No users found",
     "createGroup": "Create group ({count})",
-    "startChat": "Start chat"
+    "startChat": "Start chat",
+    "typing": "{name} is typing…",
+    "edit": "Edit",
+    "delete": "Delete",
+    "saveEdit": "Save",
+    "edited": "edited",
+    "attach": "Attach file",
+    "editError": "Could not edit the message",
+    "deleteError": "Could not delete the message",
+    "uploadError": "Could not send the attachment",
+    "downloadError": "Could not download the attachment"
   },
   "priority": {
     "Low": "Low",

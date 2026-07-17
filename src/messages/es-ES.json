@@ -353,7 +353,17 @@
     "groupNamePlaceholder": "Nombre del grupo (opcional)",
     "noUsers": "Ningún usuario encontrado",
     "createGroup": "Crear grupo ({count})",
-    "startChat": "Iniciar conversación"
+    "startChat": "Iniciar conversación",
+    "typing": "{name} está escribiendo…",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "saveEdit": "Guardar",
+    "edited": "editado",
+    "attach": "Adjuntar archivo",
+    "editError": "No se pudo editar el mensaje",
+    "deleteError": "No se pudo eliminar el mensaje",
+    "uploadError": "No se pudo enviar el adjunto",
+    "downloadError": "No se pudo descargar el adjunto"
   },
   "priority": {
     "Low": "Baja",

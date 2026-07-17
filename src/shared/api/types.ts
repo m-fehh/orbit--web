@@ -1010,6 +1010,7 @@ export interface UnreadCountResponse {
 export interface ChatParticipant {
   userId: number;
   name: string;
+  online: boolean;
 }
 export interface ChatConversationResponse {
   id: number;
@@ -1027,6 +1028,10 @@ export interface ChatMessageResponse {
   senderName: string;
   body: string;
   createdAt: string;
+  editedAt: string | null;
+  attachmentName: string | null;
+  attachmentUrl: string | null;
+  attachmentContentType: string | null;
 }
 export interface CreateConversationRequest {
   userIds: number[];
