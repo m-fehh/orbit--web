@@ -102,20 +102,23 @@ export function ChatWidget() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => { setOpen(true); setView('list'); }}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-panel-2 hover:text-text"
-        aria-label={t('title')}
-        title={t('title')}
-      >
-        <MessageSquare className="h-4 w-4" aria-hidden />
-        {unreadTotal > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-fg">
-            {unreadTotal > 9 ? '9+' : unreadTotal}
-          </span>
-        )}
-      </button>
+      {/* Botão flutuante (FAB) — some quando o painel está aberto. */}
+      {!open && (
+        <button
+          type="button"
+          onClick={() => { setOpen(true); setView('list'); }}
+          className="fixed bottom-5 right-5 z-[70] grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-fg shadow-lg shadow-primary/30 transition-transform hover:scale-105 active:scale-95"
+          aria-label={t('title')}
+          title={t('title')}
+        >
+          <MessageSquare className="h-6 w-6" aria-hidden />
+          {unreadTotal > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-danger px-1 text-[10px] font-bold text-white ring-2 ring-panel">
+              {unreadTotal > 9 ? '9+' : unreadTotal}
+            </span>
+          )}
+        </button>
+      )}
 
       {open && (
         <Portal>
@@ -180,28 +183,29 @@ function ConversationList({ data, loading, onlineSet, onOpen, onNew, t }: {
     );
   }
   return (
-    <ul className="flex-1 divide-y divide-border/40 overflow-y-auto">
+    <ul className="flex-1 space-y-0.5 overflow-y-auto p-2">
       {data.map((c) => {
         const other = c.isGroup ? null : c.participants.find((p) => p.userId !== meId);
         const online = other ? onlineSet.has(other.userId) : false;
+        const unread = c.unreadCount > 0;
         return (
           <li key={c.id}>
-            <button type="button" onClick={() => onOpen(c.id)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-panel-2/50">
+            <button type="button" onClick={() => onOpen(c.id)} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-panel-2/60">
               <span className="relative shrink-0">
-                <span className={cn('grid h-10 w-10 place-items-center rounded-full text-xs font-bold', c.isGroup ? 'bg-primary/10 text-primary' : 'bg-panel-2 text-muted')}>
-                  {c.isGroup ? <Users className="h-4 w-4" /> : initials(c.name)}
+                <span className={cn('grid h-11 w-11 place-items-center rounded-full text-sm font-bold', c.isGroup ? 'bg-gradient-to-br from-primary/25 to-primary/10 text-primary' : 'bg-gradient-to-br from-panel-2 to-bg-subtle text-muted ring-1 ring-border')}>
+                  {c.isGroup ? <Users className="h-5 w-5" /> : initials(c.name)}
                 </span>
                 {!c.isGroup && <OnlineDot online={online} />}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
-                  <span className="truncate text-sm font-semibold text-text">{c.name}</span>
-                  {c.lastMessageAt && <span className="ml-auto shrink-0 text-[10px] text-dim">{new Date(c.lastMessageAt).toLocaleDateString()}</span>}
+                  <span className={cn('truncate text-sm', unread ? 'font-bold text-text' : 'font-semibold text-text')}>{c.name}</span>
+                  {c.lastMessageAt && <span className={cn('ml-auto shrink-0 text-[10px]', unread ? 'font-semibold text-primary' : 'text-dim')}>{relTime(c.lastMessageAt)}</span>}
                 </span>
-                <span className="mt-0.5 block truncate text-xs text-muted">{c.lastMessage ?? '—'}</span>
+                <span className={cn('mt-0.5 block truncate text-xs', unread ? 'text-text' : 'text-muted')}>{c.lastMessage ?? t('threadEmpty')}</span>
               </span>
-              {c.unreadCount > 0 && (
-                <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-fg">{c.unreadCount}</span>
+              {unread && (
+                <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-fg">{c.unreadCount > 99 ? '99+' : c.unreadCount}</span>
               )}
             </button>
           </li>
@@ -209,6 +213,17 @@ function ConversationList({ data, loading, onlineSet, onOpen, onNew, t }: {
       })}
     </ul>
   );
+}
+
+/** Data relativa curta (hoje → hora; ontem; senão data). */
+function relTime(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const yst = new Date(now); yst.setDate(now.getDate() - 1);
+  if (d.toDateString() === yst.toDateString()) return '·';
+  return d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
 }
 
 function Thread({ conversationId, conv, typingName, t }: { conversationId: number; conv: ChatConversationResponse | null; typingName?: string; t: ReturnType<typeof useTranslations> }) {
@@ -248,10 +263,10 @@ function Thread({ conversationId, conv, typingName, t }: { conversationId: numbe
   const renderReceipt = (createdAt: string) => {
     const seen = others.filter((p) => p.lastReadAt && new Date(p.lastReadAt) >= new Date(createdAt));
     if (seen.length === 0) {
-      return <span className="flex items-center gap-0.5 text-dim"><Check className="h-3 w-3" /> {t('sent')}</span>;
+      return <span className="flex items-center gap-0.5"><Check className="h-3 w-3" /> {t('sent')}</span>;
     }
     const label = conv?.isGroup ? t('seenByCount', { count: seen.length }) : t('seen');
-    return <span className="flex items-center gap-0.5 text-primary"><CheckCheck className="h-3 w-3" /> {label}</span>;
+    return <span className="flex items-center gap-0.5 font-medium"><CheckCheck className="h-3 w-3" /> {label}</span>;
   };
 
   useEffect(() => {
@@ -297,32 +312,53 @@ function Thread({ conversationId, conv, typingName, t }: { conversationId: numbe
 
   return (
     <>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
+      <div ref={scrollRef} className="flex-1 space-y-1 overflow-y-auto bg-bg-subtle/40 p-4">
         {messages.isLoading ? (
           <LoadingState />
         ) : (messages.data?.length ?? 0) === 0 ? (
-          <p className="py-8 text-center text-sm text-dim">{t('threadEmpty')}</p>
-        ) : (
-          <div className="flex flex-col gap-2.5">
-            {messages.data!.map((m) => (
-              <MessageBubble
-                key={m.id}
-                m={m}
-                mine={m.senderId === meId}
-                editing={editing?.id === m.id ? editing.body : null}
-                onStartEdit={() => setEditing({ id: m.id, body: m.body })}
-                onChangeEdit={(v) => setEditing({ id: m.id, body: v })}
-                onSaveEdit={() => { if (editing && editing.body.trim()) edit.mutate({ id: m.id, body: editing.body.trim() }); }}
-                onCancelEdit={() => setEditing(null)}
-                onDelete={() => del.mutate(m.id)}
-                receipt={m.id === myLastId ? renderReceipt(m.createdAt) : null}
-                t={t}
-              />
-            ))}
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary"><MessageSquare className="h-5 w-5" /></span>
+            <p className="text-sm text-dim">{t('threadEmpty')}</p>
           </div>
+        ) : (
+          messages.data!.map((m, i) => {
+            const arr = messages.data!;
+            const prev = arr[i - 1];
+            const mine = m.senderId === meId;
+            const sameDay = prev && new Date(prev.createdAt).toDateString() === new Date(m.createdAt).toDateString();
+            // Primeiro de um grupo: remetente ou dia diferente, ou intervalo > 5 min.
+            const grouped = prev != null && prev.senderId === m.senderId && sameDay
+              && (new Date(m.createdAt).getTime() - new Date(prev.createdAt).getTime()) < 5 * 60_000;
+            return (
+              <div key={m.id}>
+                {!sameDay && <DayDivider iso={m.createdAt} t={t} />}
+                <MessageBubble
+                  m={m}
+                  mine={mine}
+                  showMeta={!grouped}
+                  isGroup={conv?.isGroup ?? false}
+                  editing={editing?.id === m.id ? editing.body : null}
+                  onStartEdit={() => setEditing({ id: m.id, body: m.body })}
+                  onChangeEdit={(v) => setEditing({ id: m.id, body: v })}
+                  onSaveEdit={() => { if (editing && editing.body.trim()) edit.mutate({ id: m.id, body: editing.body.trim() }); }}
+                  onCancelEdit={() => setEditing(null)}
+                  onDelete={() => del.mutate(m.id)}
+                  receipt={m.id === myLastId ? renderReceipt(m.createdAt) : null}
+                  t={t}
+                />
+              </div>
+            );
+          })
         )}
         {typingName && (
-          <p className="mt-2 px-1 text-[11px] italic text-dim">{t('typing', { name: typingName })}</p>
+          <div className="flex items-center gap-2 px-1 pt-1">
+            <span className="flex gap-1">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-dim [animation-delay:-0.3s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-dim [animation-delay:-0.15s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-dim" />
+            </span>
+            <span className="text-[11px] italic text-dim">{t('typing', { name: typingName })}</span>
+          </div>
         )}
       </div>
 
@@ -365,9 +401,27 @@ function Thread({ conversationId, conv, typingName, t }: { conversationId: numbe
   );
 }
 
-function MessageBubble({ m, mine, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, receipt, t }: {
+/** Separador de dia (Hoje / Ontem / data) centralizado. */
+function DayDivider({ iso, t }: { iso: string; t: ReturnType<typeof useTranslations> }) {
+  const d = new Date(iso);
+  const now = new Date();
+  const yst = new Date(now); yst.setDate(now.getDate() - 1);
+  let label: string;
+  if (d.toDateString() === now.toDateString()) label = t('today');
+  else if (d.toDateString() === yst.toDateString()) label = t('yesterday');
+  else label = d.toLocaleDateString([], { day: '2-digit', month: 'long', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' });
+  return (
+    <div className="my-3 flex items-center justify-center">
+      <span className="rounded-full bg-panel-2/80 px-2.5 py-0.5 text-[10px] font-medium text-dim">{label}</span>
+    </div>
+  );
+}
+
+function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, receipt, t }: {
   m: ChatMessageResponse;
   mine: boolean;
+  showMeta: boolean;
+  isGroup: boolean;
   editing: string | null;
   onStartEdit: () => void;
   onChangeEdit: (v: string) => void;
@@ -378,10 +432,9 @@ function MessageBubble({ m, mine, editing, onStartEdit, onChangeEdit, onSaveEdit
   t: ReturnType<typeof useTranslations>;
 }) {
   const [confirming, setConfirming] = useState(false);
-  return (
-    <div className={cn('group flex flex-col', mine ? 'items-end' : 'items-start')}>
-      {!mine && <span className="mb-0.5 px-1 text-[10px] font-medium text-dim">{m.senderName}</span>}
-      {editing !== null ? (
+  if (editing !== null) {
+    return (
+      <div className="flex flex-col items-end pl-9">
         <div className="w-full max-w-[85%]">
           <textarea
             value={editing}
@@ -395,7 +448,19 @@ function MessageBubble({ m, mine, editing, onStartEdit, onChangeEdit, onSaveEdit
             <button type="button" onClick={onSaveEdit} className="rounded bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-fg">{t('saveEdit')}</button>
           </div>
         </div>
-      ) : (
+      </div>
+    );
+  }
+  return (
+    <div className={cn('group flex items-end gap-2', mine ? 'flex-row-reverse' : 'flex-row')}>
+      {/* Coluna do avatar (só para o outro); ocupa espaço mesmo quando agrupado, p/ alinhar. */}
+      {!mine && (
+        <span className="w-7 shrink-0 self-end">
+          {showMeta && <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-panel-2 to-bg-subtle text-[10px] font-bold text-muted ring-1 ring-border">{initials(m.senderName)}</span>}
+        </span>
+      )}
+      <div className={cn('flex min-w-0 flex-col', mine ? 'items-end' : 'items-start')}>
+        {showMeta && !mine && isGroup && <span className="mb-0.5 px-1 text-[11px] font-semibold text-primary">{m.senderName}</span>}
         <div className="flex items-end gap-1.5">
           {mine && (
             confirming ? (
@@ -411,17 +476,22 @@ function MessageBubble({ m, mine, editing, onStartEdit, onChangeEdit, onSaveEdit
               </span>
             )
           )}
-          <div className={cn('max-w-[80%] rounded-2xl px-3.5 py-2 text-sm shadow-sm', mine ? 'rounded-tr-sm bg-primary text-primary-fg' : 'rounded-tl-sm bg-panel-2 text-text')}>
+          <div className={cn(
+            'max-w-[16rem] px-3.5 py-2 text-sm shadow-sm',
+            mine
+              ? cn('bg-primary text-primary-fg', showMeta ? 'rounded-2xl rounded-br-md' : 'rounded-2xl rounded-br-md')
+              : cn('bg-panel text-text ring-1 ring-border', showMeta ? 'rounded-2xl rounded-bl-md' : 'rounded-2xl rounded-bl-md'),
+          )}>
             {m.attachmentName && <ChatAttachment m={m} mine={mine} t={t} />}
             {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+            <span className={cn('mt-1 flex items-center justify-end gap-1 text-[9px]', mine ? 'text-primary-fg/70' : 'text-dim')}>
+              {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {m.editedAt && <span>· {t('edited')}</span>}
+              {receipt}
+            </span>
           </div>
         </div>
-      )}
-      <span className="mt-0.5 flex items-center gap-1.5 px-1 text-[9px] text-dim">
-        {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        {m.editedAt && ` · ${t('edited')}`}
-        {receipt}
-      </span>
+      </div>
     </div>
   );
 }

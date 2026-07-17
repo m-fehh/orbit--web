@@ -347,6 +347,8 @@
     "newConversation": "New conversation",
     "empty": "No conversations yet. Start a new one.",
     "threadEmpty": "No messages yet. Say hi!",
+    "today": "Today",
+    "yesterday": "Yesterday",
     "messagePlaceholder": "Write a message…",
     "send": "Send",
     "searchUsers": "Search users…",
