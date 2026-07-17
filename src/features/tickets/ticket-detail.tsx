@@ -179,6 +179,9 @@ export function TicketDetail({ id }: { id: number }) {
   if (isError || !ticket)
     return <ErrorState title={tTicket('loadError')} onRetry={() => refetch()} retryLabel={tTicket('retry')} />;
 
+  // Ticket em estado terminal: nada é editável, apenas o status (reverter destrava tudo).
+  const locked = ['Resolved', 'Closed', 'Cancelled', 'Validated', 'Archived'].includes(ticket.status);
+
   const tabs: { key: SubTab; label: string; icon: typeof Info; count?: number }[] = [
     { key: 'overview', label: tTicket('tabOverview'), icon: Info },
     { key: 'timeline', label: tTicket('tabTimeline'), icon: History },
@@ -199,7 +202,7 @@ export function TicketDetail({ id }: { id: number }) {
                 {ticket.number}
               </span>
             </div>
-            {editingTitle ? (
+            {editingTitle && !locked ? (
               <div className="mt-1 flex items-center gap-2">
                 <input
                   autoFocus
@@ -216,29 +219,33 @@ export function TicketDetail({ id }: { id: number }) {
               </div>
             ) : (
               <h1
-                className="mt-1 truncate text-2xl font-bold leading-tight cursor-pointer hover:text-primary/80 transition-colors"
-                onClick={() => { setEditTitle(ticket.title); setEditingTitle(true); }}
-                title={tTicket('clickToEdit')}
+                className={cn('mt-1 truncate text-2xl font-bold leading-tight transition-colors', !locked && 'cursor-pointer hover:text-primary/80')}
+                onClick={locked ? undefined : () => { setEditTitle(ticket.title); setEditingTitle(true); }}
+                title={locked ? undefined : tTicket('clickToEdit')}
               >
                 {ticket.title}
               </h1>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-sm">
-            <Can permission="ticket.assign">
-              <AssignControl
-                ticketId={id}
-                currentUserId={ticket.assignedUserId}
-                currentUserName={ticket.assignedUserId ? userName(ticket.assignedUserId) : null}
-                currentUserEmail={userEmail(ticket.assignedUserId)}
-                userOptions={userOptions}
-                resolveUserTeam={resolveUserTeam}
-              />
-            </Can>
+            {!locked && (
+              <Can permission="ticket.assign">
+                <AssignControl
+                  ticketId={id}
+                  currentUserId={ticket.assignedUserId}
+                  currentUserName={ticket.assignedUserId ? userName(ticket.assignedUserId) : null}
+                  currentUserEmail={userEmail(ticket.assignedUserId)}
+                  userOptions={userOptions}
+                  resolveUserTeam={resolveUserTeam}
+                />
+              </Can>
+            )}
             <Can permission="ticket.status">
               <StatusPicker value={ticket.status} disabled={changeStatus.isPending} onChange={handleStatusChange} />
             </Can>
-            <IterationControl ticketId={id} ticketTitle={ticket.title} ticketDescription={ticket.description ?? ''} currentIteration={ticket.iteration ?? null} currentIterationId={ticket.iterationId ?? null} />
+            {!locked && (
+              <IterationControl ticketId={id} ticketTitle={ticket.title} ticketDescription={ticket.description ?? ''} currentIteration={ticket.iteration ?? null} currentIterationId={ticket.iterationId ?? null} />
+            )}
             {ticket.status !== 'Resolved' && ticket.status !== 'Closed' && (
               <Button
                 size="sm"
@@ -316,6 +323,7 @@ export function TicketDetail({ id }: { id: number }) {
       </div>
 
       <div className={cn('min-h-0 flex-1 p-lg', sub === 'conversation' ? 'overflow-hidden flex flex-col' : 'overflow-auto')}>
+       <fieldset disabled={locked} className={cn('m-0 min-w-0 border-0 p-0', sub === 'conversation' ? 'contents' : 'block')}>
         {sub === 'overview' && (
           <div className="grid items-start gap-md lg:grid-cols-3">
             <div className="flex flex-col gap-md lg:col-span-2">
@@ -417,6 +425,7 @@ export function TicketDetail({ id }: { id: number }) {
         {sub === 'workItems' && <WorkItemsTab ticketId={id} />}
 
         {sub === 'attachments' && <AttachmentsTab ticketId={id} userName={userName} investigations={ticket.investigations} />}
+       </fieldset>
       </div>
 
       {showResolveModal && (
