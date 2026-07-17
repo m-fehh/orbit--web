@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   MessageSquare, X, Plus, ArrowLeft, Send, Users, Search, Check,
@@ -85,56 +86,77 @@ export function ChatWidget() {
   const activeConv = conversations.data?.find((c) => c.id === activeId) ?? null;
 
   return (
-    <>
+    <Portal>
+      {/* Painel flutuante que "surge" do botão (origem canto inferior direito). */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            key="chat-panel"
+            initial={{ opacity: 0, scale: 0.85, y: 24 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.85, y: 24 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            style={{ transformOrigin: 'bottom right' }}
+            className="fixed z-[80] flex flex-col overflow-hidden rounded-2xl border border-border bg-panel shadow-2xl
+                       inset-x-3 bottom-24 top-16 sm:inset-auto sm:bottom-24 sm:right-5 sm:top-auto sm:h-[600px] sm:max-h-[80vh] sm:w-[24rem]"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('title')}
+          >
+            <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-gradient-to-r from-primary/8 to-transparent px-4">
+              {view !== 'list' ? (
+                <button type="button" onClick={() => setView('list')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('back')}>
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+              ) : (
+                <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary"><MessageSquare className="h-4 w-4" /></span>
+              )}
+              <p className="min-w-0 flex-1 truncate text-sm font-bold text-text">
+                {view === 'thread' ? (activeConv?.name ?? t('title')) : view === 'new' ? t('newConversation') : t('title')}
+              </p>
+              {view === 'list' && (
+                <button type="button" onClick={() => setView('new')} className="grid h-8 w-8 place-items-center rounded-lg text-primary hover:bg-primary/10" aria-label={t('newConversation')} title={t('newConversation')}>
+                  <Plus className="h-4 w-4" />
+                </button>
+              )}
+              <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('close')}>
+                <X className="h-4 w-4" />
+              </button>
+            </header>
+
+            {view === 'list' && <ConversationList data={conversations.data} loading={conversations.isLoading} onlineSet={onlineSet} onOpen={openConversation} onNew={() => setView('new')} t={t} />}
+            {view === 'thread' && activeId != null && <Thread conversationId={activeId} typingName={typingByConv[activeId]} t={t} />}
+            {view === 'new' && <NewConversation t={t} onlineSet={onlineSet} onCreated={(c) => openConversation(c.id)} />}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Botão flutuante (FAB) no canto inferior direito. */}
       <button
         type="button"
-        onClick={() => { setOpen(true); setView('list'); }}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-panel-2 hover:text-text"
+        onClick={() => setOpen((o) => { if (!o) setView('list'); return !o; })}
+        className="fixed bottom-5 right-5 z-[81] grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-fg shadow-lg shadow-primary/30 transition-transform hover:scale-105 active:scale-95"
         aria-label={t('title')}
         title={t('title')}
       >
-        <MessageSquare className="h-4 w-4" aria-hidden />
-        {unreadTotal > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-fg">
+        <AnimatePresence mode="wait" initial={false}>
+          {open ? (
+            <motion.span key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}>
+              <X className="h-6 w-6" />
+            </motion.span>
+          ) : (
+            <motion.span key="msg" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}>
+              <MessageSquare className="h-6 w-6" />
+            </motion.span>
+          )}
+        </AnimatePresence>
+        {!open && unreadTotal > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-danger px-1 text-[10px] font-bold text-white ring-2 ring-panel">
             {unreadTotal > 9 ? '9+' : unreadTotal}
           </span>
         )}
       </button>
-
-      {open && (
-        <Portal>
-          <div className="fixed inset-0 z-[80] flex" role="dialog" aria-modal="true" aria-label={t('title')}>
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setOpen(false)} aria-hidden />
-            <aside className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-border bg-panel shadow-2xl animate-slide-in">
-              <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4">
-                {view !== 'list' ? (
-                  <button type="button" onClick={() => setView('list')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('back')}>
-                    <ArrowLeft className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary"><MessageSquare className="h-4 w-4" /></span>
-                )}
-                <p className="min-w-0 flex-1 truncate text-sm font-bold text-text">
-                  {view === 'thread' ? (activeConv?.name ?? t('title')) : view === 'new' ? t('newConversation') : t('title')}
-                </p>
-                {view === 'list' && (
-                  <button type="button" onClick={() => setView('new')} className="grid h-8 w-8 place-items-center rounded-lg text-primary hover:bg-primary/10" aria-label={t('newConversation')} title={t('newConversation')}>
-                    <Plus className="h-4 w-4" />
-                  </button>
-                )}
-                <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('close')}>
-                  <X className="h-4 w-4" />
-                </button>
-              </header>
-
-              {view === 'list' && <ConversationList data={conversations.data} loading={conversations.isLoading} onlineSet={onlineSet} onOpen={openConversation} onNew={() => setView('new')} t={t} />}
-              {view === 'thread' && activeId != null && <Thread conversationId={activeId} typingName={typingByConv[activeId]} t={t} />}
-              {view === 'new' && <NewConversation t={t} onlineSet={onlineSet} onCreated={(c) => openConversation(c.id)} />}
-            </aside>
-          </div>
-        </Portal>
-      )}
-    </>
+    </Portal>
   );
 }
 

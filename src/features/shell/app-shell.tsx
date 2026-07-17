@@ -5,6 +5,7 @@ import { Sidebar } from './sidebar';
 import { WindowHost } from '@/features/windows/window-host';
 import { ProductTour } from '@/features/tour/product-tour';
 import { KeyboardShortcuts } from '@/features/shortcuts/keyboard-shortcuts';
+import { ChatWidget } from '@/features/chat/chat-widget';
 
 /**
  * Application Shell: header (topo) + sidebar (esquerda) + área central.
@@ -26,6 +27,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <WindowHost />
       <ProductTour />
       <KeyboardShortcuts />
+      <ChatWidget />
     </div>
   );
 }
