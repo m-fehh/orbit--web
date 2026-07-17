@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react';
 import { useUiStore } from '@/features/shell/ui-store';
 import { CommandPalette } from '@/features/search/command-palette';
 import { NotificationCenter } from '@/features/notifications/notification-center';
+import { ChatWidget } from '@/features/chat/chat-widget';
 import { Logo } from './logo';
 import { LanguageSwitcher } from './language-switcher';
 
@@ -29,6 +30,9 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-0.5 sm:gap-1">
+        <span data-tour="chat" className="inline-flex">
+          <ChatWidget />
+        </span>
         <span data-tour="notifications" className="inline-flex">
           <NotificationCenter />
         </span>
