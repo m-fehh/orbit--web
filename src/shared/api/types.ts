@@ -526,6 +526,14 @@ export interface CopilotAnswerResponse {
   guides: CopilotGuide[];
 }
 
+/** Um turno do histórico do copiloto (para reidratar a conversa ao reabrir). */
+export interface CopilotHistoryItem {
+  id: number;
+  question: string;
+  answer: string;
+  createdAt: string;
+}
+
 /** Uso diário do copiloto pelo usuário (como IAs free) — GET /intelligence/copilot-usage. */
 export interface CopilotUsageResponse {
   used: number;

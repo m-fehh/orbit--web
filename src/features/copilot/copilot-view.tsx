@@ -192,6 +192,22 @@ export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedde
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, pending]);
 
+  // Reidrata o histórico da conversa (por ticket ou do sistema) ao abrir.
+  const history = useQuery({
+    queryKey: ['copilot', 'history', ticketId ?? 'system'],
+    queryFn: () => intelligenceApi.copilotHistory(ticketId),
+    retry: false,
+  });
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (seeded.current || !history.data || history.data.length === 0) return;
+    seeded.current = true;
+    setMessages(history.data.flatMap((h) => [
+      { id: nextId(), role: 'user' as const, text: h.question },
+      { id: nextId(), role: 'assistant' as const, text: h.answer },
+    ]));
+  }, [history.data]);
+
   async function send(question: string) {
     const q = question.trim();
     if (!q || pending) return;

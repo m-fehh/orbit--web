@@ -86,6 +86,7 @@ import type {
   PlaybookResponse,
   PlaybookSuggestion,
   CopilotAnswerResponse,
+  CopilotHistoryItem,
   CopilotUsageResponse,
   IntakeAnalysis,
   TriagePredictionResponse,
@@ -311,6 +312,9 @@ export const intelligenceApi = {
    *  Passe ticketId para escopar a resposta ao contexto real daquele ticket. */
   ask: (q: string, maxResults = 5, ticketId?: number) =>
     api.get<CopilotAnswerResponse>('/intelligence/ask', { params: { q, maxResults, ...(ticketId ? { ticketId } : {}) } }),
+  /** Histórico da conversa do copiloto (por ticket, se informado; senão do sistema). */
+  copilotHistory: (ticketId?: number) =>
+    api.get<CopilotHistoryItem[]>('/intelligence/copilot-history', { params: ticketId ? { ticketId } : {} }),
   /** Uso diário do copiloto (usado/limite/restante). */
   copilotUsage: () => api.get<CopilotUsageResponse>('/intelligence/copilot-usage'),
   /** Smart Intake: título + descrição → sugestões de triagem + duplicatas abertas. */
