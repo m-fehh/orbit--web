@@ -11,6 +11,7 @@ import {
   type InvestigationResponse, type HypothesisStatusValue, type EvidenceTypeValue, type RootCauseCategoryValue,
 } from '@/shared/api/types';
 import { Can } from '@/features/auth/can';
+import { useEnumOptions } from '@/shared/enums';
 import { Button } from '@/shared/ui/button';
 import { Select } from '@/shared/ui/select';
 import { AsyncCombobox, type ComboOption } from '@/shared/ui/async-combobox';
@@ -100,6 +101,8 @@ function getEvidenceHints(t: (key: string) => string): Record<EvidenceTypeValue,
 
 function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onChanged: () => void }) {
   const t = useTranslations('investigation');
+  const hypOptions = useEnumOptions('hypothesisStatus');
+  const evOptions = useEnumOptions('evidenceType');
   const finished = !!inv.finishedAt;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [hyp, setHyp] = useState('');
@@ -208,8 +211,8 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
                     }
                     className="rounded border border-border bg-bg-subtle px-1.5 py-0.5 text-[11px] outline-none"
                   >
-                    {Object.entries(HypothesisStatus).map(([k, v]) => (
-                      <option key={k} value={v}>{t(`hStatus.${k}` as 'hStatus.Open')}</option>
+                    {hypOptions.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
                 </Can>
@@ -309,10 +312,7 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
                   <Select<EvidenceTypeValue>
                     value={evType}
                     onChange={(v) => { setEvType(v); setEvNotes(''); setEvUrl(''); }}
-                    options={Object.entries(EvidenceType).map(([k, v]) => ({
-                      value: v as EvidenceTypeValue,
-                      label: t(`eType.${k}` as 'eType.Log'),
-                    }))}
+                    options={evOptions.map((o) => ({ value: o.value as EvidenceTypeValue, label: o.label }))}
                   />
                   <input
                     list={datalistId}
@@ -409,6 +409,8 @@ function InvestigationCard({ inv, onChanged }: { inv: InvestigationResponse; onC
 /** EPIC Root Cause UI - Wizard + Kendo-like Grid */
 function RootCausesSection({ ticketId }: { ticketId: number }) {
   const t = useTranslations('investigation');
+  const catOptions = useEnumOptions('rootCauseCategory');
+  const catLabel = (v: RootCauseCategoryValue) => catOptions.find((o) => o.value === v)?.label ?? String(v);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1); // 1: info, 2: category, 3: confirm
@@ -417,7 +419,9 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
   const [category, setCategory] = useState<RootCauseCategoryValue>(RootCauseCategory.Bug);
   const [confidence, setConfidence] = useState(70);
   const [sortBy, setSortBy] = useState<'confidence' | 'title'>('confidence');
-  const [filterCategory, setFilterCategory] = useState<RootCauseCategoryValue | null>(null);
+  // Filtro por NOME da categoria (rc.category vem como string do back) — antes comparava
+  // com o número (String(id)), então nunca casava. Agora guarda o nome do enum.
+  const [filterCategory, setFilterCategory] = useState<string | null>(null);
 
   const list = useQuery({ queryKey: ['rootcauses', ticketId], queryFn: () => rootCausesApi.byTicket(ticketId) });
 
@@ -437,7 +441,7 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
   });
 
   const filteredList = (list.data ?? [])
-    .filter(rc => !filterCategory || rc.category === String(filterCategory))
+    .filter(rc => !filterCategory || rc.category === filterCategory)
     .sort((a, b) => sortBy === 'confidence' ? (b.confidenceScore - a.confidenceScore) : a.title.localeCompare(b.title));
 
   const CAT_ICONS: Record<RootCauseCategoryValue, string> = {
@@ -529,7 +533,7 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
                         }`}
                       >
                         <div className="text-2xl mb-1">{CAT_ICONS[v as RootCauseCategoryValue]}</div>
-                        <div className="text-xs font-medium">{k}</div>
+                        <div className="text-xs font-medium">{catLabel(v as RootCauseCategoryValue)}</div>
                       </button>
                     ))}
                   </div>
@@ -561,7 +565,7 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
                     <p className="text-sm mb-3"><strong>{t('rcSummaryTitle')}</strong></p>
                     <div className="space-y-2 text-sm">
                       <div><span className="text-muted">{t('rcTitleLabel')}</span> <strong>{title}</strong></div>
-                      <div><span className="text-muted">{t('rcCategoryLabel')}</span> <strong>{CAT_ICONS[category]} {category}</strong></div>
+                      <div><span className="text-muted">{t('rcCategoryLabel')}</span> <strong>{CAT_ICONS[category]} {catLabel(category)}</strong></div>
                       <div><span className="text-muted">{t('rcConfidenceLabel')}</span> <strong className="text-primary">{confidence}%</strong></div>
                       {description && <div className="pt-2 border-t border-primary/20"><span className="text-muted">{t('rcDetailsLabel')}</span><p className="mt-1 text-text">{description}</p></div>}
                     </div>
@@ -592,12 +596,12 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
             <div>
               <select
                 value={filterCategory ?? ''}
-                onChange={(e) => setFilterCategory((e.target.value || null) as RootCauseCategoryValue | null)}
+                onChange={(e) => setFilterCategory(e.target.value || null)}
                 className="text-xs px-2 py-1 rounded border border-border bg-bg-subtle focus:border-primary"
               >
                 <option value="">{t('rcAllCategories')}</option>
-                {Object.entries(RootCauseCategory).map(([k, v]) => (
-                  <option key={v} value={v}>{k}</option>
+                {catOptions.map((o) => (
+                  <option key={o.value} value={o.name}>{o.label}</option>
                 ))}
               </select>
             </div>

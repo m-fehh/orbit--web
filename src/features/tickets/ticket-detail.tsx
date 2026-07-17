@@ -2756,6 +2756,8 @@ function InvestigationTab({ ticketId, investigations }: { ticketId: number; inve
 
 function InvestigationCard({ ticketId, inv, expanded, onToggle }: { ticketId: number; inv: InvestigationResponse; expanded: boolean; onToggle: () => void }) {
   const t = useTranslations('investigation');
+  const hypOptions = useEnumOptions('hypothesisStatus');
+  const evOptions = useEnumOptions('evidenceType');
   const qc = useQueryClient();
   const finished = !!inv.finishedAt;
   const [hyp, setHyp] = useState('');
@@ -2902,8 +2904,8 @@ function InvestigationCard({ ticketId, inv, expanded, onToggle }: { ticketId: nu
                       onChange={(e) => updateHypStatus.mutate({ id: h.id, status: Number(e.target.value) as HypothesisStatusValue })}
                       className="shrink-0 rounded-md border border-border bg-panel px-2 py-1 text-[10px] font-medium outline-none cursor-pointer"
                     >
-                      {Object.entries(HypothesisStatus).map(([k, v]) => (
-                        <option key={k} value={v}>{t(`hStatus.${k}` as 'hStatus.Open')}</option>
+                      {hypOptions.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </select>
                   </div>
@@ -2963,7 +2965,7 @@ function InvestigationCard({ ticketId, inv, expanded, onToggle }: { ticketId: nu
                         <Select<EvidenceTypeValue>
                           value={evType}
                           onChange={(v) => { setEvType(v); setEvNotes(''); setEvUrl(''); }}
-                          options={Object.entries(EvidenceType).map(([k, v]) => ({ value: v as EvidenceTypeValue, label: t(`eType.${k}` as 'eType.Log') }))}
+                          options={evOptions.map((o) => ({ value: o.value as EvidenceTypeValue, label: o.label }))}
                           className="text-xs w-36 shrink-0"
                         />
                         <input list={datalistId} className={FIELD_SM + ' flex-1'} value={evNotes} onChange={(e) => setEvNotes(e.target.value)} placeholder={evHint.ph} />
