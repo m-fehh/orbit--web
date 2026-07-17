@@ -346,19 +346,6 @@
     "High": "High",
     "Critical": "Critical"
   },
-  "evidenceType": {
-    "Screenshot": "Screenshot",
-    "Log": "Log",
-    "Video": "Video",
-    "File": "File",
-    "Observation": "Observation",
-    "Url": "URL"
-  },
-  "hypothesisStatus": {
-    "Open": "Open",
-    "Discarded": "Discarded",
-    "Confirmed": "Confirmed"
-  },
   "playbookStatus": {
     "Draft": "Draft",
     "Published": "Published",

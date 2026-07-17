@@ -346,19 +346,6 @@
     "High": "Alta",
     "Critical": "Crítica"
   },
-  "evidenceType": {
-    "Screenshot": "Captura de tela",
-    "Log": "Log",
-    "Video": "Vídeo",
-    "File": "Arquivo",
-    "Observation": "Observação",
-    "Url": "URL"
-  },
-  "hypothesisStatus": {
-    "Open": "Aberta",
-    "Discarded": "Descartada",
-    "Confirmed": "Confirmada"
-  },
   "playbookStatus": {
     "Draft": "Rascunho",
     "Published": "Publicado",

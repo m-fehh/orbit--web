@@ -2996,6 +2996,7 @@ function InvestigationCard({ ticketId, inv, expanded, onToggle }: { ticketId: nu
    ================================================================ */
 function RootCausesTab({ ticketId }: { ticketId: number }) {
   const t = useTranslations('investigation');
+  const catOptions = useEnumOptions('rootCauseCategory');
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -3099,13 +3100,10 @@ function RootCausesTab({ ticketId }: { ticketId: number }) {
               
               <label className="flex flex-col gap-1.5 text-xs text-muted">
                 <span className="font-medium">{t('category')}</span>
-                <Select<RootCauseCategoryValue> 
-                  value={category} 
-                  onChange={setCategory} 
-                  options={Object.entries(RootCauseCategory).map(([k, v]) => ({ 
-                    value: v as RootCauseCategoryValue, 
-                    label: t(`cat.${k}` as 'cat.Bug') 
-                  }))} 
+                <Select<RootCauseCategoryValue>
+                  value={category}
+                  onChange={setCategory}
+                  options={catOptions.map((o) => ({ value: o.value as RootCauseCategoryValue, label: o.label }))}
                 />
               </label>
             </div>
@@ -3263,6 +3261,7 @@ function RootCausesTab({ ticketId }: { ticketId: number }) {
    ================================================================ */
 function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitle: string }) {
   const t = useTranslations('resolution');
+  const catOptions = useEnumOptions('rootCauseCategory');
   const qc = useQueryClient();
   const [step, setStep] = useState(0);
   const [rootCauseTitle, setRootCauseTitle] = useState('');
@@ -3397,7 +3396,7 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
                 </label>
                 <label className="flex flex-col gap-1.5 text-xs text-muted">
                   <span className="font-medium">{t('category')}</span>
-                  <Select<RootCauseCategoryValue> value={rootCauseCategory} onChange={setRootCauseCategory} options={Object.entries(RootCauseCategory).map(([k, v]) => ({ value: v as RootCauseCategoryValue, label: k }))} />
+                  <Select<RootCauseCategoryValue> value={rootCauseCategory} onChange={setRootCauseCategory} options={catOptions.map((o) => ({ value: o.value as RootCauseCategoryValue, label: o.label }))} />
                 </label>
               </div>
               <label className="flex flex-col gap-1.5 text-xs text-muted">
