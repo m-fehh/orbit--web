@@ -898,7 +898,7 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
     return t.has(k) ? `${t(k)} — ${detail}` : step;
   };
 
-  const card = 'rounded-xl border border-border bg-panel-2/30 p-3.5';
+  const card = 'rounded-xl border border-border bg-panel-2/40 p-4';
 
   return (
     <div className="card-surface overflow-hidden border border-success/20">
@@ -914,16 +914,11 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
       </div>
 
       {/* Métricas de tempo — completas */}
-      <div className="grid grid-cols-2 gap-px border-y border-border/60 bg-border/60 sm:grid-cols-4">
-        <ResStat label={tTicket('estimated')} value={estimateMinutes ? fmtMin(estimateMinutes) : '—'} />
-        <ResStat label={tTicket('completed')} value={fmtMin(completedMinutes)} accent />
-        <ResStat label={t('totalLifecycle')} value={totalTimeHours != null ? `${totalTimeHours}h` : '—'} />
-        <div className="bg-panel px-4 py-3 text-center">
-          <p className="text-[9px] font-medium uppercase tracking-wider text-dim">{t('efficiency')}</p>
-          <p className={cn('mt-0.5 text-base font-bold tabular-nums', efficiencyPct == null ? 'text-dim' : spentOverEstimate ? 'text-warning' : 'text-success')}>
-            {efficiencyPct != null ? `${efficiencyPct}%` : '—'}
-          </p>
-        </div>
+      <div className="grid grid-cols-2 gap-3 border-b border-border p-lg sm:grid-cols-4">
+        <ResStat icon={Clock} label={tTicket('estimated')} value={estimateMinutes ? fmtMin(estimateMinutes) : '—'} />
+        <ResStat icon={Clock} label={tTicket('completed')} value={fmtMin(completedMinutes)} tone="primary" />
+        <ResStat icon={ArrowRight} label={t('totalLifecycle')} value={totalTimeHours != null ? `${totalTimeHours}h` : '—'} />
+        <ResStat icon={TrendingUp} label={t('efficiency')} value={efficiencyPct != null ? `${efficiencyPct}%` : '—'} tone={efficiencyPct == null ? undefined : spentOverEstimate ? 'warning' : 'success'} />
       </div>
 
       <div className="flex flex-col gap-5 p-lg text-sm">
@@ -1032,11 +1027,17 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
   );
 }
 
-function ResStat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function ResStat({ icon: Icon, label, value, tone }: { icon: typeof Clock; label: string; value: string; tone?: 'primary' | 'success' | 'warning' }) {
+  const chip = tone === 'success' ? 'bg-success/10 text-success'
+    : tone === 'warning' ? 'bg-warning/10 text-warning'
+    : tone === 'primary' ? 'bg-primary/10 text-primary'
+    : 'bg-panel-2 text-dim';
+  const val = tone === 'success' ? 'text-success' : tone === 'warning' ? 'text-warning' : tone === 'primary' ? 'text-primary' : 'text-text';
   return (
-    <div className="px-4 py-3 text-center">
+    <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-panel p-3 text-center">
+      <span className={cn('grid h-8 w-8 place-items-center rounded-lg', chip)}><Icon className="h-4 w-4" /></span>
+      <p className={cn('text-lg font-bold leading-none tabular-nums', val)}>{value}</p>
       <p className="text-[9px] font-medium uppercase tracking-wider text-dim">{label}</p>
-      <p className={cn('mt-0.5 text-base font-bold tabular-nums', accent ? 'text-primary' : 'text-text')}>{value}</p>
     </div>
   );
 }
