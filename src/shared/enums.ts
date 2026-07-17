@@ -12,10 +12,22 @@ import {
  * em vez de reconstruir `Object.keys(...).map(t(...))` cada uma — layout e traduções consistentes.
  */
 
-// WorklogType não tem const em types.ts (a resposta vem como string) — definido aqui.
+// WorklogType não tem const em types.ts (a resposta vem como string) — definido aqui,
+// alinhado ao enum do backend (Orbit.Domain.Enums.WorklogType): 7 valores.
 export const WorklogType = {
-  Investigation: 1, Meeting: 2, Development: 3, Validation: 4, CustomerContact: 5, InternalDiscussion: 6,
+  Investigation: 1, Meeting: 2, Development: 3, Validation: 4, CustomerSupport: 5, Documentation: 6, Other: 7,
 } as const;
+
+// Rótulos do worklog vivem em camelCase no i18n (worklogType.customerSupport, ...).
+const WORKLOG_TYPE_I18N: Record<string, string> = {
+  Investigation: 'worklogType.investigation',
+  Meeting: 'worklogType.meeting',
+  Development: 'worklogType.development',
+  Validation: 'worklogType.validation',
+  CustomerSupport: 'worklogType.customerSupport',
+  Documentation: 'worklogType.documentation',
+  Other: 'worklogType.other',
+};
 
 export interface EnumOption {
   /** Valor numérico (o que o back espera em requests). */
@@ -35,7 +47,7 @@ export const ENUM_DEFS = {
   priority: build(Priority, 'priority'),
   ticketStatus: build(TicketStatus, 'ticketStatus'),
   rootCauseCategory: build(RootCauseCategory, 'investigation.cat'),
-  worklogType: build(WorklogType, 'worklogType'),
+  worklogType: Object.entries(WorklogType).map(([name, value]) => ({ value, name, i18nKey: WORKLOG_TYPE_I18N[name] })),
   goalMetric: build(GoalMetric, 'performance.metric'),
   evidenceType: build(EvidenceType, 'investigation.eType'),
   hypothesisStatus: build(HypothesisStatus, 'investigation.hStatus'),

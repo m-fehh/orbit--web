@@ -2027,11 +2027,8 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
 
 /* ---- Worklogs ---- */
 function useWorklogTypes() {
-  const t = useTranslations('worklogType');
-  return [
-    { value: 1, label: t('investigation') }, { value: 2, label: t('meeting') }, { value: 3, label: t('development') },
-    { value: 4, label: t('validation') }, { value: 5, label: t('customerSupport') }, { value: 6, label: t('documentation') }, { value: 7, label: t('other') },
-  ];
+  // Fonte única (enums.ts) — alinhado ao enum do backend (7 valores).
+  return useEnumOptions('worklogType');
 }
 
 function fmtMin(min: number): string {

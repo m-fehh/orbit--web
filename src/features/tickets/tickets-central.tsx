@@ -7,7 +7,7 @@ import { Plus, Search, Layers, ChevronRight, FolderOpen } from 'lucide-react';
 import { ticketsApi, iterationsApi } from '@/shared/api/endpoints';
 import type { IterationResponse } from '@/shared/api/types';
 import type { TicketResponse, TicketStatusName, PriorityName } from '@/shared/api/types';
-import { TicketStatus, Priority } from '@/shared/api/types';
+import { useEnumOptions } from '@/shared/enums';
 import type { Locale } from '@/shared/i18n/config';
 import { useBrandingStore } from '@/features/tenant/branding-store';
 import { formatDateTime } from '@/shared/lib/datetime';
@@ -62,8 +62,6 @@ export function TicketsCentral() {
   const locale = useLocale() as Locale;
   const t = useTranslations('ticket');
   const tGrid = useTranslations('dataGrid');
-  const tStatus = useTranslations('ticketStatus');
-  const tPriority = useTranslations('priority');
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const [selectedIteration, setSelectedIteration] = useState<number | null>(null);
   const iterations = useQuery({ queryKey: ['iterations'], queryFn: () => iterationsApi.list(1, 100) });
@@ -77,25 +75,12 @@ export function TicketsCentral() {
     enabled: !!selectedIteration,
   });
 
-  // --- Status filter options (translated) ---
-  const statusOptions = useMemo(
-    () =>
-      (Object.keys(TicketStatus) as TicketStatusName[]).map((k) => ({
-        label: tStatus(k),
-        value: k,
-      })),
-    [tStatus],
-  );
-
-  // --- Priority filter options (translated) ---
-  const priorityOptions = useMemo(
-    () =>
-      (Object.keys(Priority) as PriorityName[]).map((k) => ({
-        label: tPriority(k),
-        value: k,
-      })),
-    [tPriority],
-  );
+  // --- Filtros de status/prioridade (fonte única: enums.ts). O back filtra por NOME
+  //     (Enum.TryParse), então o value do filtro é o nome do enum (ex.: "New", "High"). ---
+  const statusEnum = useEnumOptions('ticketStatus');
+  const priorityEnum = useEnumOptions('priority');
+  const statusOptions = useMemo(() => statusEnum.map((o) => ({ label: o.label, value: o.name })), [statusEnum]);
+  const priorityOptions = useMemo(() => priorityEnum.map((o) => ({ label: o.label, value: o.name })), [priorityEnum]);
 
   // --- Column definitions ---
   const columns = useMemo<ColumnDef<TicketResponse>[]>(
@@ -186,7 +171,7 @@ export function TicketsCentral() {
         ),
       },
     ],
-    [t, tStatus, tPriority, statusOptions, priorityOptions, locale, timeZone],
+    [t, statusOptions, priorityOptions, locale, timeZone],
   );
 
   // --- Translated labels for DataGrid ---
