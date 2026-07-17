@@ -360,6 +360,7 @@
     "saveEdit": "Guardar",
     "edited": "editado",
     "attach": "Adjuntar archivo",
+    "emoji": "Emoji",
     "editError": "No se pudo editar el mensaje",
     "deleteError": "No se pudo eliminar el mensaje",
     "uploadError": "No se pudo enviar el adjunto",

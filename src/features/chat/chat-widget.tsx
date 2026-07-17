@@ -7,8 +7,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   MessageSquare, X, Plus, ArrowLeft, Send, Users, Search, Check,
-  Pencil, Trash2, Paperclip, Download, FileText,
+  Pencil, Trash2, Paperclip, Download, FileText, Smile,
 } from 'lucide-react';
+
+/** Emojis curados (sem dependência externa) para o seletor do compositor. */
+const EMOJIS = [
+  '😀', '😁', '😂', '🤣', '😊', '😍', '😘', '😎', '🤩', '🤔',
+  '😅', '😴', '😉', '🙂', '😬', '😳', '🥳', '😢', '😭', '😡',
+  '👍', '👎', '👏', '🙏', '💪', '🙌', '🤝', '✌️', '🤙', '👀',
+  '❤️', '🧡', '💛', '💚', '💙', '💜', '🔥', '✨', '🎉', '⭐',
+  '✅', '❌', '⚠️', '💡', '📌', '📎', '💬', '🚀', '🐛', '⏰',
+];
 import { chatApi, usersApi } from '@/shared/api/endpoints';
 import { apiErrorMessage, type ChatConversationResponse, type ChatMessageResponse } from '@/shared/api/types';
 import { useAuthStore } from '@/features/auth/auth-store';
@@ -216,9 +225,21 @@ function Thread({ conversationId, typingName, t }: { conversationId: number; typ
   const meId = useAuthStore((s) => s.user?.id);
   const [text, setText] = useState('');
   const [editing, setEditing] = useState<{ id: number; body: string } | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastTyping = useRef(0);
+
+  const insertEmoji = (emoji: string) => {
+    const el = inputRef.current;
+    const start = el?.selectionStart ?? text.length;
+    const end = el?.selectionEnd ?? text.length;
+    const next = text.slice(0, start) + emoji + text.slice(end);
+    setText(next);
+    setEmojiOpen(false);
+    requestAnimationFrame(() => { el?.focus(); const pos = start + emoji.length; el?.setSelectionRange(pos, pos); });
+  };
 
   const messages = useQuery({
     queryKey: ['chat', 'messages', conversationId],
@@ -297,12 +318,30 @@ function Thread({ conversationId, typingName, t }: { conversationId: number; typ
         )}
       </div>
 
-      <div className="flex shrink-0 items-end gap-2 border-t border-border p-3">
+      <div className="relative flex shrink-0 items-end gap-2 border-t border-border p-3">
+        {emojiOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setEmojiOpen(false)} aria-hidden />
+            <div className="absolute bottom-full left-3 z-20 mb-2 w-64 rounded-xl border border-border bg-panel p-2 shadow-lg">
+              <div className="grid grid-cols-8 gap-0.5">
+                {EMOJIS.map((e) => (
+                  <button key={e} type="button" onClick={() => insertEmoji(e)} className="grid h-7 w-7 place-items-center rounded text-lg hover:bg-panel-2" aria-label={e}>
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
         <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f); if (fileRef.current) fileRef.current.value = ''; }} />
+        <button type="button" onClick={() => setEmojiOpen((v) => !v)} className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-lg hover:bg-panel-2 hover:text-text', emojiOpen ? 'text-primary' : 'text-muted')} aria-label={t('emoji')} title={t('emoji')}>
+          <Smile className="h-4 w-4" />
+        </button>
         <button type="button" onClick={() => fileRef.current?.click()} disabled={upload.isPending} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text disabled:opacity-50" aria-label={t('attach')} title={t('attach')}>
           <Paperclip className="h-4 w-4" />
         </button>
         <textarea
+          ref={inputRef}
           value={text}
           onChange={(e) => { setText(e.target.value); notifyTyping(); }}
           onKeyDown={onKey}
