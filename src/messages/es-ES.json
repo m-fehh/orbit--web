@@ -346,6 +346,35 @@
     "High": "Alta",
     "Critical": "Crítica"
   },
+  "evidenceType": {
+    "Screenshot": "Captura de pantalla",
+    "Log": "Log",
+    "Video": "Vídeo",
+    "File": "Archivo",
+    "Observation": "Observación",
+    "Url": "URL"
+  },
+  "hypothesisStatus": {
+    "Open": "Abierta",
+    "Discarded": "Descartada",
+    "Confirmed": "Confirmada"
+  },
+  "playbookStatus": {
+    "Draft": "Borrador",
+    "Published": "Publicado",
+    "Archived": "Archivado"
+  },
+  "problemStatus": {
+    "Open": "Abierto",
+    "Monitoring": "En monitoreo",
+    "Resolved": "Resuelto",
+    "Dismissed": "Descartado"
+  },
+  "playbookStepKind": {
+    "Check": "Verificación",
+    "Action": "Acción",
+    "Decision": "Decisión"
+  },
   "worklog": {
     "type": "Tipo",
     "what": "Qué se hizo",

@@ -346,6 +346,35 @@
     "High": "High",
     "Critical": "Critical"
   },
+  "evidenceType": {
+    "Screenshot": "Screenshot",
+    "Log": "Log",
+    "Video": "Video",
+    "File": "File",
+    "Observation": "Observation",
+    "Url": "URL"
+  },
+  "hypothesisStatus": {
+    "Open": "Open",
+    "Discarded": "Discarded",
+    "Confirmed": "Confirmed"
+  },
+  "playbookStatus": {
+    "Draft": "Draft",
+    "Published": "Published",
+    "Archived": "Archived"
+  },
+  "problemStatus": {
+    "Open": "Open",
+    "Monitoring": "Monitoring",
+    "Resolved": "Resolved",
+    "Dismissed": "Dismissed"
+  },
+  "playbookStepKind": {
+    "Check": "Check",
+    "Action": "Action",
+    "Decision": "Decision"
+  },
   "worklog": {
     "type": "Type",
     "what": "What was done",

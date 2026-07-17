@@ -44,6 +44,7 @@ import { RichEditor } from '@/shared/ui/rich-editor';
 import { MarkdownEditor, MarkdownContent, attachmentRef } from '@/shared/ui/markdown-editor';
 import { openIntelligenceModal } from './intelligence-modal';
 import { translateCauseCategory, RootCauseCard, ResolutionSuggestionCard } from '@/features/intelligence/cards';
+import { useEnumOptions } from '@/shared/enums';
 import { PlaybookPanel } from './playbook-panel';
 import { useSignalRGroup } from '@/features/notifications/use-signalr';
 
@@ -1691,6 +1692,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
   const t = useTranslations('resolution');
   const tIntel = useTranslations('intelligence');
   const tTicket = useTranslations('ticket');
+  const categoryOptions = useEnumOptions('rootCauseCategory');
   const qc = useQueryClient();
   const [step, setStep] = useState(0);
   const [rootCauseTitle, setRootCauseTitle] = useState('');
@@ -1899,7 +1901,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
                       </label>
                       <label className="flex flex-col gap-1.5 text-xs text-muted">
                         <span className="font-medium">{t('category')}</span>
-                        <Select<RootCauseCategoryValue> value={rootCauseCategory} onChange={setRootCauseCategory} options={Object.entries(RootCauseCategory).map(([k, v]) => ({ value: v as RootCauseCategoryValue, label: translateCauseCategory(k, tIntel) }))} />
+                        <Select<RootCauseCategoryValue> value={rootCauseCategory} onChange={setRootCauseCategory} options={categoryOptions.map((o) => ({ value: o.value as RootCauseCategoryValue, label: o.label }))} />
                       </label>
                     </div>
                     <label className="flex flex-col gap-1.5 text-xs text-muted">
