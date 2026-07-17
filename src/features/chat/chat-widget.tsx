@@ -6,8 +6,8 @@ import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  MessageSquare, X, Plus, ArrowLeft, Send, Users, Search, Check,
-  Pencil, Trash2, Paperclip, Download, FileText, Smile,
+  MessageSquare, X, Plus, ArrowLeft, Send, Users, Search, Check, CheckCheck,
+  Pencil, Trash2, Paperclip, Download, FileText, Smile, Settings2, UserPlus, LogOut, UserMinus,
 } from 'lucide-react';
 
 /** Emojis curados (sem dependência externa) para o seletor do compositor. */
@@ -42,7 +42,7 @@ export function ChatWidget() {
   const t = useTranslations('chat');
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<'list' | 'thread' | 'new'>('list');
+  const [view, setView] = useState<'list' | 'thread' | 'new' | 'manage'>('list');
   const [activeId, setActiveId] = useState<number | null>(null);
   const [typingByConv, setTypingByConv] = useState<Record<number, string>>({});
   const typingTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
@@ -60,6 +60,13 @@ export function ChatWidget() {
       qc.invalidateQueries({ queryKey: ['chat', 'messages'] });
       qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
       qc.invalidateQueries({ queryKey: ['chat', 'unread'] });
+      // Se a thread está aberta na conversa que recebeu, marca como lida na hora.
+      const convId = Number(payload?.conversationId);
+      if (ev === 'chat.message' && open && convId === activeId) {
+        chatApi.markRead(convId).then(() => qc.invalidateQueries({ queryKey: ['chat', 'unread'] })).catch(() => {});
+      }
+    } else if (ev === 'chat.read') {
+      qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
     } else if (ev === 'chat.conversation') {
       qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
       qc.invalidateQueries({ queryKey: ['chat', 'unread'] });
@@ -114,18 +121,23 @@ export function ChatWidget() {
           >
             <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-gradient-to-r from-primary/8 to-transparent px-4">
               {view !== 'list' ? (
-                <button type="button" onClick={() => setView('list')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('back')}>
+                <button type="button" onClick={() => setView(view === 'manage' ? 'thread' : 'list')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('back')}>
                   <ArrowLeft className="h-4 w-4" />
                 </button>
               ) : (
                 <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary"><MessageSquare className="h-4 w-4" /></span>
               )}
               <p className="min-w-0 flex-1 truncate text-sm font-bold text-text">
-                {view === 'thread' ? (activeConv?.name ?? t('title')) : view === 'new' ? t('newConversation') : t('title')}
+                {view === 'thread' ? (activeConv?.name ?? t('title')) : view === 'new' ? t('newConversation') : view === 'manage' ? t('manageGroup') : t('title')}
               </p>
               {view === 'list' && (
                 <button type="button" onClick={() => setView('new')} className="grid h-8 w-8 place-items-center rounded-lg text-primary hover:bg-primary/10" aria-label={t('newConversation')} title={t('newConversation')}>
                   <Plus className="h-4 w-4" />
+                </button>
+              )}
+              {view === 'thread' && activeConv?.isGroup && (
+                <button type="button" onClick={() => setView('manage')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('manageGroup')} title={t('manageGroup')}>
+                  <Settings2 className="h-4 w-4" />
                 </button>
               )}
               <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('close')}>
@@ -134,8 +146,9 @@ export function ChatWidget() {
             </header>
 
             {view === 'list' && <ConversationList data={conversations.data} loading={conversations.isLoading} onlineSet={onlineSet} onOpen={openConversation} onNew={() => setView('new')} t={t} />}
-            {view === 'thread' && activeId != null && <Thread conversationId={activeId} typingName={typingByConv[activeId]} t={t} />}
+            {view === 'thread' && activeId != null && <Thread conversationId={activeId} conv={activeConv} typingName={typingByConv[activeId]} t={t} />}
             {view === 'new' && <NewConversation t={t} onlineSet={onlineSet} onCreated={(c) => openConversation(c.id)} />}
+            {view === 'manage' && activeConv && <ManageGroup conv={activeConv} onlineSet={onlineSet} onLeft={() => { setView('list'); setActiveId(null); }} t={t} />}
           </motion.div>
         )}
       </AnimatePresence>
@@ -220,7 +233,7 @@ function ConversationList({ data, loading, onlineSet, onOpen, onNew, t }: {
   );
 }
 
-function Thread({ conversationId, typingName, t }: { conversationId: number; typingName?: string; t: ReturnType<typeof useTranslations> }) {
+function Thread({ conversationId, conv, typingName, t }: { conversationId: number; conv: ChatConversationResponse | null; typingName?: string; t: ReturnType<typeof useTranslations> }) {
   const qc = useQueryClient();
   const meId = useAuthStore((s) => s.user?.id);
   const [text, setText] = useState('');
@@ -246,6 +259,22 @@ function Thread({ conversationId, typingName, t }: { conversationId: number; typ
     queryFn: () => chatApi.messages(conversationId),
     retry: false,
   });
+
+  // Recibo de leitura: id da minha última mensagem + quem já leu.
+  const myLastId = useMemo(() => {
+    const arr = messages.data ?? [];
+    for (let i = arr.length - 1; i >= 0; i--) if (arr[i].senderId === meId) return arr[i].id;
+    return null;
+  }, [messages.data, meId]);
+  const others = (conv?.participants ?? []).filter((p) => p.userId !== meId);
+  const renderReceipt = (createdAt: string) => {
+    const seen = others.filter((p) => p.lastReadAt && new Date(p.lastReadAt) >= new Date(createdAt));
+    if (seen.length === 0) {
+      return <span className="flex items-center gap-0.5 text-dim"><Check className="h-3 w-3" /> {t('sent')}</span>;
+    }
+    const label = conv?.isGroup ? t('seenByCount', { count: seen.length }) : t('seen');
+    return <span className="flex items-center gap-0.5 text-primary"><CheckCheck className="h-3 w-3" /> {label}</span>;
+  };
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -308,6 +337,7 @@ function Thread({ conversationId, typingName, t }: { conversationId: number; typ
                 onSaveEdit={() => { if (editing && editing.body.trim()) edit.mutate({ id: m.id, body: editing.body.trim() }); }}
                 onCancelEdit={() => setEditing(null)}
                 onDelete={() => del.mutate(m.id)}
+                receipt={m.id === myLastId ? renderReceipt(m.createdAt) : null}
                 t={t}
               />
             ))}
@@ -357,7 +387,7 @@ function Thread({ conversationId, typingName, t }: { conversationId: number; typ
   );
 }
 
-function MessageBubble({ m, mine, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, t }: {
+function MessageBubble({ m, mine, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, receipt, t }: {
   m: ChatMessageResponse;
   mine: boolean;
   editing: string | null;
@@ -366,8 +396,10 @@ function MessageBubble({ m, mine, editing, onStartEdit, onChangeEdit, onSaveEdit
   onSaveEdit: () => void;
   onCancelEdit: () => void;
   onDelete: () => void;
+  receipt?: React.ReactNode;
   t: ReturnType<typeof useTranslations>;
 }) {
+  const [confirming, setConfirming] = useState(false);
   return (
     <div className={cn('group flex flex-col', mine ? 'items-end' : 'items-start')}>
       {!mine && <span className="mb-0.5 px-1 text-[10px] font-medium text-dim">{m.senderName}</span>}
@@ -388,10 +420,18 @@ function MessageBubble({ m, mine, editing, onStartEdit, onChangeEdit, onSaveEdit
       ) : (
         <div className="flex items-end gap-1.5">
           {mine && (
-            <span className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-              <button type="button" onClick={onStartEdit} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('edit')}><Pencil className="h-3 w-3" /></button>
-              <button type="button" onClick={onDelete} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-danger/10 hover:text-danger" aria-label={t('delete')}><Trash2 className="h-3 w-3" /></button>
-            </span>
+            confirming ? (
+              <span className="flex items-center gap-1 rounded-md bg-danger/10 px-1.5 py-0.5 text-[10px] text-danger">
+                {t('confirmDelete')}
+                <button type="button" onClick={() => { setConfirming(false); onDelete(); }} className="font-bold hover:underline">{t('yes')}</button>
+                <button type="button" onClick={() => setConfirming(false)} className="text-dim hover:underline">{t('no')}</button>
+              </span>
+            ) : (
+              <span className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                <button type="button" onClick={onStartEdit} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('edit')}><Pencil className="h-3 w-3" /></button>
+                <button type="button" onClick={() => setConfirming(true)} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-danger/10 hover:text-danger" aria-label={t('delete')}><Trash2 className="h-3 w-3" /></button>
+              </span>
+            )
           )}
           <div className={cn('max-w-[80%] rounded-2xl px-3.5 py-2 text-sm shadow-sm', mine ? 'rounded-tr-sm bg-primary text-primary-fg' : 'rounded-tl-sm bg-panel-2 text-text')}>
             {m.attachmentName && <ChatAttachment m={m} mine={mine} t={t} />}
@@ -399,9 +439,10 @@ function MessageBubble({ m, mine, editing, onStartEdit, onChangeEdit, onSaveEdit
           </div>
         </div>
       )}
-      <span className="mt-0.5 px-1 text-[9px] text-dim">
+      <span className="mt-0.5 flex items-center gap-1.5 px-1 text-[9px] text-dim">
         {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         {m.editedAt && ` · ${t('edited')}`}
+        {receipt}
       </span>
     </div>
   );
@@ -445,6 +486,78 @@ function ChatAttachment({ m, mine, t }: { m: ChatMessageResponse; mine: boolean;
       <span className="min-w-0 flex-1 truncate text-xs">{m.attachmentName}</span>
       <Download className="h-3.5 w-3.5 shrink-0 opacity-70" />
     </button>
+  );
+}
+
+function ManageGroup({ conv, onlineSet, onLeft, t }: { conv: ChatConversationResponse; onlineSet: Set<number>; onLeft: () => void; t: ReturnType<typeof useTranslations> }) {
+  const qc = useQueryClient();
+  const meId = useAuthStore((s) => s.user?.id);
+  const [name, setName] = useState(conv.name);
+  const [adding, setAdding] = useState(false);
+  const [term, setTerm] = useState('');
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+
+  const rename = useMutation({ mutationFn: () => chatApi.rename(conv.id, name.trim()), onSuccess: () => { toast.success(t('groupRenamed')); invalidate(); }, onError: (e) => toast.error(apiErrorMessage(e, t('editError'))) });
+  const removeP = useMutation({ mutationFn: (uid: number) => chatApi.removeParticipant(conv.id, uid), onSuccess: invalidate, onError: (e) => toast.error(apiErrorMessage(e, t('editError'))) });
+  const addP = useMutation({ mutationFn: (uid: number) => chatApi.addParticipants(conv.id, [uid]), onSuccess: invalidate, onError: (e) => toast.error(apiErrorMessage(e, t('editError'))) });
+  const leave = useMutation({ mutationFn: () => chatApi.leave(conv.id), onSuccess: () => { invalidate(); onLeft(); }, onError: (e) => toast.error(apiErrorMessage(e, t('editError'))) });
+
+  const users = useQuery({ queryKey: ['users', 'chat-picker'], queryFn: () => usersApi.list(1, 200), retry: false, enabled: adding });
+  const currentIds = useMemo(() => new Set(conv.participants.map((p) => p.userId)), [conv.participants]);
+  const addable = useMemo(() => {
+    const q = term.trim().toLowerCase();
+    return (users.data?.items ?? []).filter((u) => !currentIds.has(u.id) && (!q || u.name.toLowerCase().includes(q)));
+  }, [users.data, term, currentIds]);
+
+  return (
+    <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium text-dim">{t('groupName')}</label>
+        <div className="flex gap-2">
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
+          <Button onClick={() => rename.mutate()} loading={rename.isPending} disabled={!name.trim() || name.trim() === conv.name}>{t('saveEdit')}</Button>
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-dim">{t('members', { count: conv.participants.length })}</p>
+          <Button size="sm" variant="secondary" className="gap-1" onClick={() => setAdding((a) => !a)}><UserPlus className="h-3.5 w-3.5" /> {t('addMembers')}</Button>
+        </div>
+        {adding && (
+          <div className="mb-2 rounded-lg border border-border p-2">
+            <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('searchUsers')} className="mb-1.5" />
+            <div className="max-h-40 overflow-y-auto">
+              {addable.length === 0 ? <p className="py-3 text-center text-xs text-dim">{t('noUsers')}</p> : addable.map((u) => (
+                <button key={u.id} type="button" onClick={() => addP.mutate(u.id)} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-panel-2">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-panel-2 text-[10px] font-bold text-muted">{initials(u.name)}</span>
+                  <span className="min-w-0 flex-1 truncate">{u.name}</span>
+                  <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <ul className="flex flex-col gap-1">
+          {conv.participants.map((p) => (
+            <li key={p.userId} className="flex items-center gap-2 rounded-lg px-2 py-1.5">
+              <span className="relative shrink-0">
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-panel-2 text-[10px] font-bold text-muted">{initials(p.name)}</span>
+                <OnlineDot online={onlineSet.has(p.userId)} />
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm text-text">{p.name}{p.userId === meId && ` (${t('you')})`}</span>
+              {p.userId !== meId && (
+                <button type="button" onClick={() => removeP.mutate(p.userId)} className="grid h-7 w-7 place-items-center rounded text-dim hover:bg-danger/10 hover:text-danger" aria-label={t('remove')}><UserMinus className="h-4 w-4" /></button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <Button variant="secondary" className="mt-auto w-full gap-1.5 text-danger" loading={leave.isPending} onClick={() => leave.mutate()}>
+        <LogOut className="h-4 w-4" /> {t('leaveGroup')}
+      </Button>
+    </div>
   );
 }
 

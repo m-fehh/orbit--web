@@ -1011,6 +1011,7 @@ export interface ChatParticipant {
   userId: number;
   name: string;
   online: boolean;
+  lastReadAt: string | null;
 }
 export interface ChatConversationResponse {
   id: number;

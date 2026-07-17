@@ -603,4 +603,8 @@ export const chatApi = {
   },
   attachmentBlob: (messageId: number) => api.raw(`/chat/messages/${messageId}/attachment`, { method: 'GET' }).then((r) => r.blob()),
   presence: () => api.get<number[]>('/chat/presence'),
+  rename: (id: number, name: string) => api.patch<void>(`/chat/conversations/${id}`, { name }),
+  addParticipants: (id: number, userIds: number[]) => api.post<void>(`/chat/conversations/${id}/participants`, { userIds }),
+  removeParticipant: (id: number, userId: number) => api.delete<void>(`/chat/conversations/${id}/participants/${userId}`),
+  leave: (id: number) => api.post<void>(`/chat/conversations/${id}/leave`, {}),
 };
