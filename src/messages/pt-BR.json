@@ -1249,6 +1249,9 @@
   "resolution": {
     "stepRootCause": "Causa Raiz",
     "stepResolution": "Resolução",
+    "stepActions": "Ações",
+    "actionsTitle": "Ações realizadas",
+    "actionsRequiredHint": "Registre ao menos uma ação executada para resolver o chamado.",
     "stepConfirm": "Confirmar",
     "selectOrCreateCause": "Selecionar ou criar causa raiz",
     "selectOrCreateCauseHint": "Vincule a uma causa raiz existente ou registre uma nova.",

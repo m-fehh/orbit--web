@@ -1249,6 +1249,9 @@
   "resolution": {
     "stepRootCause": "Root Cause",
     "stepResolution": "Resolution",
+    "stepActions": "Actions",
+    "actionsTitle": "Actions taken",
+    "actionsRequiredHint": "Log at least one action performed to resolve the ticket.",
     "stepConfirm": "Confirm",
     "selectOrCreateCause": "Select or create root cause",
     "selectOrCreateCauseHint": "Link to an existing root cause or record a new one.",

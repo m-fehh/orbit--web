@@ -1249,6 +1249,9 @@
   "resolution": {
     "stepRootCause": "Causa Raíz",
     "stepResolution": "Resolución",
+    "stepActions": "Acciones",
+    "actionsTitle": "Acciones realizadas",
+    "actionsRequiredHint": "Registra al menos una acción ejecutada para resolver el ticket.",
     "stepConfirm": "Confirmar",
     "selectOrCreateCause": "Seleccionar o crear causa raíz",
     "selectOrCreateCauseHint": "Vincula a una causa raíz existente o registra una nueva.",

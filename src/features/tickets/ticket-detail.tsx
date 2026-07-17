@@ -1664,6 +1664,19 @@ function SymptomsStep({ symptomCatalog, selectedIds, onToggle, onCreated, sympto
   );
 }
 
+/** Linha de resumo (confirmação): ícone + rótulo em caixa-alta + conteúdo, com hierarquia clara. */
+function SummaryRow({ icon: Icon, label, children }: { icon: typeof Target; label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-3 px-4 py-3.5">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-panel-2 text-dim"><Icon className="h-4 w-4" /></span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-dim">{label}</p>
+        <div className="mt-1.5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolved }: { ticketId: number; ticketTitle: string; ticketSymptoms: SymptomTagResponse[]; onClose: () => void; onResolved: () => void }) {
   const t = useTranslations('resolution');
   const tIntel = useTranslations('intelligence');
@@ -1722,17 +1735,20 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
     setActions(prev => prev.map((a, i) => i === idx ? { ...a, [field]: val } : a));
   };
 
+  const actionsValid = actions.length > 0 && actions.every((a) => a.detail.trim().length > 0);
   const canNext =
     step === 0 ? (selectedRootCauseId || rootCauseTitle.trim()) :
     step === 1 ? true :
     step === 2 ? resolutionSummary.trim() :
+    step === 3 ? actionsValid :
     true;
 
-  const LAST_STEP = 3;
+  const LAST_STEP = 4;
   const steps = [
     { label: t('stepRootCause'), icon: Target },
     { label: t('stepSymptoms'), icon: AlertTriangle },
     { label: t('stepResolution'), icon: Zap },
+    { label: t('stepActions'), icon: ListChecks },
     { label: t('stepConfirm'), icon: Check },
   ];
 
@@ -1897,7 +1913,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
               />
             )}
 
-            {/* Step 2: Resolution + Actions */}
+            {/* Step 2: Resolution */}
             {step === 2 && (
               <div className="flex flex-col gap-md">
                 <label className="flex flex-col gap-1.5 text-xs text-muted">
@@ -1909,87 +1925,83 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
                   <input className={FIELD_MD} value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder={t('outcomePh')} />
                 </label>
                 <Checkbox checked={isRecurring} onChange={(e) => setIsRecurring(e.currentTarget.checked)} label={<span className="flex items-center gap-1.5"><RotateCcw className="h-3.5 w-3.5" />{t('isRecurring')}</span>} size="sm" />
-
-                {/* Actions */}
-                <div className="flex flex-col gap-2 mt-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium">{t('actions')}</p>
-                    <Button type="button" size="sm" variant="secondary" onClick={addAction} className="h-7 text-xs">
-                      <Plus className="h-3 w-3" /> {t('addAction')}
-                    </Button>
-                  </div>
-                  {actions.length === 0 && <p className="text-xs text-dim italic">{t('noActions')}</p>}
-                  {actions.map((a, idx) => (
-                    <div key={idx} className="flex items-start gap-2 rounded-lg border border-border p-2.5">
-                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-panel-2 text-[10px] font-bold text-dim mt-0.5">{idx + 1}</span>
-                      <div className="flex-1 flex flex-col gap-1.5">
-                        <Select<number> value={a.actionType} onChange={(v) => updateAction(idx, 'actionType', v)} options={ACTION_TYPES.map(at => ({ value: at.value, label: t(`actionTypes.${at.key}` as 'actionType') }))} />
-                        <input className={FIELD_SM} value={a.detail} onChange={(e) => updateAction(idx, 'detail', e.target.value)} placeholder={t('actionDetailPh')} />
-                      </div>
-                      <button type="button" onClick={() => removeAction(idx)} className="shrink-0 rounded p-1 text-dim hover:text-danger hover:bg-danger/10 mt-0.5"><X className="h-3.5 w-3.5" /></button>
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
 
-            {/* Step 3: Confirm */}
+            {/* Step 3: Actions (obrigatório ≥ 1) */}
             {step === 3 && (
-              <div className="rounded-lg border border-border bg-bg-subtle/50 p-4 flex flex-col gap-3 text-sm">
-                <div className="flex items-start gap-2">
-                  <Target className="h-4 w-4 text-dim mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-[10px] font-medium uppercase text-dim">{t('rootCause')}</p>
-                    <p className="font-medium">{selectedRootCauseId ? rootCauses.data?.find(r => r.id === selectedRootCauseId)?.title : rootCauseTitle}</p>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-text">{t('actionsTitle')}</p>
+                    <p className="text-xs text-muted">{t('actionsRequiredHint')}</p>
                   </div>
+                  <Button type="button" size="sm" variant="secondary" onClick={addAction} className="h-8 shrink-0 gap-1.5">
+                    <Plus className="h-3.5 w-3.5" /> {t('addAction')}
+                  </Button>
                 </div>
-                {selectedSymptomIds.length > 0 && (
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-dim mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[10px] font-medium uppercase text-dim">{t('stepSymptoms')}</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {selectedSymptomIds.map(id => (
-                          <span key={id} className="rounded-full bg-warning/10 border border-warning/20 px-2 py-0.5 text-[11px] text-warning">{symptomName(id)}</span>
-                        ))}
+
+                {actions.length === 0 ? (
+                  <button type="button" onClick={addAction} className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-10 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.03]">
+                    <span className="grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary"><ListChecks className="h-5 w-5" /></span>
+                    <p className="text-sm text-muted">{t('noActions')}</p>
+                    <span className="text-xs font-semibold text-primary">+ {t('addAction')}</span>
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {actions.map((a, idx) => (
+                      <div key={idx} className="flex items-start gap-2 rounded-xl border border-border bg-panel p-3">
+                        <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">{idx + 1}</span>
+                        <div className="flex flex-1 flex-col gap-1.5">
+                          <Select<number> value={a.actionType} onChange={(v) => updateAction(idx, 'actionType', v)} options={ACTION_TYPES.map(at => ({ value: at.value, label: t(`actionTypes.${at.key}` as 'actionType') }))} />
+                          <input className={FIELD_SM} value={a.detail} onChange={(e) => updateAction(idx, 'detail', e.target.value)} placeholder={t('actionDetailPh')} />
+                        </div>
+                        <button type="button" onClick={() => removeAction(idx)} className="mt-0.5 shrink-0 rounded p-1 text-dim hover:bg-danger/10 hover:text-danger"><X className="h-3.5 w-3.5" /></button>
                       </div>
-                    </div>
+                    ))}
                   </div>
                 )}
-                <div className="flex items-start gap-2">
-                  <Zap className="h-4 w-4 text-dim mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-[10px] font-medium uppercase text-dim">{t('resolution')}</p>
-                    <p>{resolutionSummary}</p>
-                  </div>
-                </div>
+              </div>
+            )}
+
+            {/* Step 4: Confirm */}
+            {step === 4 && (
+              <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-panel">
+                <SummaryRow icon={Target} label={t('rootCause')}>
+                  <p className="text-sm font-medium text-text">{selectedRootCauseId ? rootCauses.data?.find(r => r.id === selectedRootCauseId)?.title : rootCauseTitle}</p>
+                </SummaryRow>
+                {selectedSymptomIds.length > 0 && (
+                  <SummaryRow icon={AlertTriangle} label={t('stepSymptoms')}>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedSymptomIds.map(id => (
+                        <span key={id} className="rounded-full border border-warning/20 bg-warning/10 px-2 py-0.5 text-[11px] text-warning">{symptomName(id)}</span>
+                      ))}
+                    </div>
+                  </SummaryRow>
+                )}
+                <SummaryRow icon={Zap} label={t('resolution')}>
+                  <p className="text-sm leading-relaxed text-text">{resolutionSummary}</p>
+                </SummaryRow>
                 {outcome && (
-                  <div className="flex items-start gap-2">
-                    <TrendingUp className="h-4 w-4 text-dim mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[10px] font-medium uppercase text-dim">{t('outcome')}</p>
-                      <p>{outcome}</p>
-                    </div>
-                  </div>
+                  <SummaryRow icon={TrendingUp} label={t('outcome')}>
+                    <p className="text-sm text-text">{outcome}</p>
+                  </SummaryRow>
                 )}
-                {actions.length > 0 && (
-                  <div className="flex items-start gap-2">
-                    <ListChecks className="h-4 w-4 text-dim mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[10px] font-medium uppercase text-dim">{t('actions')}</p>
-                      <ol className="mt-1 list-decimal list-inside text-xs text-muted space-y-0.5">
-                        {actions.map((a, i) => {
-                          const atKey = ACTION_TYPES.find(at => at.value === a.actionType)?.key;
-                          return (
-                            <li key={i}><span className="font-medium text-text">{atKey ? t(`actionTypes.${atKey}` as 'actionType') : ''}</span>{a.detail && ` — ${a.detail}`}</li>
-                          );
-                        })}
-                      </ol>
-                    </div>
-                  </div>
-                )}
+                <SummaryRow icon={ListChecks} label={t('actions')}>
+                  <ol className="flex flex-col gap-1.5">
+                    {actions.map((a, i) => {
+                      const atKey = ACTION_TYPES.find(at => at.value === a.actionType)?.key;
+                      return (
+                        <li key={i} className="flex gap-2 text-sm text-muted">
+                          <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-panel-2 text-[10px] font-bold text-dim">{i + 1}</span>
+                          <span><span className="font-medium text-text">{atKey ? t(`actionTypes.${atKey}` as 'actionType') : ''}</span>{a.detail && ` — ${a.detail}`}</span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </SummaryRow>
                 {isRecurring && (
-                  <div className="rounded bg-warning/10 border border-warning/20 px-3 py-2 text-xs text-warning flex items-center gap-2">
+                  <div className="flex items-center gap-2 bg-warning/[0.06] px-4 py-3 text-xs font-medium text-warning">
                     <RotateCcw className="h-3.5 w-3.5" /> {t('markedRecurring')}
                   </div>
                 )}
