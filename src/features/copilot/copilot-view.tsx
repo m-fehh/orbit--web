@@ -202,10 +202,13 @@ export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedde
   useEffect(() => {
     if (seeded.current || !history.data || history.data.length === 0) return;
     seeded.current = true;
-    setMessages(history.data.flatMap((h) => [
+    const seededMsgs = history.data.flatMap((h) => [
       { id: nextId(), role: 'user' as const, text: h.question },
       { id: nextId(), role: 'assistant' as const, text: h.answer },
-    ]));
+    ]);
+    // Só reidrata se a conversa ainda está vazia (não sobrescreve o que o usuário já digitou
+    // caso o histórico chegue depois do primeiro envio).
+    setMessages((prev) => (prev.length > 0 ? prev : seededMsgs));
   }, [history.data]);
 
   async function send(question: string) {
