@@ -271,7 +271,7 @@ export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedde
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 md:px-6" aria-live="polite">
         {isEmpty ? (
           /* Estado inicial: saudação + exemplos clicáveis */
-          <div className="mx-auto flex max-w-2xl flex-col items-center gap-5 py-8 text-center">
+          <div className={cn('flex flex-col items-center gap-5 py-8 text-center', embedded ? 'w-full' : 'mx-auto max-w-2xl')}>
             <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/10">
               <Sparkles className="h-7 w-7 text-primary" />
             </div>
@@ -296,7 +296,7 @@ export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedde
             </div>
           </div>
         ) : (
-          <div className="mx-auto flex max-w-3xl flex-col gap-5">
+          <div className={cn('flex flex-col gap-5', embedded ? 'w-full' : 'mx-auto max-w-3xl')}>
             {messages.map((m) =>
               m.role === 'user' ? (
                 <div key={m.id} className="flex items-start justify-end gap-2">
@@ -375,7 +375,7 @@ export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedde
 
       {/* Input fixo embaixo */}
       <div className="border-t border-border bg-bg px-4 py-3 md:px-6">
-        <div className="mx-auto flex max-w-3xl items-end gap-2">
+        <div className={cn('flex items-end gap-2', embedded ? 'w-full' : 'mx-auto max-w-3xl')}>
           <textarea
             data-tour="copilot-input"
             value={input}
