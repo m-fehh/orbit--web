@@ -226,7 +226,7 @@ export function TicketsCentral() {
       </div>
       <Can permission="ticket.create">
         <span data-tour="new-ticket">
-          <Button size="sm" onClick={openNewTicketWindow}>
+          <Button size="sm" onClick={() => openNewTicketWindow()}>
             <Plus className="h-3.5 w-3.5" aria-hidden />
             {t('newTicket' as any)}
           </Button>
@@ -324,7 +324,7 @@ export function TicketsCentral() {
             {/* Barra de ação mínima no board (busca + novo ticket vivem na lista). */}
             <div className="flex items-center gap-2">
               <Can permission="ticket.create">
-                <Button size="sm" onClick={openNewTicketWindow}>
+                <Button size="sm" onClick={() => openNewTicketWindow()}>
                   <Plus className="h-3.5 w-3.5" aria-hidden />
                   {t('newTicket' as any)}
                 </Button>

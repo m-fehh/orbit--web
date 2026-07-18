@@ -46,7 +46,7 @@ function suggestTagIds(description: string, tags: TagResponse[]): number[] {
     .map((t) => t.id);
 }
 
-export function NewTicketForm({ windowId }: { windowId: string }) {
+export function NewTicketForm({ windowId, initialTitle, initialDescription }: { windowId: string; initialTitle?: string; initialDescription?: string }) {
   const t = useTranslations('newTicket');
   const tPriority = useTranslations('priority');
   const tAdminUsers = useTranslations('admin.users');
@@ -54,8 +54,8 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
   const closeWindow = useWindowStore((s) => s.close);
   const currentUser = useAuthStore((s) => s.user);
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [title, setTitle] = useState(initialTitle ?? '');
+  const [description, setDescription] = useState(initialDescription ?? '');
   const [priority, setPriority] = useState<PriorityValue>(Priority.Medium);
   const [requesterId, setRequesterId] = useState<number | null>(currentUser?.id ?? null);
   const [assigneeId, setAssigneeId] = useState<number | null>(null);

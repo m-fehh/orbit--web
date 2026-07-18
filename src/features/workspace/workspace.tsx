@@ -49,7 +49,7 @@ export function Workspace() {
                 </Button>
               </Can>
               <Can permission="ticket.create">
-                <Button onClick={openNewTicketWindow}>
+                <Button onClick={() => openNewTicketWindow()}>
                   <Plus className="h-4 w-4" /> {t('newTicket')}
                 </Button>
               </Can>

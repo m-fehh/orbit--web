@@ -17,8 +17,8 @@ export function openTicketTab(ticket: { id: number; number: string; title?: stri
   });
 }
 
-/** Abre a janela modal de criação de ticket. */
-export function openNewTicketWindow() {
+/** Abre a janela modal de criação de ticket (opcionalmente pré-preenchida). */
+export function openNewTicketWindow(initial?: { title?: string; description?: string }) {
   useWindowStore.getState().open({
     id: NEW_TICKET_WINDOW,
     title: 'Novo ticket',
@@ -26,7 +26,7 @@ export function openNewTicketWindow() {
     modal: true,
     width: 680,
     height: 700,
-    content: <NewTicketForm windowId={NEW_TICKET_WINDOW} />,
+    content: <NewTicketForm windowId={NEW_TICKET_WINDOW} initialTitle={initial?.title} initialDescription={initial?.description} />,
   });
 }
 

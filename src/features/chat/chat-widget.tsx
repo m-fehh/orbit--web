@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   MessageSquare, X, Plus, ArrowLeft, Send, Users, Search, Check, CheckCheck,
   Pencil, Trash2, Paperclip, Download, FileText, Smile, Settings2, UserPlus, LogOut, UserMinus, Reply,
-  Bell, BellOff, ChevronUp, ChevronDown, Image as ImageIcon, Eye, Forward, Pin,
+  Bell, BellOff, ChevronUp, ChevronDown, Image as ImageIcon, Eye, Forward, Pin, Ticket, Clock,
 } from 'lucide-react';
 
 /** Emojis curados (sem dependência externa) para o seletor do compositor. */
@@ -18,7 +18,9 @@ const EMOJIS = [
   '❤️', '🧡', '💛', '💚', '💙', '💜', '🔥', '✨', '🎉', '⭐',
   '✅', '❌', '⚠️', '💡', '📌', '📎', '💬', '🚀', '🐛', '⏰',
 ];
-import { chatApi, usersApi } from '@/shared/api/endpoints';
+import { chatApi, usersApi, ticketsApi, worklogsApi, searchApi } from '@/shared/api/endpoints';
+import { WorklogType } from '@/shared/enums';
+import { openNewTicketWindow } from '@/features/tickets/ticket-actions';
 import { apiErrorMessage, type ChatConversationResponse, type ChatMessageResponse } from '@/shared/api/types';
 import { useAuthStore } from '@/features/auth/auth-store';
 import { useSignalR } from '@/features/notifications/use-signalr';
@@ -30,6 +32,9 @@ import { cn } from '@/shared/lib/utils';
 
 /** Tamanho de página do histórico do chat. */
 const PAGE_SIZE = 30;
+
+/** Tipo de worklog usado ao compartilhar mensagem do chat (Other). */
+const WORKLOG_OTHER = WorklogType.Other;
 
 /** Beep curto de notificação via WebAudio (sem asset externo). */
 function playBeep() {
@@ -181,6 +186,18 @@ export function ChatWidget() {
   const unreadTotal = unread.data?.unread ?? 0;
   const activeConv = conversations.data?.find((c) => c.id === activeId) ?? null;
 
+  // Conversa → ticket: monta uma descrição HTML com o transcript e abre o formulário.
+  const threadToTicket = () => {
+    if (activeId == null) return;
+    const msgs = qc.getQueryData<ChatMessageResponse[]>(['chat', 'messages', activeId]) ?? [];
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const lines = msgs.slice(-40)
+      .map((m) => `<p><strong>${esc(m.senderName)}:</strong> ${m.attachmentName ? `📎 ${esc(m.attachmentName)}` : esc(m.body)}</p>`)
+      .join('');
+    openNewTicketWindow({ title: activeConv?.name ?? t('title'), description: lines || '<p></p>' });
+    setOpen(false);
+  };
+
   return (
     <>
       {/* Botão flutuante (FAB) — some quando o painel está aberto. */}
@@ -226,6 +243,11 @@ export function ChatWidget() {
                       <Plus className="h-4 w-4" />
                     </button>
                   </>
+                )}
+                {view === 'thread' && (
+                  <button type="button" onClick={threadToTicket} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('threadToTicket')} title={t('threadToTicket')}>
+                    <Ticket className="h-4 w-4" />
+                  </button>
                 )}
                 {view === 'thread' && (
                   <button type="button" onClick={() => setThreadSearch((v) => !v)} className={cn('grid h-8 w-8 place-items-center rounded-lg hover:bg-panel-2 hover:text-text', threadSearch ? 'text-primary' : 'text-muted')} aria-label={t('searchInChat')} title={t('searchInChat')}>
@@ -471,6 +493,7 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
   const react = useMutation({ mutationFn: (v: { id: number; emoji: string }) => chatApi.react(v.id, v.emoji), onSuccess: invalidate });
   const pin = useMutation({ mutationFn: (id: number) => chatApi.pin(id), onSuccess: invalidate });
   const [forwardMsg, setForwardMsg] = useState<ChatMessageResponse | null>(null);
+  const [shareMsg, setShareMsg] = useState<ChatMessageResponse | null>(null);
   const forward = useMutation({
     mutationFn: (v: { id: number; target: number }) => chatApi.forward(v.id, v.target),
     onSuccess: () => { setForwardMsg(null); toast.success(t('forwarded')); },
@@ -571,6 +594,7 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
                     onReact={(emoji) => react.mutate({ id: m.id, emoji })}
                     onPin={() => pin.mutate(m.id)}
                     onForward={() => setForwardMsg(m)}
+                    onShare={() => setShareMsg(m)}
                     onJumpTo={jumpTo}
                     mentionNames={mentionNames}
                     highlight={searchActive ? searchTerm : ''}
@@ -666,7 +690,90 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
           t={t}
         />
       )}
+      {shareMsg && (
+        <SharePicker message={shareMsg} onClose={() => setShareMsg(null)} t={t} />
+      )}
     </>
+  );
+}
+
+/** Overlay para compartilhar uma mensagem do chat num ticket (comentário interno ou worklog). */
+function SharePicker({ message, onClose, t }: { message: ChatMessageResponse; onClose: () => void; t: ReturnType<typeof useTranslations> }) {
+  const [term, setTerm] = useState('');
+  const [debounced, setDebounced] = useState('');
+  const [target, setTarget] = useState<{ id: number; label: string } | null>(null);
+  useEffect(() => { const h = setTimeout(() => setDebounced(term.trim()), 250); return () => clearTimeout(h); }, [term]);
+  const results = useQuery({
+    queryKey: ['chat', 'share-ticket-search', debounced],
+    queryFn: () => searchApi.search(debounced, 8),
+    enabled: debounced.length >= 2,
+    retry: false,
+  });
+  const tickets = (results.data?.results ?? []).filter((r) => r.type === 'ticket');
+  const body = message.attachmentName ? `📎 ${message.attachmentName}` : message.body;
+
+  const asComment = useMutation({
+    mutationFn: (ticketId: number) => ticketsApi.addComment(ticketId, `💬 ${message.senderName}: ${body}`, true),
+    onSuccess: () => { toast.success(t('sharedComment')); onClose(); },
+    onError: (e) => toast.error(apiErrorMessage(e, t('shareError'))),
+  });
+  const asWorklog = useMutation({
+    mutationFn: (ticketId: number) => worklogsApi.create(ticketId, { type: WORKLOG_OTHER, description: `${message.senderName}: ${body}`, startedAt: new Date().toISOString() }),
+    onSuccess: () => { toast.success(t('sharedWorklog')); onClose(); },
+    onError: (e) => toast.error(apiErrorMessage(e, t('shareError'))),
+  });
+  const pending = asComment.isPending || asWorklog.isPending;
+
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[85%] w-full max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-panel shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <header className="flex items-center gap-2 border-b border-border px-3 py-2">
+          <Ticket className="h-4 w-4 text-primary" />
+          <p className="flex-1 text-sm font-bold text-text">{t('shareToTicket')}</p>
+          <button type="button" onClick={onClose} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text"><X className="h-4 w-4" /></button>
+        </header>
+        {!target ? (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="p-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-dim" />
+                <input value={term} onChange={(e) => setTerm(e.target.value)} autoFocus placeholder={t('searchTicket')} className="w-full rounded-lg border border-border bg-bg-subtle py-1.5 pl-8 pr-3 text-sm outline-none focus:border-primary" />
+              </div>
+            </div>
+            <ul className="min-h-0 flex-1 overflow-y-auto p-2 pt-0">
+              {debounced.length < 2 ? (
+                <p className="p-4 text-center text-xs text-dim">{t('searchTicketHint')}</p>
+              ) : tickets.length === 0 ? (
+                <p className="p-4 text-center text-xs text-dim">{t('noConversationMatch')}</p>
+              ) : tickets.map((r) => (
+                <li key={r.id}>
+                  <button type="button" onClick={() => setTarget({ id: r.id, label: r.title })} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-panel-2/60">
+                    <Ticket className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1 truncate text-sm text-text">{r.title}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 p-4">
+            <p className="text-xs text-muted">{t('shareInto', { title: target.label })}</p>
+            <div className="rounded-lg border border-border bg-bg-subtle p-2 text-xs text-muted">
+              <span className="font-semibold text-text">{message.senderName}: </span>{body.length > 140 ? `${body.slice(0, 140)}…` : body}
+            </div>
+            <div className="flex flex-col gap-2">
+              <button type="button" disabled={pending} onClick={() => asComment.mutate(target.id)} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-left text-sm hover:bg-panel-2/60 disabled:opacity-50">
+                <MessageSquare className="h-4 w-4 text-primary" /> {t('asComment')}
+              </button>
+              <button type="button" disabled={pending} onClick={() => asWorklog.mutate(target.id)} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-left text-sm hover:bg-panel-2/60 disabled:opacity-50">
+                <Clock className="h-4 w-4 text-primary" /> {t('asWorklog')}
+              </button>
+            </div>
+            <button type="button" onClick={() => setTarget(null)} className="self-start text-xs text-dim hover:text-text">← {t('back')}</button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -726,7 +833,7 @@ function DayDivider({ iso, t }: { iso: string; t: ReturnType<typeof useTranslati
   );
 }
 
-function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, onReply, onReact, onPin, onForward, onJumpTo, mentionNames, highlight, receipt, t }: {
+function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, onReply, onReact, onPin, onForward, onShare, onJumpTo, mentionNames, highlight, receipt, t }: {
   m: ChatMessageResponse;
   mine: boolean;
   showMeta: boolean;
@@ -741,6 +848,7 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
   onReact: (emoji: string) => void;
   onPin: () => void;
   onForward: () => void;
+  onShare: () => void;
   onJumpTo: (id: number) => void;
   mentionNames: string[];
   highlight: string;
@@ -794,6 +902,7 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
               <button type="button" onClick={() => setReactOpen((v) => !v)} className={cn('grid h-6 w-6 place-items-center rounded hover:bg-panel-2 hover:text-text', reactOpen ? 'text-primary' : 'text-dim')} aria-label={t('react')} title={t('react')}><Smile className="h-3 w-3" /></button>
               <button type="button" onClick={onReply} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('reply')} title={t('reply')}><Reply className="h-3 w-3" /></button>
               <button type="button" onClick={onForward} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('forward')} title={t('forward')}><Forward className="h-3 w-3" /></button>
+              <button type="button" onClick={onShare} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('shareToTicket')} title={t('shareToTicket')}><Ticket className="h-3 w-3" /></button>
               <button type="button" onClick={onPin} className={cn('grid h-6 w-6 place-items-center rounded hover:bg-panel-2 hover:text-text', m.pinnedAt ? 'text-primary' : 'text-dim')} aria-label={t('pin')} title={m.pinnedAt ? t('unpin') : t('pin')}><Pin className="h-3 w-3" /></button>
               {mine && !m.attachmentName && <button type="button" onClick={onStartEdit} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('edit')}><Pencil className="h-3 w-3" /></button>}
               {mine && <button type="button" onClick={() => setConfirming(true)} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-danger/10 hover:text-danger" aria-label={t('delete')}><Trash2 className="h-3 w-3" /></button>}
