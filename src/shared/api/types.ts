@@ -993,6 +993,7 @@ export interface NotificationResponse {
   isRead: boolean;
   readAt: string | null;
   createdAt: string | null;
+  meta: string | null;
 }
 
 export interface PagedResponse<T> {

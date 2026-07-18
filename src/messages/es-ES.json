@@ -164,10 +164,42 @@
   "notifications": {
     "title": "Notificaciones",
     "empty": "¡Estás al día! Ninguna notificación.",
+    "emptyUnread": "No hay notificaciones sin leer.",
     "markAllRead": "Marcar todo como leído",
     "unread": "{count} sin leer",
+    "filterAll": "Todas",
+    "filterUnread": "Sin leer",
     "live": "Tiempo real conectado",
-    "offline": "Reconectando..."
+    "offline": "Reconectando...",
+    "close": "Cerrar",
+    "tpl": {
+      "ticket": {
+        "assigned": {
+          "title": "Ticket asignado",
+          "body": "El ticket {number} se te ha asignado."
+        }
+      },
+      "sla": {
+        "breached": {
+          "title": "SLA incumplido",
+          "body": "El SLA del ticket {number} se ha incumplido."
+        }
+      },
+      "goal": {
+        "achieved": {
+          "title": "Meta alcanzada",
+          "body": "Alcanzaste la meta “{goal}”. ¡Felicidades!"
+        },
+        "awarded": {
+          "title": "Recompensa concedida",
+          "body": "Has recibido: {reward}."
+        }
+      },
+      "resolution": {
+        "title": "Ticket resuelto",
+        "body": "El ticket {number} — “{title}” — se ha resuelto."
+      }
+    }
   },
   "workspace": {
     "favorites": "Favoritos",

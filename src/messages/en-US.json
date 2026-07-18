@@ -164,10 +164,42 @@
   "notifications": {
     "title": "Notifications",
     "empty": "You're all caught up! No notifications.",
+    "emptyUnread": "No unread notifications.",
     "markAllRead": "Mark all as read",
     "unread": "{count} unread",
+    "filterAll": "All",
+    "filterUnread": "Unread",
     "live": "Real-time connected",
-    "offline": "Reconnecting..."
+    "offline": "Reconnecting...",
+    "close": "Close",
+    "tpl": {
+      "ticket": {
+        "assigned": {
+          "title": "Ticket assigned",
+          "body": "Ticket {number} has been assigned to you."
+        }
+      },
+      "sla": {
+        "breached": {
+          "title": "SLA breached",
+          "body": "The SLA for ticket {number} has been breached."
+        }
+      },
+      "goal": {
+        "achieved": {
+          "title": "Goal achieved",
+          "body": "You reached the goal “{goal}”. Congrats!"
+        },
+        "awarded": {
+          "title": "Reward granted",
+          "body": "You received: {reward}."
+        }
+      },
+      "resolution": {
+        "title": "Ticket resolved",
+        "body": "Ticket {number} — “{title}” — has been resolved."
+      }
+    }
   },
   "workspace": {
     "favorites": "Favorites",
