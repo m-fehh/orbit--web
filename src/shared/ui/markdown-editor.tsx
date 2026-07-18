@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import {
   Bold, Code, Eye, Hash, ImageIcon, Italic,
   Link as LinkIcon, List, AtSign, Pencil, Quote, X, Loader2,
+  Heading2, Strikethrough, ListOrdered,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { Portal } from '@/shared/ui/portal';
@@ -232,7 +233,7 @@ function EditorPreview({ value, minHeight }: { value: string; minHeight: string 
 }
 
 // ─── Editor principal ─────────────────────────────────────────────────────────
-type EditorMode = 'write' | 'live' | 'preview';
+type EditorMode = 'write' | 'preview';
 
 interface MarkdownEditorProps {
   value: string;
@@ -255,7 +256,7 @@ export function MarkdownEditor({
   minHeight = '120px', className, compact = false, onBlur,
 }: MarkdownEditorProps) {
   const t = useTranslations('editor');
-  const [mode, setMode] = useState<EditorMode>(compact ? 'write' : 'live');
+  const [mode, setMode] = useState<EditorMode>('write');
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [suggestions, setSuggestions] = useState<MentionSuggestion[]>([]);
   const [mentionTrigger, setMentionTrigger] = useState<'@' | '#' | null>(null);
@@ -304,6 +305,30 @@ export function MarkdownEditor({
       el.setSelectionRange(start + before.length, start + before.length + selected.length);
     });
   }, [value, onChange]);
+
+  /** Aplica um prefixo a cada linha da seleção (listas, citação, título). */
+  const insertLinePrefix = useCallback((prefix: string | ((i: number) => string)) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+    const block = value.slice(lineStart, end);
+    const prefixed = block.split('\n').map((ln, i) => (typeof prefix === 'function' ? prefix(i) : prefix) + ln).join('\n');
+    const next = value.slice(0, lineStart) + prefixed + value.slice(end);
+    onChange(next);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(lineStart, lineStart + prefixed.length); });
+  }, [value, onChange]);
+
+  /** Atalhos estilo editor de PR: Ctrl/Cmd + B / I / K. */
+  const handleShortcuts = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (suggestions.length > 0 && e.key === 'Escape') { setSuggestions([]); setMentionTrigger(null); return; }
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'b') { e.preventDefault(); insert('**', '**'); }
+    else if (k === 'i') { e.preventDefault(); insert('_', '_'); }
+    else if (k === 'k') { e.preventDefault(); setShowLinkModal(true); }
+  }, [insert, suggestions.length]);
 
   const handleChange = useCallback(async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newVal = e.target.value;
@@ -371,17 +396,21 @@ export function MarkdownEditor({
     e.target.value = '';
   }, [onImagePaste, runImageUpload]);
 
-  const toolBtns = [
-    { icon: Bold, title: t('bold'), before: '**', after: '**' },
-    { icon: Italic, title: t('italic'), before: '_', after: '_' },
-    { icon: Code, title: t('code'), before: '`', after: '`' },
+  type ToolBtn = { icon: typeof Bold; title: string; wrap?: [string, string]; line?: string | ((i: number) => string); action?: () => void };
+  const toolBtns: (ToolBtn | null)[] = [
+    { icon: Heading2, title: t('heading'), line: '## ' },
+    { icon: Bold, title: t('bold'), wrap: ['**', '**'] },
+    { icon: Italic, title: t('italic'), wrap: ['_', '_'] },
+    { icon: Strikethrough, title: t('strikethrough'), wrap: ['~~', '~~'] },
+    { icon: Code, title: t('code'), wrap: ['`', '`'] },
     null,
-    { icon: List, title: t('list'), before: '\n- ', after: '' },
-    { icon: Quote, title: t('quote'), before: '\n> ', after: '' },
+    { icon: List, title: t('list'), line: '- ' },
+    { icon: ListOrdered, title: t('numberedList'), line: (i) => `${i + 1}. ` },
+    { icon: Quote, title: t('quote'), line: '> ' },
     null,
-    { icon: LinkIcon, title: t('link'), before: null as null, after: null as null, action: () => setShowLinkModal(true) },
-    { icon: ImageIcon, title: t('image'), before: null as null, after: null as null, action: () => fileRef.current?.click() },
-  ] as const;
+    { icon: LinkIcon, title: t('link'), action: () => setShowLinkModal(true) },
+    { icon: ImageIcon, title: t('image'), action: () => fileRef.current?.click() },
+  ];
 
   const textarea = (
     <div className="relative flex-1">
@@ -391,10 +420,10 @@ export function MarkdownEditor({
         onChange={handleChange}
         onPaste={handlePaste}
         onDrop={handleDrop}
-        onKeyDown={e => { if (suggestions.length > 0 && e.key === 'Escape') { setSuggestions([]); setMentionTrigger(null); } }}
+        onKeyDown={handleShortcuts}
         onBlur={onBlur}
         placeholder={placeholder ?? t('textareaPlaceholder')}
-        className="w-full resize-none bg-transparent px-3 py-2.5 text-sm text-text placeholder:text-dim outline-none font-mono leading-relaxed"
+        className="w-full resize-none bg-transparent px-3 py-2.5 text-sm leading-relaxed text-text placeholder:text-dim outline-none"
         style={{ minHeight }}
       />
       {mentionTrigger && <SuggestionsDropdown items={suggestions} onSelect={selectSuggestion} />}
@@ -417,8 +446,9 @@ export function MarkdownEditor({
                   title={btn.title}
                   onMouseDown={e => {
                     e.preventDefault();
-                    if ('action' in btn && btn.action) btn.action();
-                    else if (btn.before !== null) insert(btn.before, btn.after ?? '');
+                    if (btn.action) btn.action();
+                    else if (btn.wrap) insert(btn.wrap[0], btn.wrap[1]);
+                    else if (btn.line !== undefined) insertLinePrefix(btn.line);
                   }}
                   className="grid h-7 w-7 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text transition-colors"
                 >
@@ -453,20 +483,14 @@ export function MarkdownEditor({
               </span>
             )}
 
-            {/* Seletor de modo */}
+            {/* Abas Escrever | Pré-visualizar (estilo editor de PR) */}
             <div className="flex items-center rounded-md border border-border overflow-hidden text-[11px] font-medium shrink-0">
             <button type="button" onClick={() => setMode('write')}
               className={cn('flex items-center gap-1 px-2 py-1 transition-colors', mode === 'write' ? 'bg-primary text-primary-fg' : 'text-dim hover:text-text')}>
               <Pencil className="h-3 w-3" />{t('modeWrite')}
             </button>
-            {!compact && (
-              <button type="button" onClick={() => setMode('live')}
-                className={cn('flex items-center gap-1 px-2 py-1 transition-colors border-l border-r border-border/50', mode === 'live' ? 'bg-primary text-primary-fg' : 'text-dim hover:text-text')}>
-                {t('modeSplit')}
-              </button>
-            )}
             <button type="button" onClick={() => setMode('preview')}
-              className={cn('flex items-center gap-1 px-2 py-1 transition-colors', mode === 'preview' ? 'bg-primary text-primary-fg' : 'text-dim hover:text-text')}>
+              className={cn('flex items-center gap-1 px-2 py-1 transition-colors border-l border-border/50', mode === 'preview' ? 'bg-primary text-primary-fg' : 'text-dim hover:text-text')}>
               <Eye className="h-3 w-3" />{t('modePreview')}
             </button>
             </div>
@@ -474,16 +498,7 @@ export function MarkdownEditor({
         </div>
 
         {/* Área de conteúdo */}
-        {mode === 'write' && textarea}
-
-        {mode === 'live' && (
-          <div className="flex min-h-0 divide-x divide-border">
-            {textarea}
-            <EditorPreview value={value} minHeight={minHeight} />
-          </div>
-        )}
-
-        {mode === 'preview' && <EditorPreview value={value} minHeight={minHeight} />}
+        {mode === 'write' ? textarea : <EditorPreview value={value} minHeight={minHeight} />}
       </div>
 
       {showLinkModal && <LinkModal onInsert={insertLink} onClose={() => setShowLinkModal(false)} />}
