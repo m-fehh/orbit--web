@@ -517,7 +517,7 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
           </button>
         </div>
       )}
-      <div ref={scrollRef} className="flex-1 space-y-1 overflow-y-auto bg-bg-subtle/40 p-4">
+      <div ref={scrollRef} className="flex-1 space-y-1 overflow-y-auto bg-panel p-4">
         {messages.isLoading ? (
           <LoadingState />
         ) : all.length === 0 ? (
@@ -730,7 +730,7 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
           )}
           <div className={cn(
             'max-w-[16rem] overflow-hidden rounded-2xl px-3.5 py-2 text-sm shadow-sm',
-            mine ? 'bg-primary text-primary-fg rounded-br-md' : 'bg-panel text-text ring-1 ring-border rounded-bl-md',
+            mine ? 'bg-primary text-primary-fg rounded-br-md' : 'bg-panel-2 text-text rounded-bl-md',
           )}>
             {m.replyToId && (
               <button
