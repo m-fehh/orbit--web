@@ -212,3 +212,12 @@ html.a11y-readable-spacing body {
 .rich-editor-content p + p { margin-top: 0.5em; }
 /* Force images to render immediately inside ProseMirror while editing */
 .ProseMirror img { display: block !important; max-width: 100%; }
+/* Placeholder do editor TipTap (nó vazio) */
+.tiptap-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--orbit-color-dim);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.tiptap-content:focus { outline: none; }

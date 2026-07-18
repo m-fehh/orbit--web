@@ -4,10 +4,16 @@ import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  Bold, Code, Eye, Hash, ImageIcon, Italic,
-  Link as LinkIcon, List, AtSign, Pencil, Quote, X, Loader2,
-  Heading2, Strikethrough, ListOrdered,
+  Bold, Code, ImageIcon, Italic,
+  Link as LinkIcon, List, X, Loader2,
+  Heading2, Strikethrough, ListOrdered, Underline as UnderlineIcon, Quote,
 } from 'lucide-react';
+import { useEditor, EditorContent, type Editor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import LinkExt from '@tiptap/extension-link';
+import ImageExt from '@tiptap/extension-image';
+import Placeholder from '@tiptap/extension-placeholder';
 import { cn } from '@/shared/lib/utils';
 import { Portal } from '@/shared/ui/portal';
 import { tokenStore } from '@/shared/api/token-store';
@@ -16,10 +22,9 @@ import { ticketsApi } from '@/shared/api/endpoints';
 const MarkdownPreview = dynamic(() => import('@uiw/react-markdown-preview'), { ssr: false });
 
 /**
- * Referência de anexo embutida no markdown. Em vez de gravar o base64 inteiro
- * dentro do texto (que polui o editor e trava a tela), gravamos apenas
- * `attachment:{id}` — curto e legível, no estilo do Azure DevOps. A imagem real
- * é buscada com o token de autenticação na hora de exibir.
+ * Referência de anexo embutida no conteúdo. Em vez de gravar o base64 inteiro
+ * (que polui o editor e trava a tela), gravamos apenas `attachment:{id}`. A imagem
+ * real é buscada com o token de autenticação na hora de exibir.
  */
 const ATTACHMENT_REF = /^attachment:(\d+)$/;
 
@@ -66,20 +71,20 @@ function AuthedImage({ src, alt }: { src?: string; alt?: string }) {
   if (!src) return null;
   if (failed) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-lg border border-danger/30 bg-danger/5 px-2.5 py-1 text-xs text-danger my-1">
+      <span className="my-1 inline-flex items-center gap-1.5 rounded-lg border border-danger/30 bg-danger/5 px-2.5 py-1 text-xs text-danger">
         <ImageIcon className="h-3 w-3" /> {t('imageUnavailable')}
       </span>
     );
   }
   if (!url) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs text-dim my-1">
+      <span className="my-1 inline-flex items-center gap-1.5 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs text-dim">
         <Loader2 className="h-3 w-3 animate-spin" /> {t('loadingImage')}
       </span>
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={url} alt={alt || t('imageWord')} className="max-w-full rounded-lg border border-border my-2" />;
+  return <img src={url} alt={alt || t('imageWord')} className="my-2 max-w-full rounded-lg border border-border" />;
 }
 
 // ─── Chip de imagem: aparece no lugar da imagem nos comentários ───────────────
@@ -95,22 +100,19 @@ function ImageChip({ src, alt }: { src?: string; alt?: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs text-text hover:bg-panel-2 transition-colors mx-0.5 my-0.5"
+        className="mx-0.5 my-0.5 inline-flex items-center gap-1.5 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs text-text transition-colors hover:bg-panel-2"
       >
         <ImageIcon className="h-3 w-3 shrink-0 text-primary" />
         <span className="max-w-[180px] truncate">{label}</span>
       </button>
       {open && (
         <Portal>
-          <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
-          >
-            <div className="relative max-w-[90vw] max-h-[90vh]" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)}>
+            <div className="relative max-h-[90vh] max-w-[90vw]" onClick={e => e.stopPropagation()}>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="absolute -top-3 -right-3 z-10 grid h-7 w-7 place-items-center rounded-full border border-border bg-panel shadow-md text-dim hover:text-text"
+                className="absolute -right-3 -top-3 z-10 grid h-7 w-7 place-items-center rounded-full border border-border bg-panel text-dim shadow-md hover:text-text"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -122,11 +124,7 @@ function ImageChip({ src, alt }: { src?: string; alt?: string }) {
                 </div>
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={url}
-                  alt={alt || t('imageWord')}
-                  className="max-w-full max-h-[80vh] rounded-xl object-contain shadow-2xl"
-                />
+                <img src={url} alt={alt || t('imageWord')} className="max-h-[80vh] max-w-full rounded-xl object-contain shadow-2xl" />
               )}
             </div>
           </div>
@@ -152,353 +150,178 @@ function LinkModal({ onInsert, onClose }: { onInsert: (text: string, url: string
   const [text, setText] = useState('');
   const [url, setUrl] = useState('');
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="w-80 rounded-xl border border-border bg-panel shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="border-b border-border px-4 py-3">
-          <h3 className="text-sm font-semibold text-text">{t('linkModalTitle')}</h3>
-        </div>
-        <div className="flex flex-col gap-3 p-4">
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
-            {t('linkText')}
-            <input value={text} onChange={e => setText(e.target.value)} placeholder={t('linkTextPlaceholder')}
-              className="h-8 rounded-lg border border-border bg-bg-subtle px-3 text-sm text-text outline-none focus:border-primary" />
-          </label>
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
-            {t('linkUrl')}
-            <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." autoFocus
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onInsert(text, url); } if (e.key === 'Escape') onClose(); }}
-              className="h-8 rounded-lg border border-border bg-bg-subtle px-3 text-sm text-text outline-none focus:border-primary" />
-          </label>
-        </div>
-        <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
-          <button type="button" onClick={onClose} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-dim hover:text-text">{t('cancel')}</button>
-          <button type="button" onClick={() => onInsert(text, url)} className="rounded-lg bg-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-primary/90">{t('insert')}</button>
+    <Portal>
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={onClose}>
+        <div className="w-80 rounded-xl border border-border bg-panel shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="border-b border-border px-4 py-3">
+            <h3 className="text-sm font-semibold text-text">{t('linkModalTitle')}</h3>
+          </div>
+          <div className="flex flex-col gap-3 p-4">
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
+              {t('linkText')}
+              <input value={text} onChange={e => setText(e.target.value)} placeholder={t('linkTextPlaceholder')}
+                className="h-8 rounded-lg border border-border bg-bg-subtle px-3 text-sm text-text outline-none focus:border-primary" />
+            </label>
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
+              {t('linkUrl')}
+              <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." autoFocus
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onInsert(text, url); } if (e.key === 'Escape') onClose(); }}
+                className="h-8 rounded-lg border border-border bg-bg-subtle px-3 text-sm text-text outline-none focus:border-primary" />
+            </label>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
+            <button type="button" onClick={onClose} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-dim hover:text-text">{t('cancel')}</button>
+            <button type="button" onClick={() => onInsert(text, url)} className="rounded-lg bg-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-primary/90">{t('insert')}</button>
+          </div>
         </div>
       </div>
-    </div>
+    </Portal>
   );
 }
 
-// ─── Dropdown de sugestões @menção / #ticket ──────────────────────────────────
-interface MentionSuggestion { id: number | string; label: string; kind: 'user' | 'ticket'; }
-
-function SuggestionsDropdown({ items, onSelect }: { items: MentionSuggestion[]; onSelect: (s: MentionSuggestion) => void }) {
-  if (items.length === 0) return null;
-  return (
-    <div className="absolute bottom-full left-0 z-[9999] mb-1 max-h-48 w-56 overflow-auto rounded-xl border border-border bg-panel shadow-xl">
-      {items.map(s => (
-        <button
-          key={`${s.kind}-${s.id}`}
-          type="button"
-          onMouseDown={e => { e.preventDefault(); onSelect(s); }}
-          className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-text hover:bg-panel-2 transition-colors"
-        >
-          <span className={cn('grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold',
-            s.kind === 'user' ? 'bg-primary/15 text-primary' : 'bg-info/15 text-info')}>
-            {s.kind === 'user' ? <AtSign className="h-3 w-3" /> : <Hash className="h-3 w-3" />}
-          </span>
-          <span className="truncate">{s.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ─── Preview interno do editor (reutilizado no modo live e preview) ───────────
-function EditorPreview({ value, minHeight }: { value: string; minHeight: string }) {
-  const t = useTranslations('editor');
-  const isHtml = value.trim() && /<[a-zA-Z][^>]*>/.test(value);
-  if (!value.trim()) {
-    return <p className="text-dim text-sm italic px-3 py-2.5">{t('previewPlaceholder')}</p>;
-  }
-  if (isHtml) {
-    return (
-      <div
-        className="rich-editor-content px-3 py-2.5 text-sm leading-relaxed text-text overflow-auto"
-        style={{ minHeight }}
-        dangerouslySetInnerHTML={{ __html: value }}
-      />
-    );
-  }
-  return (
-    <div className="rich-editor-content px-3 py-2.5 overflow-auto" style={{ minHeight }}>
-      <MarkdownPreview
-        source={value}
-        style={{ background: 'transparent', color: 'inherit', fontSize: '0.875rem' }}
-        wrapperElement={{ 'data-color-mode': 'auto' } as React.HTMLAttributes<HTMLDivElement>}
-        components={IMAGE_COMPONENTS}
-      />
-    </div>
-  );
-}
-
-// ─── Editor principal ─────────────────────────────────────────────────────────
-type EditorMode = 'write' | 'preview';
+// Tipo mantido por compatibilidade de API (usos antigos passavam callbacks de busca).
+export interface MentionSuggestion { id: number | string; label: string; kind: 'user' | 'ticket'; }
 
 interface MarkdownEditorProps {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   onImagePaste?: (file: File) => Promise<string>;
+  /** @deprecated mantidos por compatibilidade — não usados no editor TipTap. */
   onMentionSearch?: (query: string) => Promise<MentionSuggestion[]>;
   onTicketSearch?: (query: string) => Promise<MentionSuggestion[]>;
   minHeight?: string;
   className?: string;
-  /** Modo compacto: esconde o botão "Dividido" e usa write por padrão */
   compact?: boolean;
-  /** Disparado quando o textarea perde o foco (útil para auto-save). */
   onBlur?: () => void;
+}
+
+// ─── Editor rico (TipTap / WYSIWYG → HTML) ────────────────────────────────────
+
+function ToolButton({ active, title, onClick, children }: { active?: boolean; title: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-pressed={active}
+      onMouseDown={(e) => { e.preventDefault(); onClick(); }}
+      className={cn('grid h-7 w-7 place-items-center rounded transition-colors hover:bg-panel-2 hover:text-text', active ? 'bg-primary/10 text-primary' : 'text-dim')}
+    >
+      {children}
+    </button>
+  );
 }
 
 export function MarkdownEditor({
   value, onChange, placeholder, onImagePaste,
-  onMentionSearch, onTicketSearch,
-  minHeight = '120px', className, compact = false, onBlur,
+  minHeight = '120px', className, onBlur,
 }: MarkdownEditorProps) {
   const t = useTranslations('editor');
-  const [mode, setMode] = useState<EditorMode>('write');
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [suggestions, setSuggestions] = useState<MentionSuggestion[]>([]);
-  const [mentionTrigger, setMentionTrigger] = useState<'@' | '#' | null>(null);
   const [uploading, setUploading] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const mentionQueryRef = useRef('');
-  // Mantém o valor mais recente para reconciliar após o upload assíncrono.
-  const valueRef = useRef(value);
-  valueRef.current = value;
+  const lastEmitted = useRef(value);
+  const editorRef = useRef<Editor | null>(null);
 
-  /**
-   * Insere um placeholder visível enquanto o upload acontece e, ao terminar,
-   * troca pelo markdown real. Dá feedback de loading e evita perder edições
-   * concorrentes (usa valueRef em vez do value capturado no closure).
-   */
-  const runImageUpload = useCallback(async (file: File) => {
+  const uploadAndInsert = useCallback(async (file: File, ed: Editor) => {
     if (!onImagePaste) return;
-    const placeholder = `![⏳ enviando ${file.name}…]()`;
-    const el = textareaRef.current;
-    const start = el?.selectionStart ?? valueRef.current.length;
-    const withPlaceholder = valueRef.current.slice(0, start) + placeholder + valueRef.current.slice(start);
-    valueRef.current = withPlaceholder;
-    onChange(withPlaceholder);
     setUploading(true);
     try {
-      const url = await onImagePaste(file);
-      onChange(valueRef.current.replace(placeholder, `![${file.name}](${url})`));
-    } catch {
-      onChange(valueRef.current.replace(placeholder, ''));
-    } finally {
+      const src = await onImagePaste(file);
+      ed.chain().focus().setImage({ src }).run();
+    } catch { /* ignore */ } finally {
       setUploading(false);
     }
-  }, [onImagePaste, onChange]);
+  }, [onImagePaste]);
 
-  const insert = useCallback((before: string, after = '') => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const selected = value.slice(start, end);
-    const next = value.slice(0, start) + before + selected + after + value.slice(end);
-    onChange(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(start + before.length, start + before.length + selected.length);
-    });
-  }, [value, onChange]);
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit,
+      Underline,
+      LinkExt.configure({ openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' } }),
+      ImageExt,
+      Placeholder.configure({ placeholder: placeholder ?? t('textareaPlaceholder') }),
+    ],
+    content: value || '',
+    editorProps: {
+      attributes: {
+        class: 'rich-editor-content tiptap-content overflow-y-auto px-3 py-2.5 text-sm leading-relaxed text-text outline-none',
+        style: `min-height:${minHeight}`,
+      },
+      handlePaste: (_view, event) => {
+        if (!onImagePaste || !editorRef.current) return false;
+        const img = Array.from(event.clipboardData?.items ?? []).find((i) => i.type.startsWith('image/'));
+        const file = img?.getAsFile();
+        if (!file) return false;
+        void uploadAndInsert(file, editorRef.current);
+        return true;
+      },
+      handleDrop: (_view, event) => {
+        if (!onImagePaste || !editorRef.current) return false;
+        const file = Array.from((event as DragEvent).dataTransfer?.files ?? []).find((f) => f.type.startsWith('image/'));
+        if (!file) return false;
+        event.preventDefault();
+        void uploadAndInsert(file, editorRef.current);
+        return true;
+      },
+    },
+    onUpdate: ({ editor }) => { const html = editor.getHTML(); lastEmitted.current = html; onChange(html); },
+    onBlur: () => onBlur?.(),
+  });
 
-  /** Aplica um prefixo a cada linha da seleção (listas, citação, título). */
-  const insertLinePrefix = useCallback((prefix: string | ((i: number) => string)) => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-    const block = value.slice(lineStart, end);
-    const prefixed = block.split('\n').map((ln, i) => (typeof prefix === 'function' ? prefix(i) : prefix) + ln).join('\n');
-    const next = value.slice(0, lineStart) + prefixed + value.slice(end);
-    onChange(next);
-    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(lineStart, lineStart + prefixed.length); });
-  }, [value, onChange]);
+  editorRef.current = editor;
 
-  /** Atalhos estilo editor de PR: Ctrl/Cmd + B / I / K. */
-  const handleShortcuts = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (suggestions.length > 0 && e.key === 'Escape') { setSuggestions([]); setMentionTrigger(null); return; }
-    if (!(e.ctrlKey || e.metaKey)) return;
-    const k = e.key.toLowerCase();
-    if (k === 'b') { e.preventDefault(); insert('**', '**'); }
-    else if (k === 'i') { e.preventDefault(); insert('_', '_'); }
-    else if (k === 'k') { e.preventDefault(); setShowLinkModal(true); }
-  }, [insert, suggestions.length]);
-
-  const handleChange = useCallback(async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newVal = e.target.value;
-    onChange(newVal);
-    const pos = e.target.selectionStart;
-    const textBefore = newVal.slice(0, pos);
-    const atMatch = textBefore.match(/(?:^|[\s\n])@([\w]*)$/);
-    const hashMatch = textBefore.match(/(?:^|[\s\n])#([\w]*)$/);
-    if (atMatch && onMentionSearch) {
-      mentionQueryRef.current = atMatch[1];
-      setMentionTrigger('@');
-      setSuggestions(await onMentionSearch(atMatch[1]));
-    } else if (hashMatch && onTicketSearch) {
-      mentionQueryRef.current = hashMatch[1];
-      setMentionTrigger('#');
-      setSuggestions(await onTicketSearch(hashMatch[1]));
-    } else {
-      setMentionTrigger(null);
-      setSuggestions([]);
+  // Sincroniza mudança externa de value (ex.: limpar após enviar) sem loop.
+  useEffect(() => {
+    if (!editor) return;
+    if (value !== lastEmitted.current && value !== editor.getHTML()) {
+      editor.commands.setContent(value || '');
+      lastEmitted.current = value;
     }
-  }, [onChange, onMentionSearch, onTicketSearch]);
-
-  const selectSuggestion = useCallback((s: MentionSuggestion) => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const pos = el.selectionStart;
-    const trigger = mentionTrigger ?? '@';
-    const replaced = value.slice(0, pos).replace(
-      new RegExp(`(${trigger}${mentionQueryRef.current})$`),
-      s.kind === 'user' ? `@${s.label} ` : `#${s.id} `,
-    );
-    onChange(replaced + value.slice(pos));
-    setSuggestions([]);
-    setMentionTrigger(null);
-    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(replaced.length, replaced.length); });
-  }, [value, onChange, mentionTrigger]);
+  }, [value, editor]);
 
   const insertLink = useCallback((text: string, url: string) => {
-    if (!url.trim()) { setShowLinkModal(false); return; }
-    insert(text.trim() ? `[${text.trim()}](${url.trim()})` : `[${url.trim()}](${url.trim()})`);
     setShowLinkModal(false);
-  }, [insert]);
+    const href = url.trim();
+    if (!href || !editor) return;
+    const label = text.trim() || href;
+    editor.chain().focus().insertContent(`<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>&nbsp;`).run();
+  }, [editor]);
 
-  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    if (!onImagePaste) return;
-    const img = Array.from(e.clipboardData.items).find(i => i.type.startsWith('image/'));
-    if (!img) return;
-    e.preventDefault();
-    const file = img.getAsFile();
-    if (!file) return;
-    await runImageUpload(file);
-  }, [onImagePaste, runImageUpload]);
-
-  const handleDrop = useCallback(async (e: React.DragEvent<HTMLTextAreaElement>) => {
-    if (!onImagePaste) return;
-    const img = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/'));
-    if (!img) return;
-    e.preventDefault();
-    await runImageUpload(img);
-  }, [onImagePaste, runImageUpload]);
-
-  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!onImagePaste || !e.target.files?.[0]) return;
-    await runImageUpload(e.target.files[0]);
-    e.target.value = '';
-  }, [onImagePaste, runImageUpload]);
-
-  type ToolBtn = { icon: typeof Bold; title: string; wrap?: [string, string]; line?: string | ((i: number) => string); action?: () => void };
-  const toolBtns: (ToolBtn | null)[] = [
-    { icon: Heading2, title: t('heading'), line: '## ' },
-    { icon: Bold, title: t('bold'), wrap: ['**', '**'] },
-    { icon: Italic, title: t('italic'), wrap: ['_', '_'] },
-    { icon: Strikethrough, title: t('strikethrough'), wrap: ['~~', '~~'] },
-    { icon: Code, title: t('code'), wrap: ['`', '`'] },
-    null,
-    { icon: List, title: t('list'), line: '- ' },
-    { icon: ListOrdered, title: t('numberedList'), line: (i) => `${i + 1}. ` },
-    { icon: Quote, title: t('quote'), line: '> ' },
-    null,
-    { icon: LinkIcon, title: t('link'), action: () => setShowLinkModal(true) },
-    { icon: ImageIcon, title: t('image'), action: () => fileRef.current?.click() },
-  ];
-
-  const textarea = (
-    <div className="relative flex-1">
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={handleChange}
-        onPaste={handlePaste}
-        onDrop={handleDrop}
-        onKeyDown={handleShortcuts}
-        onBlur={onBlur}
-        placeholder={placeholder ?? t('textareaPlaceholder')}
-        className="w-full resize-none bg-transparent px-3 py-2.5 text-sm leading-relaxed text-text placeholder:text-dim outline-none"
-        style={{ minHeight }}
-      />
-      {mentionTrigger && <SuggestionsDropdown items={suggestions} onSelect={selectSuggestion} />}
-    </div>
-  );
+  const onFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f && editor) await uploadAndInsert(f, editor);
+    if (fileRef.current) fileRef.current.value = '';
+  }, [editor, uploadAndInsert]);
 
   return (
     <>
-      <div className={cn('overflow-visible rounded-lg border border-border bg-bg-subtle transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15', className)}>
-        {/* Barra de ferramentas */}
-        <div className="flex items-center justify-between border-b border-border bg-panel-2/50 px-2 py-1 gap-1 flex-wrap">
-          <div className="flex items-center gap-0.5">
-            {toolBtns.map((btn, i) => {
-              if (btn === null) return <div key={i} className="mx-0.5 h-4 w-px bg-border/70" />;
-              const Icon = btn.icon;
-              return (
-                <button
-                  key={btn.title}
-                  type="button"
-                  title={btn.title}
-                  onMouseDown={e => {
-                    e.preventDefault();
-                    if (btn.action) btn.action();
-                    else if (btn.wrap) insert(btn.wrap[0], btn.wrap[1]);
-                    else if (btn.line !== undefined) insertLinePrefix(btn.line);
-                  }}
-                  className="grid h-7 w-7 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text transition-colors"
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                </button>
-              );
-            })}
-            {onMentionSearch && (
-              <>
-                <div className="mx-0.5 h-4 w-px bg-border/70" />
-                <button type="button" title={t('mentionUser')}
-                  onMouseDown={e => { e.preventDefault(); insert('@'); }}
-                  className="grid h-7 w-7 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text transition-colors">
-                  <AtSign className="h-3.5 w-3.5" />
-                </button>
-              </>
-            )}
-            {onTicketSearch && (
-              <button type="button" title={t('referenceTicket')}
-                onMouseDown={e => { e.preventDefault(); insert('#'); }}
-                className="grid h-7 w-7 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text transition-colors">
-                <Hash className="h-3.5 w-3.5" />
-              </button>
-            )}
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
-          </div>
-
-          <div className="flex items-center gap-2">
-            {uploading && (
-              <span className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                <Loader2 className="h-3 w-3 animate-spin" /> {t('uploadingImage')}
-              </span>
-            )}
-
-            {/* Abas Escrever | Pré-visualizar (estilo editor de PR) */}
-            <div className="flex items-center rounded-md border border-border overflow-hidden text-[11px] font-medium shrink-0">
-            <button type="button" onClick={() => setMode('write')}
-              className={cn('flex items-center gap-1 px-2 py-1 transition-colors', mode === 'write' ? 'bg-primary text-primary-fg' : 'text-dim hover:text-text')}>
-              <Pencil className="h-3 w-3" />{t('modeWrite')}
-            </button>
-            <button type="button" onClick={() => setMode('preview')}
-              className={cn('flex items-center gap-1 px-2 py-1 transition-colors border-l border-border/50', mode === 'preview' ? 'bg-primary text-primary-fg' : 'text-dim hover:text-text')}>
-              <Eye className="h-3 w-3" />{t('modePreview')}
-            </button>
-            </div>
-          </div>
+      <div className={cn('flex flex-col overflow-hidden rounded-lg border border-border bg-panel transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15', className)}>
+        {/* Barra de ferramentas WYSIWYG */}
+        <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-panel-2/50 px-2 py-1">
+          <ToolButton title={t('heading')} active={editor?.isActive('heading', { level: 2 })} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 className="h-3.5 w-3.5" /></ToolButton>
+          <ToolButton title={t('bold')} active={editor?.isActive('bold')} onClick={() => editor?.chain().focus().toggleBold().run()}><Bold className="h-3.5 w-3.5" /></ToolButton>
+          <ToolButton title={t('italic')} active={editor?.isActive('italic')} onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic className="h-3.5 w-3.5" /></ToolButton>
+          <ToolButton title={t('underline')} active={editor?.isActive('underline')} onClick={() => editor?.chain().focus().toggleUnderline().run()}><UnderlineIcon className="h-3.5 w-3.5" /></ToolButton>
+          <ToolButton title={t('strikethrough')} active={editor?.isActive('strike')} onClick={() => editor?.chain().focus().toggleStrike().run()}><Strikethrough className="h-3.5 w-3.5" /></ToolButton>
+          <ToolButton title={t('code')} active={editor?.isActive('code')} onClick={() => editor?.chain().focus().toggleCode().run()}><Code className="h-3.5 w-3.5" /></ToolButton>
+          <div className="mx-0.5 h-4 w-px bg-border/70" />
+          <ToolButton title={t('list')} active={editor?.isActive('bulletList')} onClick={() => editor?.chain().focus().toggleBulletList().run()}><List className="h-3.5 w-3.5" /></ToolButton>
+          <ToolButton title={t('numberedList')} active={editor?.isActive('orderedList')} onClick={() => editor?.chain().focus().toggleOrderedList().run()}><ListOrdered className="h-3.5 w-3.5" /></ToolButton>
+          <ToolButton title={t('quote')} active={editor?.isActive('blockquote')} onClick={() => editor?.chain().focus().toggleBlockquote().run()}><Quote className="h-3.5 w-3.5" /></ToolButton>
+          <div className="mx-0.5 h-4 w-px bg-border/70" />
+          <ToolButton title={t('link')} active={editor?.isActive('link')} onClick={() => setShowLinkModal(true)}><LinkIcon className="h-3.5 w-3.5" /></ToolButton>
+          {onImagePaste && <ToolButton title={t('image')} onClick={() => fileRef.current?.click()}><ImageIcon className="h-3.5 w-3.5" /></ToolButton>}
+          {uploading && (
+            <span className="ml-1 flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+              <Loader2 className="h-3 w-3 animate-spin" /> {t('uploadingImage')}
+            </span>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
         </div>
 
-        {/* Área de conteúdo */}
-        {mode === 'write' ? textarea : <EditorPreview value={value} minHeight={minHeight} />}
+        <EditorContent editor={editor} />
       </div>
 
       {showLinkModal && <LinkModal onInsert={insertLink} onClose={() => setShowLinkModal(false)} />}
@@ -507,13 +330,37 @@ export function MarkdownEditor({
 }
 
 // ─── Exibição de conteúdo (leitura) ──────────────────────────────────────────
+
+/** Renderiza HTML e resolve imagens `attachment:{id}` com autenticação. */
+function AuthedHtml({ html, className }: { html: string; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    const created: string[] = [];
+    let active = true;
+    root.querySelectorAll('img').forEach((img) => {
+      const m = (img.getAttribute('src') ?? '').match(ATTACHMENT_REF);
+      if (!m) return;
+      fetchAttachmentBlob(Number(m[1]))
+        .then((u) => { if (active) { created.push(u); img.setAttribute('src', u); } })
+        .catch(() => { /* ignore */ });
+    });
+    return () => { active = false; created.forEach((u) => URL.revokeObjectURL(u)); };
+  }, [html]);
+  return (
+    <div
+      ref={ref}
+      className={cn('rich-editor-content text-sm leading-relaxed text-text', className)}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
 interface MarkdownContentProps {
   content: string;
   className?: string;
-  /**
-   * Quando true, imagens são exibidas como chips clicáveis em vez de inline.
-   * Use isso em comentários/conversas para não "explodir" o layout.
-   */
+  /** Quando true, imagens são exibidas como chips clicáveis (comentários/conversas). */
   imageAsChip?: boolean;
 }
 
@@ -522,12 +369,7 @@ export function MarkdownContent({ content, className, imageAsChip = false }: Mar
   const isHtml = /<[a-zA-Z][^>]*>/.test(content);
 
   if (isHtml) {
-    return (
-      <div
-        className={cn('rich-editor-content prose-sm text-sm leading-relaxed text-text', className)}
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-    );
+    return <AuthedHtml html={content} className={className} />;
   }
 
   return (

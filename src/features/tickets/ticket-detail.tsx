@@ -4004,38 +4004,19 @@ function Conversation({ ticketId, comments, userName, locale, timeZone, onImageP
   const [internal, setInternal] = useState(false);
   const [filter, setFilter] = useState<CommentFilter>('all');
 
-  // @menções: usuários citados no comentário atual + estado do autocomplete.
+  // @menções: usuários para o autocomplete do editor e para notificar no envio.
   const users = useQuery({ queryKey: ['users', 'options', 200], queryFn: () => usersApi.list(1, 200) });
-  const [mentioned, setMentioned] = useState<{ id: number; name: string }[]>([]);
-  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-
-  const handleText = (v: string) => {
-    setText(v);
-    const m = v.match(/@([\p{L}\d._-]*)$/u); // token de menção sendo digitado (no fim)
-    setMentionQuery(m ? m[1] : null);
-  };
-
-  const mentionMatches = useMemo(() => {
-    if (mentionQuery === null) return [];
-    const q = mentionQuery.toLowerCase();
-    return (users.data?.items ?? [])
-      .filter((u) => u.id !== meId && (q === '' || u.name.toLowerCase().includes(q)))
-      .slice(0, 6);
-  }, [mentionQuery, users.data, meId]);
-
-  const pickMention = (u: { id: number; name: string }) => {
-    setText((prev) => prev.replace(/@([\p{L}\d._-]*)$/u, `@${u.name} `));
-    setMentioned((prev) => (prev.some((x) => x.id === u.id) ? prev : [...prev, { id: u.id, name: u.name }]));
-    setMentionQuery(null);
-  };
 
   const add = useMutation({
     mutationFn: () => {
-      // Só notifica quem ainda está citado no texto (o usuário pode ter apagado a menção).
-      const ids = mentioned.filter((m) => text.includes(`@${m.name}`)).map((m) => m.id);
+      // Deriva os mencionados do conteúdo (texto puro) — cada usuário citado como "@Nome".
+      const plain = text.replace(/<[^>]*>/g, ' ');
+      const ids = (users.data?.items ?? [])
+        .filter((u) => u.id !== meId && plain.includes(`@${u.name}`))
+        .map((u) => u.id);
       return ticketsApi.addComment(ticketId, text.trim(), internal, ids);
     },
-    onSuccess: () => { setText(''); setMentioned([]); setMentionQuery(null); qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] }); },
+    onSuccess: () => { setText(''); qc.invalidateQueries({ queryKey: ['tickets', 'detail', ticketId] }); },
     onError: (err) => toast.error(apiErrorMessage(err, t('addError'))),
   });
 
@@ -4152,25 +4133,10 @@ function Conversation({ ticketId, comments, userName, locale, timeZone, onImageP
 
       {/* Composer */}
       <Can permission="ticket.comment.add">
-        <div className={cn('relative mt-2 rounded-xl border overflow-visible transition-colors shrink-0', internal ? 'border-warning/40 bg-warning/5' : 'border-border bg-panel')}>
-          {mentionQuery !== null && mentionMatches.length > 0 && (
-            <div className="absolute bottom-full left-3 z-20 mb-1 w-64 overflow-hidden rounded-xl border border-border bg-panel shadow-lg">
-              <p className="border-b border-border/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-dim">{t('mentionHint')}</p>
-              <ul className="max-h-52 overflow-y-auto py-1">
-                {mentionMatches.map((u) => (
-                  <li key={u.id}>
-                    <button type="button" onMouseDown={(e) => { e.preventDefault(); pickMention(u); }} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-panel-2">
-                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">{u.name.split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('')}</span>
-                      <span className="min-w-0 flex-1 truncate">{u.name}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+        <div className={cn('mt-2 rounded-xl border overflow-hidden transition-colors shrink-0', internal ? 'border-warning/40 bg-warning/5' : 'border-border bg-panel')}>
           <MarkdownEditor
             value={text}
-            onChange={handleText}
+            onChange={setText}
             placeholder={internal ? t('placeholderInternal') : t('placeholderPublic')}
             minHeight="80px"
             onImagePaste={onImagePaste}
