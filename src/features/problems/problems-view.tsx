@@ -28,6 +28,11 @@ const STATUS_STYLE: Record<ProblemStatusName, string> = {
 
 const STATUS_ORDER: ProblemStatusName[] = ['Open', 'Monitoring', 'Resolved', 'Dismissed'];
 
+/** Remove tags HTML de textos derivados de descrições de ticket (ex.: "<p>teste </p>"). */
+function stripHtml(s: string | null | undefined): string {
+  return (s ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function StatusBadge({ status }: { status: ProblemStatusName }) {
   const t = useTranslations('problems');
   return (
@@ -85,9 +90,9 @@ function ProblemDetail({ id, onClose }: { id: number; onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-panel shadow-xl"
+        className="flex h-full w-full max-w-xl flex-col overflow-hidden border-l border-border bg-panel shadow-2xl animate-slide-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-border px-5 py-3.5">
@@ -120,7 +125,7 @@ function ProblemDetail({ id, onClose }: { id: number; onClose: () => void }) {
                     </span>
                   )}
                 </div>
-                {data.summary && <p className="text-sm text-muted">{data.summary}</p>}
+                {stripHtml(data.summary) && <p className="text-sm text-muted">{stripHtml(data.summary)}</p>}
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-dim">
                   <span>{t('ticketCount', { count: data.ticketCount })}</span>
                   <span>{t('lastSeen')}: {formatShortDate(data.lastSeenAt)}</span>
@@ -246,7 +251,7 @@ function ProblemCard({ problem, onOpen }: { problem: ProblemResponse; onOpen: ()
             </span>
           )}
         </div>
-        {problem.summary && <p className="mt-1 text-xs text-muted line-clamp-2">{problem.summary}</p>}
+        {stripHtml(problem.summary) && <p className="mt-1 text-xs text-muted line-clamp-2">{stripHtml(problem.summary)}</p>}
         <p className="mt-1.5 text-[11px] text-dim">{t('lastSeen')}: {formatShortDate(problem.lastSeenAt)}</p>
       </div>
     </button>
