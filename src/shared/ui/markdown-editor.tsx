@@ -193,6 +193,8 @@ interface MarkdownEditorProps {
   minHeight?: string;
   className?: string;
   compact?: boolean;
+  /** Só leitura: renderiza o conteúdo sem barra de ferramentas nem edição. */
+  readOnly?: boolean;
   onBlur?: () => void;
 }
 
@@ -214,7 +216,7 @@ function ToolButton({ active, title, onClick, children }: { active?: boolean; ti
 
 export function MarkdownEditor({
   value, onChange, placeholder, onImagePaste,
-  minHeight = '120px', className, onBlur,
+  minHeight = '120px', className, readOnly = false, onBlur,
 }: MarkdownEditorProps) {
   const t = useTranslations('editor');
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -236,6 +238,7 @@ export function MarkdownEditor({
 
   const editor = useEditor({
     immediatelyRender: false,
+    editable: !readOnly,
     extensions: [
       StarterKit,
       Underline,
@@ -294,6 +297,11 @@ export function MarkdownEditor({
     if (f && editor) await uploadAndInsert(f, editor);
     if (fileRef.current) fileRef.current.value = '';
   }, [editor, uploadAndInsert]);
+
+  // Só leitura: renderiza o conteúdo sem barra de ferramentas (mesma exibição da leitura).
+  if (readOnly) {
+    return <MarkdownContent content={value} className={className} />;
+  }
 
   return (
     <>

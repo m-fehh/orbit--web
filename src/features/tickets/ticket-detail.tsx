@@ -40,7 +40,6 @@ import { tokenStore } from '@/shared/api/token-store';
 import { Portal } from '@/shared/ui/portal';
 import { Drawer } from '@/shared/ui/modal';
 import { Checkbox } from '@/shared/ui/checkbox';
-import { RichEditor } from '@/shared/ui/rich-editor';
 import { MarkdownEditor, MarkdownContent, attachmentRef } from '@/shared/ui/markdown-editor';
 import { openIntelligenceModal } from './intelligence-modal';
 import { translateCauseCategory, RootCauseCard, ResolutionSuggestionCard } from '@/features/intelligence/cards';
