@@ -374,6 +374,127 @@ export function LineChart({
 }
 
 // ---------------------------------------------------------------------------
+// Pareto — barras (desc) + linha de % acumulada + referência 80%
+// ---------------------------------------------------------------------------
+
+export interface ParetoItem {
+  label: string;
+  value: number;
+  color?: string;
+}
+
+/**
+ * Gráfico de Pareto: ordena as categorias por frequência (desc), mostra as
+ * barras e a curva de percentual acumulado, com linha de referência em 80%
+ * (regra 80/20 — poucas causas concentram a maioria dos casos).
+ */
+export function ParetoChart({
+  items,
+  height = 260,
+  barsLabel = 'Casos',
+  cumulativeLabel = '% acumulado',
+  className,
+}: {
+  items: ParetoItem[];
+  height?: number;
+  barsLabel?: string;
+  cumulativeLabel?: string;
+  className?: string;
+}) {
+  const sorted = [...items].filter((i) => i.value > 0).sort((a, b) => b.value - a.value);
+  const W = 720;
+  const H = height;
+  const PAD_L = 38;
+  const PAD_R = 44; // eixo direito (%)
+  const PAD_T = 16;
+  const PAD_B = 52;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_T - PAD_B;
+  const n = sorted.length;
+
+  if (n === 0) return <div style={{ height }} className={cn('grid place-items-center text-sm text-dim', className)}>—</div>;
+
+  const total = sorted.reduce((s, x) => s + x.value, 0) || 1;
+  const maxVal = Math.max(...sorted.map((i) => i.value), 1);
+  const slot = chartW / n;
+  const barW = Math.min(slot * 0.6, 52);
+  const barX = (i: number) => PAD_L + slot * i + (slot - barW) / 2;
+  const toY = (v: number) => PAD_T + chartH - (v / maxVal) * chartH;
+  const toYpct = (p: number) => PAD_T + chartH - p * chartH; // p em 0..1
+
+  // Percentual acumulado por barra (no centro de cada slot).
+  let run = 0;
+  const cum = sorted.map((it) => { run += it.value; return run / total; });
+  const cx = (i: number) => PAD_L + slot * i + slot / 2;
+
+  const yTicks = 4;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className={cn('h-auto w-full', className)} role="img">
+      {/* grid + eixo Y (contagem) e eixo direito (%) */}
+      {Array.from({ length: yTicks + 1 }).map((_, i) => {
+        const yVal = (maxVal / yTicks) * i;
+        const y = toY(yVal);
+        const pct = i / yTicks;
+        return (
+          <g key={i}>
+            <line x1={PAD_L} y1={y} x2={W - PAD_R} y2={y} stroke="var(--orbit-color-border)" strokeDasharray="3 4" />
+            <text x={PAD_L - 6} y={y + 3} textAnchor="end" fontSize={10} fill="var(--orbit-color-dim)">{Math.round(yVal)}</text>
+            <text x={W - PAD_R + 6} y={y + 3} textAnchor="start" fontSize={10} fill="var(--orbit-color-dim)">{Math.round(pct * 100)}%</text>
+          </g>
+        );
+      })}
+
+      {/* referência 80% */}
+      <line x1={PAD_L} y1={toYpct(0.8)} x2={W - PAD_R} y2={toYpct(0.8)} stroke="var(--orbit-color-warning)" strokeDasharray="5 4" strokeWidth={1.25} opacity={0.7} />
+      <text x={W - PAD_R} y={toYpct(0.8) - 4} textAnchor="end" fontSize={10} fill="var(--orbit-color-warning)">80%</text>
+
+      {/* barras */}
+      {sorted.map((it, i) => (
+        <rect
+          key={it.label}
+          x={barX(i)}
+          y={toY(it.value)}
+          width={barW}
+          height={PAD_T + chartH - toY(it.value)}
+          rx={3}
+          fill={it.color ?? 'var(--orbit-color-primary)'}
+          opacity={0.85}
+        />
+      ))}
+
+      {/* rótulos das categorias (truncados) */}
+      {sorted.map((it, i) => (
+        <text key={it.label} x={cx(i)} y={H - 30} textAnchor="middle" fontSize={9} fill="var(--orbit-color-dim)">
+          {it.label.length > 10 ? `${it.label.slice(0, 9)}…` : it.label}
+        </text>
+      ))}
+
+      {/* curva acumulada */}
+      <polyline
+        points={cum.map((p, i) => `${cx(i)},${toYpct(p)}`).join(' ')}
+        fill="none"
+        stroke="var(--orbit-color-warning)"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {cum.map((p, i) => (
+        <circle key={i} cx={cx(i)} cy={toYpct(p)} r={2.75} fill="var(--orbit-color-warning)" />
+      ))}
+
+      {/* legenda */}
+      <g transform={`translate(${PAD_L}, ${H - 8})`}>
+        <rect x={0} y={-8} width={10} height={8} rx={1.5} fill="var(--orbit-color-primary)" opacity={0.85} />
+        <text x={16} y={-1} fontSize={11} fill="var(--orbit-color-muted)">{barsLabel}</text>
+        <circle cx={120} cy={-4} r={4} fill="var(--orbit-color-warning)" />
+        <text x={130} y={-1} fontSize={11} fill="var(--orbit-color-muted)">{cumulativeLabel}</text>
+      </g>
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Card / Section wrappers reutilizáveis
 // ---------------------------------------------------------------------------
 

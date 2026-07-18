@@ -22,7 +22,7 @@ import { Select } from '@/shared/ui/select';
 import { LoadingState } from '@/shared/ui/states';
 import {
   ChartCard,
-  DonutChart,
+  ParetoChart,
   HBarChart,
   ProgressBar,
   formatMinutes,
@@ -215,11 +215,14 @@ export function IntelligenceDashboard() {
               )}
             </ChartCard>
 
-            <ChartCard title={t('rootCauseDistribution')} icon={<BarChart3 className="h-4 w-4 text-primary" />}>
+            <ChartCard title={t('rootCausePareto')} icon={<BarChart3 className="h-4 w-4 text-primary" />}>
               {rootCauseSlices.length === 0 ? (
                 <p className="py-8 text-center text-sm text-dim">{t('noPatternsYet')}</p>
               ) : (
-                <DonutChart slices={rootCauseSlices} centerLabel={t('causes')} />
+                <>
+                  <ParetoChart items={rootCauseSlices} barsLabel={t('paretoCases')} cumulativeLabel={t('paretoCumulative')} />
+                  <p className="mt-md text-xs text-muted">{t('paretoHint')}</p>
+                </>
               )}
             </ChartCard>
           </div>
