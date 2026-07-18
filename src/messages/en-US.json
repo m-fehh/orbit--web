@@ -1111,7 +1111,15 @@
       "granted": "Can",
       "denied": "Cannot",
       "adminHint": "Administrator profile: full access. Only an administrator can grant/remove this level.",
-      "rulesLoadError": "Error loading rules"
+      "rulesLoadError": "Error loading rules",
+      "can": "Can",
+      "cannot": "Cannot",
+      "partial": "Partial",
+      "grantAll": "Grant all",
+      "clearAll": "Clear all",
+      "grantedOf": "{granted} of {total}",
+      "collapse": "Collapse",
+      "expand": "Expand"
     },
     "audit": {
       "title": "Audit",

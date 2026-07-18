@@ -67,7 +67,7 @@ const SECTIONS: NavSection[] = [
     titleKey: 'secAdmin',
     items: [
       { loc: { kind: 'users', params: {}, title: 'Usuários', icon: 'users' }, labelKey: 'users', icon: UsersIcon, perm: ['admin.users.view'] },
-      { loc: { kind: 'admin', params: {}, title: 'Perfis', icon: 'admin' }, labelKey: 'admin', icon: UserCog, perm: ['role.view', 'admin.users.view'] },
+      { loc: { kind: 'admin', params: {}, title: 'Perfis', icon: 'admin' }, labelKey: 'admin', icon: UserCog, perm: ['admin.profiles.view', 'admin.roles.view'] },
       { loc: { kind: 'audit', params: {}, title: 'Logs de auditoria', icon: 'audit' }, labelKey: 'audit', icon: History, perm: ['auditlog.view'] },
       { loc: { kind: 'sla', params: {}, title: 'SLA', icon: 'admin' }, labelKey: 'sla', icon: Gauge, perm: ['sla.view', 'sla.manage'] },
     ],

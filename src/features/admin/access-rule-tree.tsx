@@ -1,11 +1,10 @@
 'use client';
 
-import { useMemo, useRef, useEffect } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { useMemo } from 'react';
+import { ChevronRight, Check, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { AccessRuleResponse } from '@/shared/api/types';
-import { Checkbox } from '@/shared/ui/checkbox';
 import { cn } from '@/shared/lib/utils';
 
 interface TreeNode extends Omit<AccessRuleResponse, 'id'> {
@@ -32,6 +31,9 @@ const MODULE_LABEL: Record<string, string> = {
   notification: 'Notificações',
   search: 'Busca',
   symptom: 'Sintomas',
+  iteration: 'Iterações',
+  tag: 'Tags',
+  webhook: 'Webhooks',
   role: 'Papéis',
   admin: 'Administração',
 };
@@ -162,7 +164,7 @@ export function AccessRuleTree({
   }
 
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-3">
       {tree.map((node) => (
         <TreeRow key={node.id} node={node} depth={0} selected={selected} onToggle={toggle} />
       ))}
@@ -181,61 +183,81 @@ function TreeRow({
   selected: Set<number>;
   onToggle: (node: TreeNode) => void;
 }) {
-  const tUi = useTranslations('ui');
+  const t = useTranslations('admin.profiles');
   const [open, setOpen] = useState(true);
-  const ref = useRef<HTMLInputElement>(null);
 
   const ids = descendantIds(node);
   const checkedCount = ids.filter((id) => selected.has(id)).length;
-  const checked = checkedCount === ids.length;
-  const indeterminate = checkedCount > 0 && !checked;
+  const allChecked = checkedCount === ids.length && ids.length > 0;
+  const someChecked = checkedCount > 0 && !allChecked;
 
-  useEffect(() => {
-    if (ref.current) ref.current.indeterminate = indeterminate;
-  }, [indeterminate]);
-
-  const hasChildren = node.children.length > 0;
-
-  return (
-    <div>
-      <div
-        className="flex items-center gap-1.5 rounded px-1 py-1 hover:bg-panel-2"
-        style={{ paddingLeft: depth * 18 + 4 }}
-      >
-        {hasChildren ? (
+  // ── Nó de MÓDULO: cartão com cabeçalho (contagem + marcar/limpar tudo) ──
+  if (node.isModule) {
+    return (
+      <section className="overflow-hidden rounded-xl border border-border bg-panel">
+        <header className="flex items-center gap-2 border-b border-border bg-panel-2/40 px-3 py-2">
+          <button type="button" onClick={() => setOpen((v) => !v)} className="grid h-5 w-5 place-items-center text-dim hover:text-text" aria-label={open ? t('collapse') : t('expand')}>
+            <ChevronRight className={cn('h-4 w-4 transition-transform', open && 'rotate-90')} aria-hidden />
+          </button>
+          <span className="text-sm font-bold text-text">{node.description}</span>
+          <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold', allChecked ? 'bg-success/15 text-success' : someChecked ? 'bg-warning/15 text-warning' : 'bg-panel-2 text-dim')}>
+            {t('grantedOf', { granted: checkedCount, total: ids.length })}
+          </span>
           <button
             type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="grid h-4 w-4 place-items-center text-dim hover:text-text"
-            aria-label={open ? tUi('collapse') : tUi('expand')}
+            onClick={() => onToggle(node)}
+            className={cn('ml-auto rounded-md border px-2 py-1 text-[11px] font-medium transition-colors', allChecked ? 'border-border text-muted hover:bg-panel-2 hover:text-text' : 'border-primary/40 text-primary hover:bg-primary/10')}
           >
+            {allChecked ? t('clearAll') : t('grantAll')}
+          </button>
+        </header>
+        {open && (
+          <div className="divide-y divide-border/50">
+            {node.children.map((c) => (
+              <TreeRow key={c.id} node={c} depth={depth + 1} selected={selected} onToggle={onToggle} />
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  // ── Nó FOLHA (ou submódulo com filhos): linha com toggle explícito Pode/Não pode ──
+  const hasChildren = node.children.length > 0;
+  const granted = allChecked;
+  return (
+    <div>
+      <div className={cn('flex items-center gap-3 px-3 py-2 transition-colors', granted ? 'bg-success/[0.05]' : 'hover:bg-panel-2/40')}>
+        {hasChildren ? (
+          <button type="button" onClick={() => setOpen((v) => !v)} className="grid h-4 w-4 place-items-center text-dim hover:text-text" aria-label={open ? t('collapse') : t('expand')}>
             <ChevronRight className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-90')} aria-hidden />
           </button>
         ) : (
-          <span className="inline-block h-4 w-4" />
+          <span className="inline-block h-4 w-4 shrink-0" />
         )}
-        <div className="flex flex-1 items-center gap-sm">
-          <Checkbox
-            ref={ref}
-            checked={checked}
-            onChange={() => onToggle(node)}
-            size="sm"
-          />
-          <span className={cn('text-sm', node.isModule ? 'font-semibold text-text' : 'text-text')}>
-            {node.description}
-          </span>
-          {!node.isModule && (
-            <span className="font-mono text-[11px] text-dim">{node.keyName}</span>
-          )}
-          {node.isModule && (
-            <span className="ml-auto rounded-full bg-panel-2 px-1.5 text-[10px] font-medium text-dim">
-              {ids.length}
-            </span>
-          )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm text-text">{node.description}</p>
+          <p className="truncate font-mono text-[10px] text-dim">{node.keyName}</p>
         </div>
+        <button
+          type="button"
+          onClick={() => onToggle(node)}
+          aria-pressed={granted}
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+            granted
+              ? 'border-success/40 bg-success/10 text-success hover:bg-success/15'
+              : someChecked
+                ? 'border-warning/40 bg-warning/10 text-warning hover:bg-warning/15'
+                : 'border-border bg-panel-2 text-dim hover:text-text',
+          )}
+        >
+          {granted ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+          {granted ? t('can') : someChecked ? t('partial') : t('cannot')}
+        </button>
       </div>
       {hasChildren && open && (
-        <div>
+        <div className="ml-4 border-l border-border/50">
           {node.children.map((c) => (
             <TreeRow key={c.id} node={c} depth={depth + 1} selected={selected} onToggle={onToggle} />
           ))}

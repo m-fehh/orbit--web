@@ -1111,7 +1111,15 @@
       "granted": "Pode",
       "denied": "Não pode",
       "adminHint": "Perfil de administrador: acesso total. Só um administrador pode conceder/remover este nível.",
-      "rulesLoadError": "Erro ao carregar regras"
+      "rulesLoadError": "Erro ao carregar regras",
+      "can": "Pode",
+      "cannot": "Não pode",
+      "partial": "Parcial",
+      "grantAll": "Marcar tudo",
+      "clearAll": "Limpar tudo",
+      "grantedOf": "{granted} de {total}",
+      "collapse": "Recolher",
+      "expand": "Expandir"
     },
     "audit": {
       "title": "Auditoria",

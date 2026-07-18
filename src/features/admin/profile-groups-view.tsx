@@ -163,10 +163,10 @@ export function ProfileGroupsView() {
                 />
                 <span className="ml-auto inline-flex items-center gap-3 text-xs text-dim">
                   <span className="inline-flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-success" /> {t('granted')}
+                    <span className="h-2 w-2 rounded-full bg-success" /> {t('can')}
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-border-strong" /> {t('denied')}
+                    <span className="h-2 w-2 rounded-full bg-border-strong" /> {t('cannot')}
                   </span>
                 </span>
               </div>
