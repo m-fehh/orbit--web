@@ -1081,6 +1081,8 @@ export interface ResolveTicketRequest {
   usedResolutionId?: number | null;
   /** Confiança ofertada no momento da sugestão (1=Low, 2=Medium, 3=High). */
   offeredConfidence?: number | null;
+  /** Quando true, gera um rascunho de conhecimento a partir desta resolução. */
+  createKnowledgeDraft?: boolean;
 }
 
 export interface ResolutionActionInput {
@@ -1096,6 +1098,7 @@ export interface ResolveTicketResponse {
   resolutionId: number;
   actionsCount: number;
   symptomsCount: number;
+  knowledgeDraftId?: number | null;
 }
 
 export interface ResolutionPatternResponse {

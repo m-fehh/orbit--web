@@ -1704,6 +1704,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
   const [selectedRootCauseId, setSelectedRootCauseId] = useState<number | null>(null);
   const [selectedSymptomIds, setSelectedSymptomIds] = useState<number[]>(ticketSymptoms.map(s => s.id));
   const [actions, setActions] = useState<{ actionType: number; detail: string }[]>([]);
+  const [createKnowledgeDraft, setCreateKnowledgeDraft] = useState(true);
 
   const symptomCatalog = useQuery({ queryKey: ['symptoms'], queryFn: () => symptomsApi.list() });
   const rootCauses = useQuery({ queryKey: ['rootcauses', ticketId], queryFn: () => rootCausesApi.byTicket(ticketId) });
@@ -1723,6 +1724,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
         actions: actions.map((a, i) => ({ order: i + 1, actionType: a.actionType, detail: a.detail.trim() || null })),
         symptomTagIds: selectedSymptomIds,
         isRecurring,
+        createKnowledgeDraft,
         ...(offeredPlaybook
           ? {
               usedPlaybookId: offeredPlaybook.playbookId,
@@ -1730,7 +1732,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
             }
           : {}),
       }),
-    onSuccess: () => { toast.success(t('resolvedOk')); onResolved(); },
+    onSuccess: (res) => { toast.success(t('resolvedOk')); if (res?.knowledgeDraftId) toast.success(t('knowledgeDraftCreated')); onResolved(); },
     onError: (err) => toast.error(apiErrorMessage(err, t('resolveError'))),
   });
 
@@ -2017,6 +2019,20 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
                     <RotateCcw className="h-3.5 w-3.5" /> {t('markedRecurring')}
                   </div>
                 )}
+                {/* Captura de conhecimento: gera um rascunho a partir desta resolução. */}
+                <button
+                  type="button"
+                  onClick={() => setCreateKnowledgeDraft((v) => !v)}
+                  className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-panel-2/40"
+                >
+                  <span className={cn('mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-colors', createKnowledgeDraft ? 'border-primary bg-primary text-primary-fg' : 'border-border')}>
+                    {createKnowledgeDraft && <Check className="h-3.5 w-3.5" />}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-text"><BookOpen className="h-3.5 w-3.5 text-primary" /> {t('createKnowledgeDraft')}</span>
+                    <span className="mt-0.5 block text-xs text-muted">{t('createKnowledgeDraftHint')}</span>
+                  </span>
+                </button>
               </div>
             )}
 
@@ -3269,6 +3285,7 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
   const [resolutionSummary, setResolutionSummary] = useState('');
   const [outcome, setOutcome] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
+  const [createKnowledgeDraft, setCreateKnowledgeDraft] = useState(true);
 
   const rootCauses = useQuery({ queryKey: ['rootcauses', ticketId], queryFn: () => rootCausesApi.byTicket(ticketId) });
   const report = useQuery({ queryKey: ['tickets', 'intelligence', ticketId], queryFn: () => intelligenceApi.ticketReport(ticketId), retry: false });
@@ -3288,6 +3305,7 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
         actions: [],
         symptomTagIds: [],
         isRecurring,
+        createKnowledgeDraft,
         ...(offeredPlaybook
           ? {
               usedPlaybookId: offeredPlaybook.playbookId,
@@ -3295,8 +3313,9 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
             }
           : {}),
       }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       toast.success(t('resolvedOk'));
+      if (res?.knowledgeDraftId) toast.success(t('knowledgeDraftCreated'));
       qc.invalidateQueries({ queryKey: ['tickets'] });
     },
     onError: (err) => toast.error(apiErrorMessage(err, t('resolveError'))),
@@ -3481,6 +3500,15 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
                 <RotateCcw className="h-3.5 w-3.5" /> {t('markedRecurring')}
               </div>
             )}
+            <button type="button" onClick={() => setCreateKnowledgeDraft((v) => !v)} className="flex items-start gap-2 rounded-lg border border-border px-3 py-2 text-left hover:bg-panel-2/40">
+              <span className={cn('mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-colors', createKnowledgeDraft ? 'border-primary bg-primary text-primary-fg' : 'border-border')}>
+                {createKnowledgeDraft && <Check className="h-3.5 w-3.5" />}
+              </span>
+              <span className="min-w-0">
+                <span className="flex items-center gap-1.5 text-sm font-medium text-text"><BookOpen className="h-3.5 w-3.5 text-primary" /> {t('createKnowledgeDraft')}</span>
+                <span className="mt-0.5 block text-xs text-muted">{t('createKnowledgeDraftHint')}</span>
+              </span>
+            </button>
           </div>
         </div>
       )}
