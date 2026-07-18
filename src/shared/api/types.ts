@@ -1037,6 +1037,14 @@ export interface ChatMessageResponse {
   replyToId: number | null;
   replyToSenderName: string | null;
   replyToPreview: string | null;
+  reactions: ChatReactionResponse[] | null;
+  pinnedAt: string | null;
+  forwardedFromName: string | null;
+}
+export interface ChatReactionResponse {
+  emoji: string;
+  count: number;
+  mine: boolean;
 }
 export interface CreateConversationRequest {
   userIds: number[];

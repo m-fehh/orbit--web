@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   MessageSquare, X, Plus, ArrowLeft, Send, Users, Search, Check, CheckCheck,
   Pencil, Trash2, Paperclip, Download, FileText, Smile, Settings2, UserPlus, LogOut, UserMinus, Reply,
-  Bell, BellOff, ChevronUp, ChevronDown, Image as ImageIcon, Eye,
+  Bell, BellOff, ChevronUp, ChevronDown, Image as ImageIcon, Eye, Forward, Pin,
 } from 'lucide-react';
 
 /** Emojis curados (sem dependência externa) para o seletor do compositor. */
@@ -466,6 +466,17 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
     setReplyTo({ id: msg.id, sender: msg.senderName, preview: msg.attachmentName ? `📎 ${msg.attachmentName}` : msg.body });
     inputRef.current?.focus();
   };
+
+  // Lote A: reagir, fixar, encaminhar.
+  const react = useMutation({ mutationFn: (v: { id: number; emoji: string }) => chatApi.react(v.id, v.emoji), onSuccess: invalidate });
+  const pin = useMutation({ mutationFn: (id: number) => chatApi.pin(id), onSuccess: invalidate });
+  const [forwardMsg, setForwardMsg] = useState<ChatMessageResponse | null>(null);
+  const forward = useMutation({
+    mutationFn: (v: { id: number; target: number }) => chatApi.forward(v.id, v.target),
+    onSuccess: () => { setForwardMsg(null); toast.success(t('forwarded')); },
+    onError: (e) => toast.error(apiErrorMessage(e, t('forwardError'))),
+  });
+
   const edit = useMutation({
     mutationFn: (v: { id: number; body: string }) => chatApi.editMessage(v.id, v.body),
     onSuccess: () => { setEditing(null); invalidate(); },
@@ -557,6 +568,9 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
                     onCancelEdit={() => setEditing(null)}
                     onDelete={() => del.mutate(m.id)}
                     onReply={() => startReply(m)}
+                    onReact={(emoji) => react.mutate({ id: m.id, emoji })}
+                    onPin={() => pin.mutate(m.id)}
+                    onForward={() => setForwardMsg(m)}
                     onJumpTo={jumpTo}
                     mentionNames={mentionNames}
                     highlight={searchActive ? searchTerm : ''}
@@ -642,7 +656,57 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
           <Send className="h-4 w-4" />
         </Button>
       </div>
+
+      {forwardMsg && (
+        <ForwardPicker
+          currentConversationId={conversationId}
+          onPick={(target) => forward.mutate({ id: forwardMsg.id, target })}
+          onClose={() => setForwardMsg(null)}
+          pending={forward.isPending}
+          t={t}
+        />
+      )}
     </>
+  );
+}
+
+/** Overlay para escolher a conversa de destino ao encaminhar uma mensagem. */
+function ForwardPicker({ currentConversationId, onPick, onClose, pending, t }: {
+  currentConversationId: number;
+  onPick: (target: number) => void;
+  onClose: () => void;
+  pending: boolean;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const meId = useAuthStore((s) => s.user?.id);
+  const convs = useQuery({ queryKey: ['chat', 'conversations'], queryFn: () => chatApi.conversations(), retry: false });
+  const list = (convs.data ?? []).filter((c) => c.id !== currentConversationId);
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[80%] w-full max-w-xs flex-col overflow-hidden rounded-xl border border-border bg-panel shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <header className="flex items-center gap-2 border-b border-border px-3 py-2">
+          <p className="flex-1 text-sm font-bold text-text">{t('forwardTo')}</p>
+          <button type="button" onClick={onClose} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text"><X className="h-4 w-4" /></button>
+        </header>
+        <ul className="flex-1 overflow-y-auto p-2">
+          {list.length === 0 ? (
+            <p className="p-4 text-center text-sm text-dim">{t('empty')}</p>
+          ) : list.map((c) => {
+            const other = c.isGroup ? null : c.participants.find((p) => p.userId !== meId);
+            return (
+              <li key={c.id}>
+                <button type="button" disabled={pending} onClick={() => onPick(c.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-panel-2/60 disabled:opacity-50">
+                  <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold', c.isGroup ? 'bg-primary/10 text-primary' : 'bg-panel-2 text-muted ring-1 ring-border')}>
+                    {c.isGroup ? <Users className="h-4 w-4" /> : initials(other?.name ?? c.name)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-text">{c.name}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
   );
 }
 
@@ -662,7 +726,7 @@ function DayDivider({ iso, t }: { iso: string; t: ReturnType<typeof useTranslati
   );
 }
 
-function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, onReply, onJumpTo, mentionNames, highlight, receipt, t }: {
+function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, onReply, onReact, onPin, onForward, onJumpTo, mentionNames, highlight, receipt, t }: {
   m: ChatMessageResponse;
   mine: boolean;
   showMeta: boolean;
@@ -674,6 +738,9 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
   onCancelEdit: () => void;
   onDelete: () => void;
   onReply: () => void;
+  onReact: (emoji: string) => void;
+  onPin: () => void;
+  onForward: () => void;
   onJumpTo: (id: number) => void;
   mentionNames: string[];
   highlight: string;
@@ -681,6 +748,7 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
   t: ReturnType<typeof useTranslations>;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const [reactOpen, setReactOpen] = useState(false);
   if (editing !== null) {
     return (
       <div className="flex flex-col items-end pl-9">
@@ -722,16 +790,31 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
               <button type="button" onClick={() => setConfirming(false)} className="text-dim hover:underline">{t('no')}</button>
             </span>
           ) : (
-            <span className="flex gap-0.5 self-center opacity-0 transition-opacity group-hover:opacity-100">
+            <span className="relative flex gap-0.5 self-center opacity-0 transition-opacity group-hover:opacity-100">
+              <button type="button" onClick={() => setReactOpen((v) => !v)} className={cn('grid h-6 w-6 place-items-center rounded hover:bg-panel-2 hover:text-text', reactOpen ? 'text-primary' : 'text-dim')} aria-label={t('react')} title={t('react')}><Smile className="h-3 w-3" /></button>
               <button type="button" onClick={onReply} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('reply')} title={t('reply')}><Reply className="h-3 w-3" /></button>
+              <button type="button" onClick={onForward} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('forward')} title={t('forward')}><Forward className="h-3 w-3" /></button>
+              <button type="button" onClick={onPin} className={cn('grid h-6 w-6 place-items-center rounded hover:bg-panel-2 hover:text-text', m.pinnedAt ? 'text-primary' : 'text-dim')} aria-label={t('pin')} title={m.pinnedAt ? t('unpin') : t('pin')}><Pin className="h-3 w-3" /></button>
               {mine && !m.attachmentName && <button type="button" onClick={onStartEdit} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('edit')}><Pencil className="h-3 w-3" /></button>}
               {mine && <button type="button" onClick={() => setConfirming(true)} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-danger/10 hover:text-danger" aria-label={t('delete')}><Trash2 className="h-3 w-3" /></button>}
+              {reactOpen && (
+                <span className="absolute bottom-full z-20 mb-1 flex gap-0.5 rounded-full border border-border bg-panel px-1.5 py-1 shadow-lg">
+                  {QUICK_REACTIONS.map((e) => (
+                    <button key={e} type="button" onClick={() => { onReact(e); setReactOpen(false); }} className="grid h-7 w-7 place-items-center rounded-full text-base hover:bg-panel-2" aria-label={e}>{e}</button>
+                  ))}
+                </span>
+              )}
             </span>
           )}
           <div className={cn(
             'max-w-[16rem] overflow-hidden rounded-2xl px-3.5 py-2 text-sm shadow-sm',
             mine ? 'bg-primary text-primary-fg rounded-br-md' : 'bg-panel-2 text-text rounded-bl-md',
           )}>
+            {m.forwardedFromName && (
+              <span className={cn('mb-1 flex items-center gap-1 text-[10px] italic', mine ? 'text-primary-fg/70' : 'text-dim')}>
+                <Forward className="h-3 w-3" /> {t('forwardedFrom', { name: m.forwardedFromName })}
+              </span>
+            )}
             {m.replyToId && (
               <button
                 type="button"
@@ -748,16 +831,36 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
             {m.attachmentName && <ChatAttachment m={m} mine={mine} t={t} />}
             {m.body && <p className="whitespace-pre-wrap break-words">{renderBody(m.body, mentionNames, highlight, mine)}</p>}
             <span className={cn('mt-1 flex items-center justify-end gap-1 text-[9px]', mine ? 'text-primary-fg/70' : 'text-dim')}>
+              {m.pinnedAt && <Pin className="h-2.5 w-2.5" aria-label={t('pinned')} />}
               {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               {m.editedAt && <span>· {t('edited')}</span>}
               {receipt}
             </span>
           </div>
         </div>
+        {/* Chips de reação (agregados) — clicar alterna a própria reação. */}
+        {(m.reactions?.length ?? 0) > 0 && (
+          <div className={cn('mt-1 flex flex-wrap gap-1', mine ? 'justify-end' : 'justify-start')}>
+            {m.reactions!.map((r) => (
+              <button
+                key={r.emoji}
+                type="button"
+                onClick={() => onReact(r.emoji)}
+                className={cn('inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] transition-colors', r.mine ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border bg-panel-2 text-muted hover:text-text')}
+              >
+                <span className="text-xs leading-none">{r.emoji}</span>
+                <span className="tabular-nums">{r.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+/** Reações rápidas oferecidas no popover (estilo Teams). */
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '😮', '😢', '🙏'];
 
 /**
  * Anexo do chat como CHIP (padrão do ticket): mostra apenas o arquivo; ao clicar,

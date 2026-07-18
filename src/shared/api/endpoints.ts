@@ -596,6 +596,9 @@ export const chatApi = {
   typing: (id: number) => api.post<void>(`/chat/conversations/${id}/typing`, {}),
   editMessage: (id: number, body: string) => api.patch<ChatMessageResponse>(`/chat/messages/${id}`, { body }),
   deleteMessage: (id: number) => api.delete<void>(`/chat/messages/${id}`),
+  react: (id: number, emoji: string) => api.post<void>(`/chat/messages/${id}/react`, { emoji }),
+  pin: (id: number) => api.post<void>(`/chat/messages/${id}/pin`, {}),
+  forward: (id: number, targetConversationId: number) => api.post<ChatMessageResponse>(`/chat/messages/${id}/forward`, { targetConversationId }),
   sendAttachment: (id: number, file: File) => {
     const form = new FormData();
     form.append('file', file);
