@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Search, Layers, ChevronRight, FolderOpen } from 'lucide-react';
+import { Plus, Search, Layers, ChevronRight, FolderOpen, List, LayoutGrid } from 'lucide-react';
 import { ticketsApi, iterationsApi } from '@/shared/api/endpoints';
 import type { IterationResponse } from '@/shared/api/types';
 import type { TicketResponse, TicketStatusName, PriorityName } from '@/shared/api/types';
@@ -18,6 +18,8 @@ import { Input } from '@/shared/ui/input';
 import { DataGrid, type ColumnDef, type DataGridLabels } from '@/shared/ui/data-grid';
 import { useDataGridQuery, type DataGridQueryParams } from '@/shared/ui/use-data-grid-query';
 import { PriorityBadge, StatusBadge } from './badges';
+import { TicketBoard } from './tickets-board';
+import { cn } from '@/shared/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -64,6 +66,7 @@ export function TicketsCentral() {
   const tGrid = useTranslations('dataGrid');
   const timeZone = useBrandingStore((s) => s.branding?.timeZone) ?? 'UTC';
   const [selectedIteration, setSelectedIteration] = useState<number | null>(null);
+  const [view, setView] = useState<'list' | 'board'>('list');
   const iterations = useQuery({ queryKey: ['iterations'], queryFn: () => iterationsApi.list(1, 100) });
 
   // --- DataGrid query ---
@@ -286,17 +289,29 @@ export function TicketsCentral() {
 
       {/* Main content */}
       <div className="flex flex-1 flex-col p-md gap-md min-w-0">
-        <div>
-          <h1 className="text-lg font-bold">
-            {selectedIterationName ? `${t('center' as any)} · ${selectedIterationName}` : t('center' as any)}
-          </h1>
-          <p className="text-xs text-muted">
-            {grid.totalCount > 0
-              ? `${grid.data.length} tickets`
-              : grid.isLoading
-                ? '...'
-                : '—'}
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold">
+              {selectedIterationName ? `${t('center' as any)} · ${selectedIterationName}` : t('center' as any)}
+            </h1>
+            <p className="text-xs text-muted">
+              {grid.totalCount > 0
+                ? `${grid.data.length} tickets`
+                : grid.isLoading
+                  ? '...'
+                  : '—'}
+            </p>
+          </div>
+          {selectedIteration && (
+            <div className="flex items-center gap-1 rounded-lg bg-bg-subtle p-0.5">
+              <button type="button" onClick={() => setView('list')} title={t('viewList' as any)} aria-label={t('viewList' as any)} className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors', view === 'list' ? 'bg-panel text-text shadow-sm' : 'text-muted hover:text-text')}>
+                <List className="h-3.5 w-3.5" /> {t('viewList' as any)}
+              </button>
+              <button type="button" onClick={() => setView('board')} title={t('viewBoard' as any)} aria-label={t('viewBoard' as any)} className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors', view === 'board' ? 'bg-panel text-text shadow-sm' : 'text-muted hover:text-text')}>
+                <LayoutGrid className="h-3.5 w-3.5" /> {t('viewBoard' as any)}
+              </button>
+            </div>
+          )}
         </div>
 
         {!selectedIteration ? (
@@ -304,6 +319,19 @@ export function TicketsCentral() {
             <Layers className="h-10 w-10 text-dim/40" />
             <p className="text-sm text-muted">{t('selectIteration')}</p>
           </div>
+        ) : view === 'board' ? (
+          <>
+            {/* Barra de ação mínima no board (busca + novo ticket vivem na lista). */}
+            <div className="flex items-center gap-2">
+              <Can permission="ticket.create">
+                <Button size="sm" onClick={openNewTicketWindow}>
+                  <Plus className="h-3.5 w-3.5" aria-hidden />
+                  {t('newTicket' as any)}
+                </Button>
+              </Can>
+            </div>
+            <TicketBoard tickets={grid.data} statusOptions={statusEnum} onOpen={handleRowClick} />
+          </>
         ) : (
           <DataGrid<TicketResponse>
             gridId="tickets-central"

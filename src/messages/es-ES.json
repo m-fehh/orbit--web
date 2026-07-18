@@ -218,7 +218,10 @@
     "emptyTitle": "Tu espacio de trabajo está limpio",
     "emptySubtitle": "Abre el centro de tickets o crea uno nuevo para comenzar.",
     "openTickets": "Centro de Tickets",
-    "newTicket": "Nuevo ticket"
+    "newTicket": "Nuevo ticket",
+    "unassigned": "Sin asignar",
+    "viewList": "Lista",
+    "viewBoard": "Tablero"
   },
   "sla": {
     "label": "SLA",

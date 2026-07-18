@@ -218,7 +218,10 @@
     "emptyTitle": "Seu workspace está limpo",
     "emptySubtitle": "Abra a central de tickets ou crie um novo para começar.",
     "openTickets": "Central de Tickets",
-    "newTicket": "Novo ticket"
+    "newTicket": "Novo ticket",
+    "unassigned": "Sem responsável",
+    "viewList": "Lista",
+    "viewBoard": "Quadro"
   },
   "sla": {
     "label": "SLA",

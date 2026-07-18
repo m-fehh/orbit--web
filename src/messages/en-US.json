@@ -218,7 +218,10 @@
     "emptyTitle": "Your workspace is clean",
     "emptySubtitle": "Open the ticket center or create a new one to get started.",
     "openTickets": "Ticket Center",
-    "newTicket": "New ticket"
+    "newTicket": "New ticket",
+    "unassigned": "Unassigned",
+    "viewList": "List",
+    "viewBoard": "Board"
   },
   "sla": {
     "label": "SLA",
