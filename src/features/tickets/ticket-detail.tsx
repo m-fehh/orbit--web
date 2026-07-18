@@ -33,7 +33,7 @@ import { Can } from '@/features/auth/can';
 import { useAuthStore } from '@/features/auth/auth-store';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
-import { cn } from '@/shared/lib/utils';
+import { cn, stripHtml } from '@/shared/lib/utils';
 import { SlaPanel } from './sla-panel';
 import { TicketTimeline } from './timeline';
 import { tokenStore } from '@/shared/api/token-store';
@@ -950,7 +950,7 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
                 <p className="font-semibold text-text">{rc.title}</p>
                 <span className="ml-auto rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{catLabel(rc.category)}</span>
               </div>
-              {rc.description && <p className="text-xs leading-relaxed text-muted">{rc.description}</p>}
+              {rc.description && <MarkdownContent content={rc.description} className="text-xs text-muted" />}
             </div>
           </section>
         )}
@@ -959,7 +959,7 @@ function ResolutionSummaryPanel({ ticketId, estimateMinutes, completedMinutes, c
         <section>
           <SectionLabel icon={Zap} tone="success">{t('resolution')}</SectionLabel>
           <div className={card}>
-            <p className="leading-relaxed text-text">{res.summary}</p>
+            <MarkdownContent content={res.summary} className="text-text" />
           </div>
         </section>
 
@@ -1831,7 +1831,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
                   {aiRootCauses.slice(0, 3).map((rc, i) => (
                     <div key={i} className="flex items-start gap-2 text-xs text-muted">
                       <span className="shrink-0 rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-medium text-dim">{translateCauseCategory(rc.category, tIntel)}</span>
-                      <p className="leading-relaxed">{rc.description}</p>
+                      <MarkdownContent content={rc.description} />
                       {rc.supportingTicketIds.length > 0 && (
                         <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{tIntel('similarCount', { count: rc.supportingTicketIds.length })}</span>
                       )}
@@ -1881,7 +1881,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
                         <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-bold text-primary">{Math.round(rc.confidenceScore * 100)}%</span>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium truncate">{rc.title}</p>
-                          <p className="text-xs text-dim truncate">{translateCauseCategory(rc.category, tIntel)} · {rc.description}</p>
+                          <p className="text-xs text-dim truncate">{translateCauseCategory(rc.category, tIntel)} · {stripHtml(rc.description)}</p>
                         </div>
                         {selectedRootCauseId === rc.id && <Check className="h-4 w-4 text-primary shrink-0" />}
                       </button>
@@ -1907,7 +1907,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
                     </div>
                     <label className="flex flex-col gap-1.5 text-xs text-muted">
                       <span className="font-medium">{t('causeSummary')}</span>
-                      <textarea className={FIELD_BASE + ' h-20 resize-none'} value={rootCauseSummary} onChange={(e) => setRootCauseSummary(e.target.value)} placeholder={t('causeSummaryPh')} />
+                      <MarkdownEditor value={rootCauseSummary} onChange={setRootCauseSummary} placeholder={t('causeSummaryPh')} minHeight="80px" />
                     </label>
                   </div>
                 )}
@@ -1931,7 +1931,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
               <div className="flex flex-col gap-md">
                 <label className="flex flex-col gap-1.5 text-xs text-muted">
                   <span className="font-medium">{t('resolutionSummary')}</span>
-                  <textarea className={FIELD_BASE + ' h-28 resize-none'} value={resolutionSummary} onChange={(e) => setResolutionSummary(e.target.value)} placeholder={t('resolutionSummaryPh')} />
+                  <MarkdownEditor value={resolutionSummary} onChange={setResolutionSummary} placeholder={t('resolutionSummaryPh')} minHeight="112px" />
                 </label>
                 <label className="flex flex-col gap-1.5 text-xs text-muted">
                   <span className="font-medium">{t('outcome')}</span>
@@ -1993,7 +1993,7 @@ function ResolveModal({ ticketId, ticketTitle, ticketSymptoms, onClose, onResolv
                   </SummaryRow>
                 )}
                 <SummaryRow icon={Zap} label={t('resolution')}>
-                  <p className="text-sm leading-relaxed text-text">{resolutionSummary}</p>
+                  <MarkdownContent content={resolutionSummary} className="text-sm text-text" />
                 </SummaryRow>
                 {outcome && (
                   <SummaryRow icon={TrendingUp} label={t('outcome')}>
@@ -2688,7 +2688,7 @@ function InvestigationTab({ ticketId, investigations }: { ticketId: number; inve
                     <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{tIntel('similarCount', { count: rc.supportingTicketIds.length })}</span>
                   )}
                 </div>
-                {rc.description && <p className="text-xs text-muted line-clamp-2">{rc.description}</p>}
+                {rc.description && <p className="text-xs text-muted line-clamp-2">{stripHtml(rc.description)}</p>}
               </div>
             ))}
           </div>
@@ -3124,12 +3124,7 @@ function RootCausesTab({ ticketId }: { ticketId: number }) {
             
             <label className="flex flex-col gap-1.5 text-xs text-muted">
               <span className="font-medium">{t('rcDescription')}</span>
-              <textarea 
-                className={FIELD_BASE + ' h-24 resize-none'} 
-                value={description} 
-                onChange={(e) => setDescription(e.target.value)} 
-                placeholder={t('rcDescriptionPh')} 
-              />
+              <MarkdownEditor value={description} onChange={setDescription} placeholder={t('rcDescriptionPh')} minHeight="96px" />
             </label>
             
             <div className="flex items-end gap-md">
@@ -3235,12 +3230,12 @@ function RootCausesTab({ ticketId }: { ticketId: number }) {
                   </div>
 
                   {expandedId !== rc.id && rc.description && (
-                    <p className="text-xs text-dim mb-lg leading-relaxed line-clamp-2">{rc.description}</p>
+                    <p className="text-xs text-dim mb-lg leading-relaxed line-clamp-2">{stripHtml(rc.description)}</p>
                   )}
 
                   {expandedId === rc.id && (
                     <div className="mb-lg space-y-2">
-                      {rc.description && <p className="text-xs text-dim leading-relaxed">{rc.description}</p>}
+                      {rc.description && <MarkdownContent content={rc.description} className="text-xs text-dim" />}
                       <div className="grid grid-cols-2 gap-2 text-xs text-dim">
                         <span>{t('category')}: <strong className="text-text">{t(`cat.${rc.category}` as 'cat.Bug')}</strong></span>
                         <span>{t('confidence')}: <strong className="text-text">{Math.round(rc.confidenceScore * 100)}%</strong></span>
@@ -3391,7 +3386,7 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
                   <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-bold text-primary">{Math.round(rc.confidenceScore * 100)}%</span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{rc.title}</p>
-                    <p className="text-xs text-dim truncate">{rc.category} · {rc.description}</p>
+                    <p className="text-xs text-dim truncate">{rc.category} · {stripHtml(rc.description)}</p>
                   </div>
                   {selectedRootCauseId === rc.id && <Check className="h-4 w-4 text-primary shrink-0" />}
                 </button>
@@ -3418,7 +3413,7 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
               </div>
               <label className="flex flex-col gap-1.5 text-xs text-muted">
                 <span className="font-medium">{t('causeSummary')}</span>
-                <textarea className={FIELD_BASE + ' h-20 resize-none'} value={rootCauseSummary} onChange={(e) => setRootCauseSummary(e.target.value)} placeholder={t('causeSummaryPh')} />
+                <MarkdownEditor value={rootCauseSummary} onChange={setRootCauseSummary} placeholder={t('causeSummaryPh')} minHeight="80px" />
               </label>
             </div>
           )}
@@ -3440,7 +3435,7 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
 
           <label className="flex flex-col gap-1.5 text-xs text-muted">
             <span className="font-medium">{t('resolutionSummary')}</span>
-            <textarea className={FIELD_BASE + ' h-28 resize-none'} value={resolutionSummary} onChange={(e) => setResolutionSummary(e.target.value)} placeholder={t('resolutionSummaryPh')} />
+            <MarkdownEditor value={resolutionSummary} onChange={setResolutionSummary} placeholder={t('resolutionSummaryPh')} minHeight="112px" />
           </label>
 
           <label className="flex flex-col gap-1.5 text-xs text-muted">
@@ -3482,7 +3477,7 @@ function ResolutionTab({ ticketId, ticketTitle }: { ticketId: number; ticketTitl
               <Zap className="h-4 w-4 text-dim mt-0.5 shrink-0" />
               <div>
                 <p className="text-[10px] font-medium uppercase text-dim">{t('resolution')}</p>
-                <p>{resolutionSummary}</p>
+                <MarkdownContent content={resolutionSummary} />
               </div>
             </div>
             {outcome && (

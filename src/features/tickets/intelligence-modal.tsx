@@ -19,7 +19,8 @@ import { useWindowStore } from '@/features/windows/window-store';
 import { CopilotView } from '@/features/copilot/copilot-view';
 import { openTicketTab } from './ticket-actions';
 import { Button } from '@/shared/ui/button';
-import { cn } from '@/shared/lib/utils';
+import { cn, stripHtml } from '@/shared/lib/utils';
+import { MarkdownContent } from '@/shared/ui/markdown-editor';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const MODAL_ID = 'intelligence-modal';
@@ -271,12 +272,9 @@ function CauseCard({
               )}
             </div>
             {cause.description && (
-              <p className={cn(
-                'text-[11px] text-muted leading-relaxed mt-1',
-                !expanded && 'line-clamp-2'
-              )}>
-                {cause.description}
-              </p>
+              expanded
+                ? <MarkdownContent content={cause.description} className="text-[11px] text-muted mt-1" />
+                : <p className="text-[11px] text-muted leading-relaxed mt-1 line-clamp-2">{stripHtml(cause.description)}</p>
             )}
           </div>
 
@@ -406,7 +404,7 @@ function ResolutionCard({
 
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-semibold text-text leading-snug">
-              {resolution.summary}
+              {stripHtml(resolution.summary)}
             </p>
           </div>
         </div>
@@ -927,7 +925,7 @@ function IntelligenceModalContent({
                       </div>
 
                       <p className="text-[13px] font-semibold text-text leading-relaxed mb-3">
-                        {topResolution.summary}
+                        {stripHtml(topResolution.summary)}
                       </p>
 
                       <div className="flex items-center gap-2">
@@ -977,7 +975,7 @@ function IntelligenceModalContent({
 
                       {topCause.description && (
                         <p className="text-[11px] text-muted leading-relaxed mb-3 line-clamp-2">
-                          {topCause.description}
+                          {stripHtml(topCause.description)}
                         </p>
                       )}
 

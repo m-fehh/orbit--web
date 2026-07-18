@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import type { RootCauseCandidate, ResolutionSuggestion, IntakeDuplicate } from '@/shared/api/types';
 import { Button } from '@/shared/ui/button';
-import { cn } from '@/shared/lib/utils';
+import { cn, stripHtml } from '@/shared/lib/utils';
+import { MarkdownContent } from '@/shared/ui/markdown-editor';
 
 /**
  * Biblioteca ÚNICA de cards de inteligência (causa raiz, solução sugerida, duplicata).
@@ -95,7 +96,9 @@ export function RootCauseCard({
               )}
             </div>
             {cause.description && (
-              <p className={cn('mt-1 text-[11px] leading-relaxed text-muted', !expanded && 'line-clamp-2')}>{cause.description}</p>
+              expanded
+                ? <MarkdownContent content={cause.description} className="mt-1 text-[11px] text-muted" />
+                : <p className="mt-1 text-[11px] leading-relaxed text-muted line-clamp-2">{stripHtml(cause.description)}</p>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -185,7 +188,7 @@ export function ResolutionSuggestionCard({
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-success/10 text-success ring-1 ring-success/20"><Zap className="h-4 w-4" /></span>
             <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-success text-[9px] font-bold text-white shadow-sm">{index + 1}</span>
           </div>
-          <p className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-text">{resolution.summary}</p>
+          <p className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-text">{stripHtml(resolution.summary)}</p>
         </div>
 
         <div className="mb-3 flex flex-wrap items-center gap-1.5">

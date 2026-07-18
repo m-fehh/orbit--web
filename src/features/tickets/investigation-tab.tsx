@@ -16,7 +16,7 @@ import { Button } from '@/shared/ui/button';
 import { Select } from '@/shared/ui/select';
 import { AsyncCombobox, type ComboOption } from '@/shared/ui/async-combobox';
 import { LoadingState, EmptyState } from '@/shared/ui/states';
-import { cn } from '@/shared/lib/utils';
+import { cn, stripHtml } from '@/shared/lib/utils';
 
 /* ---- Input nativo, padronizado e compacto. Evita o componente <Input>
        global (floating label / glow / partículas) que estava deixando o
@@ -633,7 +633,7 @@ function RootCausesSection({ ticketId }: { ticketId: number }) {
                         <span className="text-lg">{CAT_ICONS[RootCauseCategory[rc.category as keyof typeof RootCauseCategory] as RootCauseCategoryValue] ?? '❓'}</span>
                         <span className="text-sm font-medium truncate">{rc.title}</span>
                       </div>
-                      {rc.description && <p className="text-xs text-muted line-clamp-2">{rc.description}</p>}
+                      {rc.description && <p className="text-xs text-muted line-clamp-2">{stripHtml(rc.description)}</p>}
                     </div>
                     <div className="flex items-center gap-4 shrink-0">
                       <div className="text-right">
