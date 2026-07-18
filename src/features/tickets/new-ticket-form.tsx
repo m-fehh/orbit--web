@@ -18,6 +18,7 @@ import { DuplicateCard } from '@/features/intelligence/cards';
 import { useAuthStore } from '@/features/auth/auth-store';
 import { useWindowStore } from '@/features/windows/window-store';
 import { openTicketTab } from '@/features/tickets/ticket-actions';
+import { TemplateBar, type TicketTemplate } from '@/features/tickets/ticket-templates';
 import { openUsersIndexWindow } from '@/features/admin/admin-actions';
 import { AsyncCombobox, type ComboOption } from '@/shared/ui/async-combobox';
 import { Select } from '@/shared/ui/select';
@@ -140,6 +141,16 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
     }
   }
 
+  // Aplica um modelo: pré-preenche assunto, descrição, prioridade e tags.
+  function applyTemplate(tpl: TicketTemplate) {
+    setTitle(tpl.title);
+    setDescription(tpl.description);
+    setPriority(tpl.priority);
+    setPrioApplied(true);
+    if (tpl.tagIds?.length) setSelectedTagIds(tpl.tagIds);
+    toast.success(t('templateApplied', { name: tpl.name }));
+  }
+
   const canSubmit = title.trim().length >= 3 && description.trim().length >= 5 && requesterId && iterationId;
 
   async function submit() {
@@ -240,6 +251,8 @@ export function NewTicketForm({ windowId }: { windowId: string }) {
       className="flex h-full flex-col"
     >
       <div className="flex flex-1 flex-col gap-4 overflow-auto p-6">
+        <TemplateBar current={{ title, description, priority, tagIds: selectedTagIds }} onApply={applyTemplate} />
+
         <div className="flex flex-col gap-1.5 text-sm font-medium">
           <span>{t('subject')} <span className="text-danger">*</span></span>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('subjectPlaceholder')} autoFocus />
