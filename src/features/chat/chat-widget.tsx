@@ -659,8 +659,8 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
                 type="button"
                 onClick={() => onJumpTo(m.replyToId!)}
                 className={cn(
-                  'mb-1.5 flex w-full flex-col gap-0.5 rounded-md border-l-2 py-1 pl-2 pr-1 text-left',
-                  mine ? 'border-primary-fg/50 bg-black/10' : 'border-primary bg-primary/5',
+                  'mb-1.5 flex w-full flex-col gap-0.5 rounded border-l py-1 pl-2 pr-1 text-left',
+                  mine ? 'border-primary-fg/50 bg-black/40' : 'border-primary bg-primary/5',
                 )}
               >
                 <span className={cn('truncate text-[10px] font-semibold', mine ? 'text-primary-fg/90' : 'text-primary')}>{m.replyToSenderName ?? t('reply')}</span>
@@ -820,7 +820,7 @@ function NewConversation({ onCreated, onlineSet, t }: { onCreated: (c: ChatConve
       <div className="flex flex-col gap-2 border-b border-border p-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" />
-          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('searchUsers')} className="pl-9" />
+          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t('searchUsers')} />
         </div>
         {isGroup && <Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder={t('groupNamePlaceholder')} />}
       </div>
