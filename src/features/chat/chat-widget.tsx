@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   MessageSquare, X, Plus, ArrowLeft, Send, Users, Search, Check, CheckCheck,
-  Pencil, Trash2, Paperclip, Download, FileText, Smile, Settings2, UserPlus, LogOut, UserMinus,
+  Pencil, Trash2, Paperclip, Download, FileText, Smile, Settings2, UserPlus, LogOut, UserMinus, Reply,
 } from 'lucide-react';
 
 /** Emojis curados (sem dependência externa) para o seletor do compositor. */
@@ -265,6 +265,7 @@ function Thread({ conversationId, conv, typingName, t }: { conversationId: numbe
   const meId = useAuthStore((s) => s.user?.id);
   const [text, setText] = useState('');
   const [editing, setEditing] = useState<{ id: number; body: string } | null>(null);
+  const [replyTo, setReplyTo] = useState<{ id: number; sender: string; preview: string } | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -326,9 +327,23 @@ function Thread({ conversationId, conv, typingName, t }: { conversationId: numbe
   };
 
   const send = useMutation({
-    mutationFn: (body: string) => chatApi.send(conversationId, body),
-    onSuccess: () => { setText(''); invalidate(); },
+    mutationFn: (body: string) => chatApi.send(conversationId, body, replyTo?.id),
+    onSuccess: () => { setText(''); setReplyTo(null); invalidate(); },
   });
+
+  // Rola até a mensagem citada e a destaca brevemente.
+  const jumpTo = (id: number) => {
+    const el = document.getElementById(`msg-${id}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('ring-2', 'ring-primary', 'rounded-2xl');
+    setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'rounded-2xl'), 1200);
+  };
+
+  const startReply = (msg: ChatMessageResponse) => {
+    setReplyTo({ id: msg.id, sender: msg.senderName, preview: msg.attachmentName ? `📎 ${msg.attachmentName}` : msg.body });
+    inputRef.current?.focus();
+  };
   const edit = useMutation({
     mutationFn: (v: { id: number; body: string }) => chatApi.editMessage(v.id, v.body),
     onSuccess: () => { setEditing(null); invalidate(); },
@@ -397,6 +412,8 @@ function Thread({ conversationId, conv, typingName, t }: { conversationId: numbe
                   onSaveEdit={() => { if (editing && editing.body.trim()) edit.mutate({ id: m.id, body: editing.body.trim() }); }}
                   onCancelEdit={() => setEditing(null)}
                   onDelete={() => del.mutate(m.id)}
+                  onReply={() => startReply(m)}
+                  onJumpTo={jumpTo}
                   receipt={m.id === myLastId ? renderReceipt(m.createdAt) : null}
                   t={t}
                 />
@@ -416,6 +433,19 @@ function Thread({ conversationId, conv, typingName, t }: { conversationId: numbe
           </div>
         )}
       </div>
+
+      {replyTo && (
+        <div className="flex shrink-0 items-center gap-2 border-t border-border bg-panel-2/40 px-3 py-2">
+          <span className="h-8 w-0.5 shrink-0 rounded-full bg-primary" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[11px] font-semibold text-primary">{t('replyingTo', { name: replyTo.sender })}</span>
+            <span className="block truncate text-xs text-muted">{replyTo.preview}</span>
+          </span>
+          <button type="button" onClick={() => setReplyTo(null)} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('close')}>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       <div className="relative flex shrink-0 items-end gap-2 border-t border-border p-3">
         {emojiOpen && (
@@ -472,7 +502,7 @@ function DayDivider({ iso, t }: { iso: string; t: ReturnType<typeof useTranslati
   );
 }
 
-function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, receipt, t }: {
+function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, onReply, onJumpTo, receipt, t }: {
   m: ChatMessageResponse;
   mine: boolean;
   showMeta: boolean;
@@ -483,6 +513,8 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
   onSaveEdit: () => void;
   onCancelEdit: () => void;
   onDelete: () => void;
+  onReply: () => void;
+  onJumpTo: (id: number) => void;
   receipt?: React.ReactNode;
   t: ReturnType<typeof useTranslations>;
 }) {
@@ -511,7 +543,7 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
     );
   }
   return (
-    <div className={cn('group flex items-end gap-2', mine ? 'flex-row-reverse' : 'flex-row')}>
+    <div id={`msg-${m.id}`} className={cn('group flex items-end gap-2 scroll-mt-4', mine ? 'flex-row-reverse' : 'flex-row')}>
       {/* Coluna do avatar (só para o outro); ocupa espaço mesmo quando agrupado, p/ alinhar. */}
       {!mine && (
         <span className="w-7 shrink-0 self-end">
@@ -520,27 +552,37 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
       )}
       <div className={cn('flex min-w-0 flex-col', mine ? 'items-end' : 'items-start')}>
         {showMeta && !mine && isGroup && <span className="mb-0.5 px-1 text-[11px] font-semibold text-primary">{m.senderName}</span>}
-        <div className="flex items-end gap-1.5">
-          {mine && (
-            confirming ? (
-              <span className="flex items-center gap-1 rounded-md bg-danger/10 px-1.5 py-0.5 text-[10px] text-danger">
-                {t('confirmDelete')}
-                <button type="button" onClick={() => { setConfirming(false); onDelete(); }} className="font-bold hover:underline">{t('yes')}</button>
-                <button type="button" onClick={() => setConfirming(false)} className="text-dim hover:underline">{t('no')}</button>
-              </span>
-            ) : (
-              <span className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                <button type="button" onClick={onStartEdit} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('edit')}><Pencil className="h-3 w-3" /></button>
-                <button type="button" onClick={() => setConfirming(true)} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-danger/10 hover:text-danger" aria-label={t('delete')}><Trash2 className="h-3 w-3" /></button>
-              </span>
-            )
+        <div className={cn('flex items-end gap-1.5', mine ? 'flex-row' : 'flex-row-reverse')}>
+          {confirming ? (
+            <span className="flex items-center gap-1 rounded-md bg-danger/10 px-1.5 py-0.5 text-[10px] text-danger">
+              {t('confirmDelete')}
+              <button type="button" onClick={() => { setConfirming(false); onDelete(); }} className="font-bold hover:underline">{t('yes')}</button>
+              <button type="button" onClick={() => setConfirming(false)} className="text-dim hover:underline">{t('no')}</button>
+            </span>
+          ) : (
+            <span className="flex gap-0.5 self-center opacity-0 transition-opacity group-hover:opacity-100">
+              <button type="button" onClick={onReply} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('reply')} title={t('reply')}><Reply className="h-3 w-3" /></button>
+              {mine && <button type="button" onClick={onStartEdit} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('edit')}><Pencil className="h-3 w-3" /></button>}
+              {mine && <button type="button" onClick={() => setConfirming(true)} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-danger/10 hover:text-danger" aria-label={t('delete')}><Trash2 className="h-3 w-3" /></button>}
+            </span>
           )}
           <div className={cn(
-            'max-w-[16rem] px-3.5 py-2 text-sm shadow-sm',
-            mine
-              ? cn('bg-primary text-primary-fg', showMeta ? 'rounded-2xl rounded-br-md' : 'rounded-2xl rounded-br-md')
-              : cn('bg-panel text-text ring-1 ring-border', showMeta ? 'rounded-2xl rounded-bl-md' : 'rounded-2xl rounded-bl-md'),
+            'max-w-[16rem] overflow-hidden rounded-2xl px-3.5 py-2 text-sm shadow-sm',
+            mine ? 'bg-primary text-primary-fg rounded-br-md' : 'bg-panel text-text ring-1 ring-border rounded-bl-md',
           )}>
+            {m.replyToId && (
+              <button
+                type="button"
+                onClick={() => onJumpTo(m.replyToId!)}
+                className={cn(
+                  'mb-1.5 flex w-full flex-col gap-0.5 rounded-md border-l-2 py-1 pl-2 pr-1 text-left',
+                  mine ? 'border-primary-fg/50 bg-black/10' : 'border-primary bg-primary/5',
+                )}
+              >
+                <span className={cn('truncate text-[10px] font-semibold', mine ? 'text-primary-fg/90' : 'text-primary')}>{m.replyToSenderName ?? t('reply')}</span>
+                <span className={cn('truncate text-[11px]', mine ? 'text-primary-fg/70' : 'text-muted')}>{m.replyToPreview}</span>
+              </button>
+            )}
             {m.attachmentName && <ChatAttachment m={m} mine={mine} t={t} />}
             {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
             <span className={cn('mt-1 flex items-center justify-end gap-1 text-[9px]', mine ? 'text-primary-fg/70' : 'text-dim')}>

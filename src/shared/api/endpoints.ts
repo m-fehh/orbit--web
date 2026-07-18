@@ -591,7 +591,7 @@ export const chatApi = {
   messages: (id: number, beforeId?: number, take = 50) =>
     api.get<ChatMessageResponse[]>(`/chat/conversations/${id}/messages`, { params: { ...(beforeId ? { beforeId } : {}), take } }),
   create: (body: CreateConversationRequest) => api.post<ChatConversationResponse>('/chat/conversations', body),
-  send: (id: number, body: string) => api.post<ChatMessageResponse>(`/chat/conversations/${id}/messages`, { body }),
+  send: (id: number, body: string, replyToId?: number) => api.post<ChatMessageResponse>(`/chat/conversations/${id}/messages`, { body, ...(replyToId ? { replyToId } : {}) }),
   markRead: (id: number) => api.post<void>(`/chat/conversations/${id}/read`, {}),
   typing: (id: number) => api.post<void>(`/chat/conversations/${id}/typing`, {}),
   editMessage: (id: number, body: string) => api.patch<ChatMessageResponse>(`/chat/messages/${id}`, { body }),

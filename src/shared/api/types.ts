@@ -1033,6 +1033,9 @@ export interface ChatMessageResponse {
   attachmentName: string | null;
   attachmentUrl: string | null;
   attachmentContentType: string | null;
+  replyToId: number | null;
+  replyToSenderName: string | null;
+  replyToPreview: string | null;
 }
 export interface CreateConversationRequest {
   userIds: number[];

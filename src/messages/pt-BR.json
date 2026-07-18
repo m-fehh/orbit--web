@@ -356,6 +356,8 @@
     "searchConversations": "Buscar conversas…",
     "noConversationMatch": "Nenhuma conversa encontrada.",
     "loadOlder": "Carregar mensagens anteriores",
+    "reply": "Responder",
+    "replyingTo": "Respondendo a {name}",
     "cancelEdit": "Cancelar",
     "groupNamePlaceholder": "Nome do grupo (opcional)",
     "noUsers": "Nenhum usuário encontrado",
