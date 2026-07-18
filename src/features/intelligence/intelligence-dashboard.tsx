@@ -310,15 +310,11 @@ export function IntelligenceDashboard() {
                   >
                     <div className="flex flex-1 flex-wrap items-center gap-1.5">
                       {p.antecedent.map((a) => (
-                        <span key={a} className="rounded-md bg-panel-2 px-2 py-0.5 text-xs font-medium text-text">
-                          {a}
-                        </span>
+                        <PatternChip key={a} token={a} tone="neutral" t={t} />
                       ))}
                       <ArrowRight className="h-3.5 w-3.5 text-dim" />
                       {p.consequent.map((c) => (
-                        <span key={c} className="rounded-md bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary">
-                          {c}
-                        </span>
+                        <PatternChip key={c} token={c} tone="primary" t={t} />
                       ))}
                     </div>
                     <div className="flex shrink-0 items-center gap-4 text-xs">
@@ -338,6 +334,30 @@ export function IntelligenceDashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Humaniza um valor de token: UPPER_SNAKE → "Título", PascalCase → "Palavras separadas". */
+function humanizeToken(v: string): string {
+  if (v === v.toUpperCase()) {
+    const s = v.replace(/_/g, ' ').toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  return v.replace(/([a-z])([A-Z])/g, '$1 $2');
+}
+
+/** Chip legível para um token de padrão ("symptom:SERVIDOR" → Sintoma · Servidor). */
+function PatternChip({ token, tone, t }: { token: string; tone: 'neutral' | 'primary'; t: ReturnType<typeof useTranslations> }) {
+  const idx = token.indexOf(':');
+  const prefix = idx >= 0 ? token.slice(0, idx) : '';
+  const value = idx >= 0 ? token.slice(idx + 1) : token;
+  const prefixKey = ({ symptom: 'patternSymptom', category: 'patternCategory', action: 'patternAction' } as Record<string, string>)[prefix];
+  const label = prefixKey ? t(prefixKey as Parameters<typeof t>[0]) : '';
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium', tone === 'primary' ? 'bg-primary-soft text-primary' : 'bg-panel-2 text-text')}>
+      {label && <span className="text-[9px] font-semibold uppercase tracking-wide opacity-60">{label}</span>}
+      {humanizeToken(value)}
+    </span>
   );
 }
 
