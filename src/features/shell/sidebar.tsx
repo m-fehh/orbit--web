@@ -89,7 +89,7 @@ export function Sidebar() {
         data-tour="nav"
         aria-label="Primary"
         className={cn(
-          'relative hidden shrink-0 flex-col border-r border-border bg-panel transition-all md:flex',
+          'relative hidden shrink-0 flex-col border-r border-border bg-bg-subtle/50 transition-all md:flex',
           collapsed ? 'w-16' : 'w-60',
         )}
       >

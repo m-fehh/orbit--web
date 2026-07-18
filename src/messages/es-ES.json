@@ -228,10 +228,7 @@
     "emptyTitle": "Tu espacio de trabajo está limpio",
     "emptySubtitle": "Abre el centro de tickets o crea uno nuevo para comenzar.",
     "openTickets": "Centro de Tickets",
-    "newTicket": "Nuevo ticket",
-    "unassigned": "Sin asignar",
-    "viewList": "Lista",
-    "viewBoard": "Tablero"
+    "newTicket": "Nuevo ticket"
   },
   "sla": {
     "label": "SLA",
@@ -337,6 +334,9 @@
     "selectIteration": "Selecciona una iteración",
     "allTickets": "Todos los tickets",
     "center": "Centro de Tickets",
+    "viewList": "Lista",
+    "viewBoard": "Tablero",
+    "unassigned": "Sin asignar",
     "addTag": "Añadir etiqueta",
     "tagAlreadyAssigned": "Esta etiqueta ya está vinculada al ticket",
     "tagAddError": "Error al añadir etiqueta",

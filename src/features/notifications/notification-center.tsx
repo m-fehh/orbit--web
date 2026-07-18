@@ -109,7 +109,10 @@ export function NotificationCenter() {
     // Tickets abrem em ABA (workspace), não em rota /tickets/{id} (que não existe → 404).
     const ticketMatch = n.link.match(/\/tickets\/(\d+)/);
     if (ticketMatch) {
-      openTicketTab({ id: Number(ticketMatch[1]), number: String(n.referenceId ?? ticketMatch[1]) });
+      // Título da aba usa o CÓDIGO do ticket (meta.number, ex.: NUB-00000006), não o id.
+      let code = '';
+      try { code = n.meta ? (JSON.parse(n.meta).number ?? '') : ''; } catch { /* ignore */ }
+      openTicketTab({ id: Number(ticketMatch[1]), number: code || String(ticketMatch[1]) });
       router.push('/workspace');
       return;
     }

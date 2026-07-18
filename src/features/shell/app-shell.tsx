@@ -20,7 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Header />
       <div className="flex min-h-0 flex-1">
         <Sidebar />
-        <main id="main-content" className="relative min-w-0 flex-1 overflow-auto bg-bg-subtle">
+        <main id="main-content" className="relative min-w-0 flex-1 overflow-auto bg-bg">
           {children}
         </main>
       </div>

@@ -203,15 +203,15 @@ export function CommandPalette() {
 
   return (
     <>
-      {/* Trigger */}
+      {/* Trigger — ícone (o buscar/comando abre em drawer lateral). */}
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-9 w-full max-w-xl items-center gap-sm rounded-md border border-border bg-bg-subtle px-md text-sm text-dim transition-all hover:border-border-strong hover:bg-panel hover:shadow-sm"
+        className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-panel-2 hover:text-text"
+        aria-label={t('placeholder')}
+        title={`${t('placeholder')} (Ctrl K)`}
       >
-        <Search className="h-4 w-4 shrink-0" aria-hidden />
-        <span className="flex-1 truncate text-left">{t('placeholder')}</span>
-        <kbd className="hidden shrink-0 rounded border border-border bg-bg-subtle px-1.5 text-[10px] font-medium text-dim sm:inline">Ctrl K</kbd>
+        <Search className="h-4 w-4" aria-hidden />
       </button>
 
       <AnimatePresence>

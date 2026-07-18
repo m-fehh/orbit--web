@@ -228,10 +228,7 @@
     "emptyTitle": "Your workspace is clean",
     "emptySubtitle": "Open the ticket center or create a new one to get started.",
     "openTickets": "Ticket Center",
-    "newTicket": "New ticket",
-    "unassigned": "Unassigned",
-    "viewList": "List",
-    "viewBoard": "Board"
+    "newTicket": "New ticket"
   },
   "sla": {
     "label": "SLA",
@@ -337,6 +334,9 @@
     "selectIteration": "Select an iteration",
     "allTickets": "All tickets",
     "center": "Ticket Center",
+    "viewList": "List",
+    "viewBoard": "Board",
+    "unassigned": "Unassigned",
     "addTag": "Add tag",
     "tagAlreadyAssigned": "This tag is already linked to the ticket",
     "tagAddError": "Error adding tag",

@@ -24,11 +24,12 @@ export function Header() {
 
       <Logo size={24} className="mr-sm shrink-0" />
 
-      <div data-tour="search" className="flex flex-1 px-sm">
-        <CommandPalette />
-      </div>
+      <div className="flex-1" />
 
       <div className="flex items-center gap-0.5 sm:gap-1">
+        <span data-tour="search" className="inline-flex">
+          <CommandPalette />
+        </span>
         <span data-tour="notifications" className="inline-flex">
           <NotificationCenter />
         </span>

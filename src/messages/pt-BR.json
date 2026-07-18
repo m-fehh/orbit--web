@@ -228,10 +228,7 @@
     "emptyTitle": "Seu workspace está limpo",
     "emptySubtitle": "Abra a central de tickets ou crie um novo para começar.",
     "openTickets": "Central de Tickets",
-    "newTicket": "Novo ticket",
-    "unassigned": "Sem responsável",
-    "viewList": "Lista",
-    "viewBoard": "Quadro"
+    "newTicket": "Novo ticket"
   },
   "sla": {
     "label": "SLA",
@@ -337,6 +334,9 @@
     "selectIteration": "Selecione uma iteração",
     "allTickets": "Todos os tickets",
     "center": "Central de Tickets",
+    "viewList": "Lista",
+    "viewBoard": "Quadro",
+    "unassigned": "Sem responsável",
     "addTag": "Adicionar tag",
     "tagAlreadyAssigned": "Esta tag já está vinculada ao ticket",
     "tagAddError": "Erro ao adicionar tag",
