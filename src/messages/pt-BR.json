@@ -183,6 +183,10 @@
         "breached": {
           "title": "SLA estourado",
           "body": "O SLA do ticket {number} foi violado."
+        },
+        "atrisk": {
+          "title": "SLA em risco",
+          "body": "O ticket {number} está prestes a estourar o SLA."
         }
       },
       "goal": {

@@ -183,6 +183,10 @@
         "breached": {
           "title": "SLA breached",
           "body": "The SLA for ticket {number} has been breached."
+        },
+        "atrisk": {
+          "title": "SLA at risk",
+          "body": "Ticket {number} is about to breach its SLA."
         }
       },
       "goal": {

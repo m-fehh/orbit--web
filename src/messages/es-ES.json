@@ -183,6 +183,10 @@
         "breached": {
           "title": "SLA incumplido",
           "body": "El SLA del ticket {number} se ha incumplido."
+        },
+        "atrisk": {
+          "title": "SLA en riesgo",
+          "body": "El ticket {number} está a punto de incumplir su SLA."
         }
       },
       "goal": {

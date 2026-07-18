@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   Bell, CheckCheck, Wifi, WifiOff, X, UserCheck, AlertTriangle,
-  Trophy, CheckCircle2, Mail, type LucideIcon,
+  Trophy, CheckCircle2, Mail, Timer, AtSign, type LucideIcon,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -23,6 +23,8 @@ import { cn } from '@/shared/lib/utils';
 const TYPE_META: Record<string, { Icon: LucideIcon; ring: string; bg: string; fg: string }> = {
   'ticket.assigned': { Icon: UserCheck, ring: 'ring-primary/20', bg: 'bg-primary/10', fg: 'text-primary' },
   'sla.breached': { Icon: AlertTriangle, ring: 'ring-danger/20', bg: 'bg-danger/10', fg: 'text-danger' },
+  'sla.atrisk': { Icon: Timer, ring: 'ring-warning/20', bg: 'bg-warning/10', fg: 'text-warning' },
+  'comment.mention': { Icon: AtSign, ring: 'ring-primary/20', bg: 'bg-primary/10', fg: 'text-primary' },
   'goal.achieved': { Icon: Trophy, ring: 'ring-warning/20', bg: 'bg-warning/10', fg: 'text-warning' },
   'goal.awarded': { Icon: Trophy, ring: 'ring-warning/20', bg: 'bg-warning/10', fg: 'text-warning' },
   'resolution': { Icon: CheckCircle2, ring: 'ring-success/20', bg: 'bg-success/10', fg: 'text-success' },
