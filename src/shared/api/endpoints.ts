@@ -184,8 +184,8 @@ export const ticketsApi = {
   resolve: (id: number, body: ResolveTicketRequest) => api.post<ResolveTicketResponse>(`/tickets/${id}/resolve`, body),
   recommendationFeedback: (id: number, body: RecommendationFeedbackRequest) =>
     api.post<void>(`/tickets/${id}/recommendation-feedback`, body),
-  addComment: (id: number, message: string, isInternal = false) =>
-    api.post<TicketCommentResponse>(`/tickets/${id}/comments`, { message, isInternal }),
+  addComment: (id: number, message: string, isInternal = false, mentionedUserIds?: number[]) =>
+    api.post<TicketCommentResponse>(`/tickets/${id}/comments`, { message, isInternal, ...(mentionedUserIds?.length ? { mentionedUserIds } : {}) }),
   getSla: (id: number) => api.get<SlaSnapshotResponse>(`/tickets/${id}/sla`),
   listAttachments: (id: number) => api.get<TicketAttachmentResponse[]>(`/tickets/${id}/attachments`),
   uploadAttachment: (id: number, file: File) => {

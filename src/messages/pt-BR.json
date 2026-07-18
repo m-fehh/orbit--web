@@ -198,6 +198,12 @@
       "resolution": {
         "title": "Ticket resolvido",
         "body": "O ticket {number} — “{title}” — foi resolvido."
+      },
+      "comment": {
+        "mention": {
+          "title": "Você foi mencionado",
+          "body": "{by} mencionou você no ticket {number}."
+        }
       }
     }
   },
@@ -708,6 +714,7 @@
       "internal": "Internos"
     },
     "placeholderPublic": "Escreva um comentário…",
+    "mentionHint": "Mencionar pessoa",
     "placeholderInternal": "Comentário interno (só a equipe vê)…",
     "internalToggle": "Comentário interno",
     "submit": "Comentar",
