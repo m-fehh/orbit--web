@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import {
   MessageSquare, X, Plus, ArrowLeft, Send, Users, Search, Check, CheckCheck,
   Pencil, Trash2, Paperclip, Download, FileText, Smile, Settings2, UserPlus, LogOut, UserMinus, Reply,
+  Bell, BellOff, ChevronUp, ChevronDown,
 } from 'lucide-react';
 
 /** Emojis curados (sem dependência externa) para o seletor do compositor. */
@@ -30,6 +31,26 @@ import { cn } from '@/shared/lib/utils';
 /** Tamanho de página do histórico do chat. */
 const PAGE_SIZE = 30;
 
+/** Beep curto de notificação via WebAudio (sem asset externo). */
+function playBeep() {
+  try {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 660;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.26);
+    osc.onended = () => ctx.close();
+  } catch { /* silencioso */ }
+}
+
 function initials(name: string): string {
   const p = name.trim().split(/\s+/).filter(Boolean);
   return ((p[0]?.[0] ?? '') + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase() || '?';
@@ -48,7 +69,19 @@ export function ChatWidget() {
   const [view, setView] = useState<'list' | 'thread' | 'new' | 'manage'>('list');
   const [activeId, setActiveId] = useState<number | null>(null);
   const [typingByConv, setTypingByConv] = useState<Record<number, string>>({});
+  const [threadSearch, setThreadSearch] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
   const typingTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
+  // Preferência de som (persistida). Lida uma vez no cliente.
+  useEffect(() => {
+    if (typeof window !== 'undefined') setSoundOn(window.localStorage.getItem('chat.sound') !== 'off');
+  }, []);
+  const toggleSound = () => setSoundOn((v) => {
+    const next = !v;
+    if (typeof window !== 'undefined') window.localStorage.setItem('chat.sound', next ? 'on' : 'off');
+    return next;
+  });
 
   const unread = useQuery({ queryKey: ['chat', 'unread'], queryFn: () => chatApi.unreadCount(), retry: false, refetchInterval: 60_000 });
   const conversations = useQuery({ queryKey: ['chat', 'conversations'], queryFn: () => chatApi.conversations(), enabled: open, retry: false });
@@ -77,6 +110,7 @@ export function ChatWidget() {
           description: body.length > 80 ? `${body.slice(0, 80)}…` : body,
           action: { label: t('open'), onClick: () => { setOpen(true); openConversation(convId); } },
         });
+        if (soundOn) playBeep();
       }
     } else if (ev === 'chat.read') {
       qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
@@ -105,6 +139,7 @@ export function ChatWidget() {
   const openConversation = (id: number) => {
     setActiveId(id);
     setView('thread');
+    setThreadSearch(false);
     chatApi.markRead(id).then(() => {
       qc.invalidateQueries({ queryKey: ['chat', 'unread'] });
       qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
@@ -151,8 +186,18 @@ export function ChatWidget() {
                 {view === 'thread' ? (activeConv?.name ?? t('title')) : view === 'new' ? t('newConversation') : view === 'manage' ? t('manageGroup') : t('title')}
               </p>
               {view === 'list' && (
-                <button type="button" onClick={() => setView('new')} className="grid h-8 w-8 place-items-center rounded-lg text-primary hover:bg-primary/10" aria-label={t('newConversation')} title={t('newConversation')}>
-                  <Plus className="h-4 w-4" />
+                <>
+                  <button type="button" onClick={toggleSound} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={soundOn ? t('muteSound') : t('unmuteSound')} title={soundOn ? t('muteSound') : t('unmuteSound')}>
+                    {soundOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                  </button>
+                  <button type="button" onClick={() => setView('new')} className="grid h-8 w-8 place-items-center rounded-lg text-primary hover:bg-primary/10" aria-label={t('newConversation')} title={t('newConversation')}>
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </>
+              )}
+              {view === 'thread' && (
+                <button type="button" onClick={() => setThreadSearch((v) => !v)} className={cn('grid h-8 w-8 place-items-center rounded-lg hover:bg-panel-2 hover:text-text', threadSearch ? 'text-primary' : 'text-muted')} aria-label={t('searchInChat')} title={t('searchInChat')}>
+                  <Search className="h-4 w-4" />
                 </button>
               )}
               {view === 'thread' && activeConv?.isGroup && (
@@ -166,7 +211,7 @@ export function ChatWidget() {
             </header>
 
             {view === 'list' && <ConversationList data={conversations.data} loading={conversations.isLoading} onlineSet={onlineSet} onOpen={openConversation} onNew={() => setView('new')} t={t} />}
-            {view === 'thread' && activeId != null && <Thread conversationId={activeId} conv={activeConv} typingName={typingByConv[activeId]} t={t} />}
+            {view === 'thread' && activeId != null && <Thread conversationId={activeId} conv={activeConv} typingName={typingByConv[activeId]} searchActive={threadSearch} t={t} />}
             {view === 'new' && <NewConversation t={t} onlineSet={onlineSet} onCreated={(c) => openConversation(c.id)} />}
             {view === 'manage' && activeConv && <ManageGroup conv={activeConv} onlineSet={onlineSet} onLeft={() => { setView('list'); setActiveId(null); }} t={t} />}
             </aside>
@@ -260,13 +305,15 @@ function relTime(iso: string): string {
   return d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
 }
 
-function Thread({ conversationId, conv, typingName, t }: { conversationId: number; conv: ChatConversationResponse | null; typingName?: string; t: ReturnType<typeof useTranslations> }) {
+function Thread({ conversationId, conv, typingName, searchActive, t }: { conversationId: number; conv: ChatConversationResponse | null; typingName?: string; searchActive: boolean; t: ReturnType<typeof useTranslations> }) {
   const qc = useQueryClient();
   const meId = useAuthStore((s) => s.user?.id);
   const [text, setText] = useState('');
   const [editing, setEditing] = useState<{ id: number; body: string } | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: number; sender: string; preview: string } | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [matchIdx, setMatchIdx] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -340,6 +387,21 @@ function Thread({ conversationId, conv, typingName, t }: { conversationId: numbe
     setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'rounded-2xl'), 1200);
   };
 
+  // Busca dentro da conversa (sobre as mensagens já carregadas) + navegação entre acertos.
+  const matches = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return [] as number[];
+    return all.filter((m) => m.body?.toLowerCase().includes(q)).map((m) => m.id);
+  }, [searchTerm, all]);
+  useEffect(() => { setMatchIdx(0); }, [searchTerm]);
+  useEffect(() => { if (!searchActive) setSearchTerm(''); }, [searchActive]);
+  const goMatch = (delta: number) => {
+    if (matches.length === 0) return;
+    const next = (matchIdx + delta + matches.length) % matches.length;
+    setMatchIdx(next);
+    jumpTo(matches[next]);
+  };
+
   const startReply = (msg: ChatMessageResponse) => {
     setReplyTo({ id: msg.id, sender: msg.senderName, preview: msg.attachmentName ? `📎 ${msg.attachmentName}` : msg.body });
     inputRef.current?.focus();
@@ -373,6 +435,28 @@ function Thread({ conversationId, conv, typingName, t }: { conversationId: numbe
 
   return (
     <>
+      {searchActive && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-border bg-panel px-3 py-2">
+          <Search className="h-4 w-4 shrink-0 text-dim" />
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') goMatch(e.shiftKey ? -1 : 1); }}
+            autoFocus
+            placeholder={t('searchInChat')}
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+          />
+          <span className="shrink-0 text-[11px] tabular-nums text-dim">
+            {searchTerm.trim() ? `${matches.length ? matchIdx + 1 : 0}/${matches.length}` : ''}
+          </span>
+          <button type="button" onClick={() => goMatch(-1)} disabled={matches.length === 0} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text disabled:opacity-40" aria-label={t('prevMatch')}>
+            <ChevronUp className="h-4 w-4" />
+          </button>
+          <button type="button" onClick={() => goMatch(1)} disabled={matches.length === 0} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text disabled:opacity-40" aria-label={t('nextMatch')}>
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       <div ref={scrollRef} className="flex-1 space-y-1 overflow-y-auto bg-bg-subtle/40 p-4">
         {messages.isLoading ? (
           <LoadingState />
