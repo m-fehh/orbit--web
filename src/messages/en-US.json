@@ -143,7 +143,23 @@
       "knowledge": "Knowledge",
       "rootcause": "Root causes",
       "resolution": "Resolutions"
-    }
+    },
+    "secRecent": "Recent",
+    "secActions": "Actions",
+    "secNavigation": "Navigation",
+    "secTicket": "Current ticket",
+    "createTicket": "Create new ticket",
+    "toggleTheme": "Toggle theme (light/dark)",
+    "changeStatus": "Change ticket status",
+    "assignToMe": "Assign ticket to me",
+    "backToCommands": "Back to commands",
+    "pickStatus": "Pick the new status",
+    "statusChanged": "Status updated.",
+    "assignedToMe": "Ticket assigned to you.",
+    "actionError": "Could not run the action.",
+    "footNavigate": "navigate",
+    "footSelect": "select",
+    "footClose": "close"
   },
   "notifications": {
     "title": "Notifications",

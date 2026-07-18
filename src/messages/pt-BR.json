@@ -143,7 +143,23 @@
       "knowledge": "Conhecimento",
       "rootcause": "Causas raiz",
       "resolution": "Resoluções"
-    }
+    },
+    "secRecent": "Recentes",
+    "secActions": "Ações",
+    "secNavigation": "Navegação",
+    "secTicket": "Ticket atual",
+    "createTicket": "Criar novo ticket",
+    "toggleTheme": "Alternar tema (claro/escuro)",
+    "changeStatus": "Mudar status do ticket",
+    "assignToMe": "Atribuir ticket a mim",
+    "backToCommands": "Voltar aos comandos",
+    "pickStatus": "Escolha o novo status",
+    "statusChanged": "Status atualizado.",
+    "assignedToMe": "Ticket atribuído a você.",
+    "actionError": "Não foi possível executar a ação.",
+    "footNavigate": "navegar",
+    "footSelect": "selecionar",
+    "footClose": "fechar"
   },
   "notifications": {
     "title": "Notificações",
