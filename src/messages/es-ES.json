@@ -426,6 +426,8 @@
     "loadOlder": "Cargar mensajes anteriores",
     "reply": "Responder",
     "replyingTo": "Respondiendo a {name}",
+    "viewImage": "Ver imagen",
+    "download": "Descargar",
     "muteSound": "Silenciar sonido",
     "unmuteSound": "Activar sonido",
     "searchInChat": "Buscar en la conversación…",

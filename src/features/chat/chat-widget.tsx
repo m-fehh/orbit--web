@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   MessageSquare, X, Plus, ArrowLeft, Send, Users, Search, Check, CheckCheck,
   Pencil, Trash2, Paperclip, Download, FileText, Smile, Settings2, UserPlus, LogOut, UserMinus, Reply,
-  Bell, BellOff, ChevronUp, ChevronDown,
+  Bell, BellOff, ChevronUp, ChevronDown, Image as ImageIcon, Eye,
 } from 'lucide-react';
 
 /** Emojis curados (sem dependência externa) para o seletor do compositor. */
@@ -58,17 +58,29 @@ function initials(name: string): string {
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Realça "@Nome" (nomes conhecidos da conversa) no corpo da mensagem. */
-function renderMentions(text: string, names: string[], mine: boolean): React.ReactNode {
-  if (names.length === 0 || !text.includes('@')) return text;
-  const sorted = [...names].filter(Boolean).sort((a, b) => b.length - a.length).map(escapeRegex);
-  const re = new RegExp(`@(?:${sorted.join('|')})`, 'g');
+/**
+ * Renderiza o corpo da mensagem realçando "@Nome" (menções) e, quando há busca ativa,
+ * o termo buscado (destaque estilo WhatsApp em amarelo).
+ */
+function renderBody(text: string, names: string[], highlight: string, mine: boolean): React.ReactNode {
+  const term = highlight.trim();
+  const mentionParts = [...names].filter(Boolean).sort((a, b) => b.length - a.length).map((n) => `@${escapeRegex(n)}`);
+  const alternatives: string[] = [];
+  if (term) alternatives.push(escapeRegex(term));
+  alternatives.push(...mentionParts);
+  if (alternatives.length === 0) return text;
+
+  const re = new RegExp(`(${alternatives.join('|')})`, 'gi');
   const out: React.ReactNode[] = [];
   let last = 0; let m: RegExpExecArray | null; let key = 0;
   while ((m = re.exec(text)) !== null) {
+    if (m.index === re.lastIndex) { re.lastIndex++; continue; } // guarda contra match vazio
     if (m.index > last) out.push(text.slice(last, m.index));
+    const isTerm = term.length > 0 && m[0].toLowerCase() === term.toLowerCase();
     out.push(
-      <span key={key++} className={cn('rounded px-0.5 font-semibold', mine ? 'bg-white/20' : 'bg-primary/15 text-primary')}>{m[0]}</span>,
+      isTerm
+        ? <mark key={key++} className="rounded bg-warning/40 px-0.5 text-text">{m[0]}</mark>
+        : <span key={key++} className={cn('rounded px-0.5 font-semibold', mine ? 'bg-white/20' : 'bg-primary/15 text-primary')}>{m[0]}</span>,
     );
     last = m.index + m[0].length;
   }
@@ -120,7 +132,7 @@ export function ChatWidget() {
       const convId = Number(payload?.conversationId);
       const viewing = open && view === 'thread' && convId === activeId;
       if (ev === 'chat.message' && viewing) {
-        chatApi.markRead(convId).then(() => qc.invalidateQueries({ queryKey: ['chat', 'unread'] })).catch(() => {});
+        chatApi.markRead(convId).then(() => qc.invalidateQueries({ queryKey: ['chat', 'unread'] })).catch(() => { });
       }
       // Toast quando chega mensagem de outro e não estou olhando a conversa.
       if (ev === 'chat.message' && !viewing && Number(payload?.senderId) !== meId) {
@@ -163,7 +175,7 @@ export function ChatWidget() {
     chatApi.markRead(id).then(() => {
       qc.invalidateQueries({ queryKey: ['chat', 'unread'] });
       qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   const unreadTotal = unread.data?.unread ?? 0;
@@ -194,46 +206,46 @@ export function ChatWidget() {
           <div className="fixed inset-0 z-[80] flex" role="dialog" aria-modal="true" aria-label={t('title')}>
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} aria-hidden />
             <aside className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-border bg-panel shadow-2xl animate-slide-in">
-            <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-gradient-to-r from-primary/8 to-transparent px-4">
-              {view !== 'list' ? (
-                <button type="button" onClick={() => setView(view === 'manage' ? 'thread' : 'list')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('back')}>
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
-              ) : (
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary"><MessageSquare className="h-4 w-4" /></span>
-              )}
-              <p className="min-w-0 flex-1 truncate text-sm font-bold text-text">
-                {view === 'thread' ? (activeConv?.name ?? t('title')) : view === 'new' ? t('newConversation') : view === 'manage' ? t('manageGroup') : t('title')}
-              </p>
-              {view === 'list' && (
-                <>
-                  <button type="button" onClick={toggleSound} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={soundOn ? t('muteSound') : t('unmuteSound')} title={soundOn ? t('muteSound') : t('unmuteSound')}>
-                    {soundOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+              <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-gradient-to-r from-primary/8 to-transparent px-4">
+                {view !== 'list' ? (
+                  <button type="button" onClick={() => setView(view === 'manage' ? 'thread' : 'list')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('back')}>
+                    <ArrowLeft className="h-4 w-4" />
                   </button>
-                  <button type="button" onClick={() => setView('new')} className="grid h-8 w-8 place-items-center rounded-lg text-primary hover:bg-primary/10" aria-label={t('newConversation')} title={t('newConversation')}>
-                    <Plus className="h-4 w-4" />
+                ) : (
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary"><MessageSquare className="h-4 w-4" /></span>
+                )}
+                <p className="min-w-0 flex-1 truncate text-sm font-bold text-text">
+                  {view === 'thread' ? (activeConv?.name ?? t('title')) : view === 'new' ? t('newConversation') : view === 'manage' ? t('manageGroup') : t('title')}
+                </p>
+                {view === 'list' && (
+                  <>
+                    <button type="button" onClick={toggleSound} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={soundOn ? t('muteSound') : t('unmuteSound')} title={soundOn ? t('muteSound') : t('unmuteSound')}>
+                      {soundOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                    </button>
+                    <button type="button" onClick={() => setView('new')} className="grid h-8 w-8 place-items-center rounded-lg text-primary hover:bg-primary/10" aria-label={t('newConversation')} title={t('newConversation')}>
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+                {view === 'thread' && (
+                  <button type="button" onClick={() => setThreadSearch((v) => !v)} className={cn('grid h-8 w-8 place-items-center rounded-lg hover:bg-panel-2 hover:text-text', threadSearch ? 'text-primary' : 'text-muted')} aria-label={t('searchInChat')} title={t('searchInChat')}>
+                    <Search className="h-4 w-4" />
                   </button>
-                </>
-              )}
-              {view === 'thread' && (
-                <button type="button" onClick={() => setThreadSearch((v) => !v)} className={cn('grid h-8 w-8 place-items-center rounded-lg hover:bg-panel-2 hover:text-text', threadSearch ? 'text-primary' : 'text-muted')} aria-label={t('searchInChat')} title={t('searchInChat')}>
-                  <Search className="h-4 w-4" />
+                )}
+                {view === 'thread' && activeConv?.isGroup && (
+                  <button type="button" onClick={() => setView('manage')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('manageGroup')} title={t('manageGroup')}>
+                    <Settings2 className="h-4 w-4" />
+                  </button>
+                )}
+                <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('close')}>
+                  <X className="h-4 w-4" />
                 </button>
-              )}
-              {view === 'thread' && activeConv?.isGroup && (
-                <button type="button" onClick={() => setView('manage')} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('manageGroup')} title={t('manageGroup')}>
-                  <Settings2 className="h-4 w-4" />
-                </button>
-              )}
-              <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('close')}>
-                <X className="h-4 w-4" />
-              </button>
-            </header>
+              </header>
 
-            {view === 'list' && <ConversationList data={conversations.data} loading={conversations.isLoading} onlineSet={onlineSet} onOpen={openConversation} onNew={() => setView('new')} t={t} />}
-            {view === 'thread' && activeId != null && <Thread conversationId={activeId} conv={activeConv} typingName={typingByConv[activeId]} searchActive={threadSearch} t={t} />}
-            {view === 'new' && <NewConversation t={t} onlineSet={onlineSet} onCreated={(c) => openConversation(c.id)} />}
-            {view === 'manage' && activeConv && <ManageGroup conv={activeConv} onlineSet={onlineSet} onLeft={() => { setView('list'); setActiveId(null); }} t={t} />}
+              {view === 'list' && <ConversationList data={conversations.data} loading={conversations.isLoading} onlineSet={onlineSet} onOpen={openConversation} onNew={() => setView('new')} t={t} />}
+              {view === 'thread' && activeId != null && <Thread conversationId={activeId} conv={activeConv} typingName={typingByConv[activeId]} searchActive={threadSearch} t={t} />}
+              {view === 'new' && <NewConversation t={t} onlineSet={onlineSet} onCreated={(c) => openConversation(c.id)} />}
+              {view === 'manage' && activeConv && <ManageGroup conv={activeConv} onlineSet={onlineSet} onLeft={() => { setView('list'); setActiveId(null); }} t={t} />}
             </aside>
           </div>
         </Portal>
@@ -280,35 +292,35 @@ function ConversationList({ data, loading, onlineSet, onOpen, onNew, t }: {
       {filtered.length === 0 ? (
         <p className="p-6 text-center text-sm text-dim">{t('noConversationMatch')}</p>
       ) : (
-    <ul className="flex-1 space-y-0.5 overflow-y-auto p-2">
-      {filtered.map((c) => {
-        const other = c.isGroup ? null : c.participants.find((p) => p.userId !== meId);
-        const online = other ? onlineSet.has(other.userId) : false;
-        const unread = c.unreadCount > 0;
-        return (
-          <li key={c.id}>
-            <button type="button" onClick={() => onOpen(c.id)} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-panel-2/60">
-              <span className="relative shrink-0">
-                <span className={cn('grid h-11 w-11 place-items-center rounded-full text-sm font-bold', c.isGroup ? 'bg-gradient-to-br from-primary/25 to-primary/10 text-primary' : 'bg-gradient-to-br from-panel-2 to-bg-subtle text-muted ring-1 ring-border')}>
-                  {c.isGroup ? <Users className="h-5 w-5" /> : initials(c.name)}
-                </span>
-                {!c.isGroup && <OnlineDot online={online} />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
-                  <span className={cn('truncate text-sm', unread ? 'font-bold text-text' : 'font-semibold text-text')}>{c.name}</span>
-                  {c.lastMessageAt && <span className={cn('ml-auto shrink-0 text-[10px]', unread ? 'font-semibold text-primary' : 'text-dim')}>{relTime(c.lastMessageAt)}</span>}
-                </span>
-                <span className={cn('mt-0.5 block truncate text-xs', unread ? 'text-text' : 'text-muted')}>{c.lastMessage ?? t('threadEmpty')}</span>
-              </span>
-              {unread && (
-                <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-fg">{c.unreadCount > 99 ? '99+' : c.unreadCount}</span>
-              )}
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+        <ul className="flex-1 space-y-0.5 overflow-y-auto p-2">
+          {filtered.map((c) => {
+            const other = c.isGroup ? null : c.participants.find((p) => p.userId !== meId);
+            const online = other ? onlineSet.has(other.userId) : false;
+            const unread = c.unreadCount > 0;
+            return (
+              <li key={c.id}>
+                <button type="button" onClick={() => onOpen(c.id)} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-panel-2/60">
+                  <span className="relative shrink-0">
+                    <span className={cn('grid h-11 w-11 place-items-center rounded-full text-sm font-bold', c.isGroup ? 'bg-gradient-to-br from-primary/25 to-primary/10 text-primary' : 'bg-gradient-to-br from-panel-2 to-bg-subtle text-muted ring-1 ring-border')}>
+                      {c.isGroup ? <Users className="h-5 w-5" /> : initials(c.name)}
+                    </span>
+                    {!c.isGroup && <OnlineDot online={online} />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className={cn('truncate text-sm', unread ? 'font-bold text-text' : 'font-semibold text-text')}>{c.name}</span>
+                      {c.lastMessageAt && <span className={cn('ml-auto shrink-0 text-[10px]', unread ? 'font-semibold text-primary' : 'text-dim')}>{relTime(c.lastMessageAt)}</span>}
+                    </span>
+                    <span className={cn('mt-0.5 block truncate text-xs', unread ? 'text-text' : 'text-muted')}>{c.lastMessage ?? t('threadEmpty')}</span>
+                  </span>
+                  {unread && (
+                    <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-fg">{c.unreadCount > 99 ? '99+' : c.unreadCount}</span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );
@@ -474,7 +486,7 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
     const now = Date.now();
     if (now - lastTyping.current > 2000) {
       lastTyping.current = now;
-      chatApi.typing(conversationId).catch(() => {});
+      chatApi.typing(conversationId).catch(() => { });
     }
   };
 
@@ -515,44 +527,45 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
           </div>
         ) : (
           <>
-          {hasMore && all.length >= PAGE_SIZE && (
-            <div className="flex justify-center pb-1">
-              <button type="button" onClick={() => loadOlder.mutate()} disabled={loadOlder.isPending} className="rounded-full border border-border bg-panel px-3 py-1 text-[11px] text-muted hover:text-text disabled:opacity-50">
-                {loadOlder.isPending ? '…' : t('loadOlder')}
-              </button>
-            </div>
-          )}
-          {all.map((m, i) => {
-            const arr = all;
-            const prev = arr[i - 1];
-            const mine = m.senderId === meId;
-            const sameDay = prev && new Date(prev.createdAt).toDateString() === new Date(m.createdAt).toDateString();
-            // Primeiro de um grupo: remetente ou dia diferente, ou intervalo > 5 min.
-            const grouped = prev != null && prev.senderId === m.senderId && sameDay
-              && (new Date(m.createdAt).getTime() - new Date(prev.createdAt).getTime()) < 5 * 60_000;
-            return (
-              <div key={m.id}>
-                {!sameDay && <DayDivider iso={m.createdAt} t={t} />}
-                <MessageBubble
-                  m={m}
-                  mine={mine}
-                  showMeta={!grouped}
-                  isGroup={conv?.isGroup ?? false}
-                  editing={editing?.id === m.id ? editing.body : null}
-                  onStartEdit={() => setEditing({ id: m.id, body: m.body })}
-                  onChangeEdit={(v) => setEditing({ id: m.id, body: v })}
-                  onSaveEdit={() => { if (editing && editing.body.trim()) edit.mutate({ id: m.id, body: editing.body.trim() }); }}
-                  onCancelEdit={() => setEditing(null)}
-                  onDelete={() => del.mutate(m.id)}
-                  onReply={() => startReply(m)}
-                  onJumpTo={jumpTo}
-                  mentionNames={mentionNames}
-                  receipt={m.id === myLastId ? renderReceipt(m.createdAt) : null}
-                  t={t}
-                />
+            {hasMore && all.length >= PAGE_SIZE && (
+              <div className="flex justify-center pb-1">
+                <button type="button" onClick={() => loadOlder.mutate()} disabled={loadOlder.isPending} className="rounded-full border border-border bg-panel px-3 py-1 text-[11px] text-muted hover:text-text disabled:opacity-50">
+                  {loadOlder.isPending ? '…' : t('loadOlder')}
+                </button>
               </div>
-            );
-          })}
+            )}
+            {all.map((m, i) => {
+              const arr = all;
+              const prev = arr[i - 1];
+              const mine = m.senderId === meId;
+              const sameDay = prev && new Date(prev.createdAt).toDateString() === new Date(m.createdAt).toDateString();
+              // Primeiro de um grupo: remetente ou dia diferente, ou intervalo > 5 min.
+              const grouped = prev != null && prev.senderId === m.senderId && sameDay
+                && (new Date(m.createdAt).getTime() - new Date(prev.createdAt).getTime()) < 5 * 60_000;
+              return (
+                <div key={m.id}>
+                  {!sameDay && <DayDivider iso={m.createdAt} t={t} />}
+                  <MessageBubble
+                    m={m}
+                    mine={mine}
+                    showMeta={!grouped}
+                    isGroup={conv?.isGroup ?? false}
+                    editing={editing?.id === m.id ? editing.body : null}
+                    onStartEdit={() => setEditing({ id: m.id, body: m.body })}
+                    onChangeEdit={(v) => setEditing({ id: m.id, body: v })}
+                    onSaveEdit={() => { if (editing && editing.body.trim()) edit.mutate({ id: m.id, body: editing.body.trim() }); }}
+                    onCancelEdit={() => setEditing(null)}
+                    onDelete={() => del.mutate(m.id)}
+                    onReply={() => startReply(m)}
+                    onJumpTo={jumpTo}
+                    mentionNames={mentionNames}
+                    highlight={searchActive ? searchTerm : ''}
+                    receipt={m.id === myLastId ? renderReceipt(m.createdAt) : null}
+                    t={t}
+                  />
+                </div>
+              );
+            })}
           </>
         )}
         {typingName && (
@@ -649,7 +662,7 @@ function DayDivider({ iso, t }: { iso: string; t: ReturnType<typeof useTranslati
   );
 }
 
-function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, onReply, onJumpTo, mentionNames, receipt, t }: {
+function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, onReply, onJumpTo, mentionNames, highlight, receipt, t }: {
   m: ChatMessageResponse;
   mine: boolean;
   showMeta: boolean;
@@ -663,6 +676,7 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
   onReply: () => void;
   onJumpTo: (id: number) => void;
   mentionNames: string[];
+  highlight: string;
   receipt?: React.ReactNode;
   t: ReturnType<typeof useTranslations>;
 }) {
@@ -678,11 +692,11 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
             className="w-full resize-none rounded-lg border border-primary bg-bg-subtle px-2.5 py-1.5 text-sm outline-none"
             autoFocus
           />
-          <div className="mt-1 flex justify-end gap-1.5">
+          <div className="flex justify-start gap-0\.5">
             <button type="button" onClick={onCancelEdit} className="grid h-7 w-7 place-items-center rounded-lg text-dim hover:bg-panel-2 hover:text-text" aria-label={t('cancelEdit')} title={t('cancelEdit')}>
               <X className="h-4 w-4" />
             </button>
-            <button type="button" onClick={onSaveEdit} className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-fg hover:bg-primary/90" aria-label={t('saveEdit')} title={t('saveEdit')}>
+            <button type="button" onClick={onSaveEdit} className="grid h-7 w-7 place-items-center rounded-lg text-primary hover:bg-panel-2" aria-label={t('saveEdit')} title={t('saveEdit')}>
               <Check className="h-4 w-4" />
             </button>
           </div>
@@ -710,7 +724,7 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
           ) : (
             <span className="flex gap-0.5 self-center opacity-0 transition-opacity group-hover:opacity-100">
               <button type="button" onClick={onReply} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('reply')} title={t('reply')}><Reply className="h-3 w-3" /></button>
-              {mine && <button type="button" onClick={onStartEdit} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('edit')}><Pencil className="h-3 w-3" /></button>}
+              {mine && !m.attachmentName && <button type="button" onClick={onStartEdit} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('edit')}><Pencil className="h-3 w-3" /></button>}
               {mine && <button type="button" onClick={() => setConfirming(true)} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-danger/10 hover:text-danger" aria-label={t('delete')}><Trash2 className="h-3 w-3" /></button>}
             </span>
           )}
@@ -732,7 +746,7 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
               </button>
             )}
             {m.attachmentName && <ChatAttachment m={m} mine={mine} t={t} />}
-            {m.body && <p className="whitespace-pre-wrap break-words">{renderMentions(m.body, mentionNames, mine)}</p>}
+            {m.body && <p className="whitespace-pre-wrap break-words">{renderBody(m.body, mentionNames, highlight, mine)}</p>}
             <span className={cn('mt-1 flex items-center justify-end gap-1 text-[9px]', mine ? 'text-primary-fg/70' : 'text-dim')}>
               {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               {m.editedAt && <span>· {t('edited')}</span>}
@@ -745,43 +759,39 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
   );
 }
 
+/**
+ * Anexo do chat como CHIP (padrão do ticket): mostra apenas o arquivo; ao clicar,
+ * imagens abrem em nova aba (visualização) e arquivos baixam. Sem preview inline
+ * nem edição.
+ */
 function ChatAttachment({ m, mine, t }: { m: ChatMessageResponse; mine: boolean; t: ReturnType<typeof useTranslations> }) {
-  const [url, setUrl] = useState<string | null>(null);
   const isImage = (m.attachmentContentType ?? '').startsWith('image/');
 
-  useEffect(() => {
-    if (!isImage) return;
-    let revoked: string | null = null;
-    let active = true;
-    chatApi.attachmentBlob(m.id).then((blob) => {
-      if (!active) return;
-      const u = URL.createObjectURL(blob);
-      revoked = u;
-      setUrl(u);
-    }).catch(() => {});
-    return () => { active = false; if (revoked) URL.revokeObjectURL(revoked); };
-  }, [m.id, isImage]);
-
-  const download = () => {
+  const open = () => {
     chatApi.attachmentBlob(m.id).then((blob) => {
       const u = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = u; a.download = m.attachmentName ?? 'arquivo';
-      a.click();
-      URL.revokeObjectURL(u);
+      if (isImage) {
+        window.open(u, '_blank', 'noopener');
+        setTimeout(() => URL.revokeObjectURL(u), 60_000);
+      } else {
+        const a = document.createElement('a');
+        a.href = u; a.download = m.attachmentName ?? 'arquivo';
+        a.click();
+        URL.revokeObjectURL(u);
+      }
     }).catch(() => toast.error(t('downloadError')));
   };
 
-  if (isImage) {
-    return url
-      ? <img src={url} alt={m.attachmentName ?? ''} className="mb-1 max-h-56 max-w-full cursor-pointer rounded-lg" onClick={download} />
-      : <div className="mb-1 flex h-24 w-40 items-center justify-center rounded-lg bg-black/10 text-[11px] text-dim">…</div>;
-  }
   return (
-    <button type="button" onClick={download} className={cn('mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-left', mine ? 'bg-white/15' : 'bg-panel')}>
-      <FileText className="h-4 w-4 shrink-0" />
-      <span className="min-w-0 flex-1 truncate text-xs">{m.attachmentName}</span>
-      <Download className="h-3.5 w-3.5 shrink-0 opacity-70" />
+    <button type="button" onClick={open} className={cn('mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left', mine ? 'bg-white/15' : 'bg-panel ring-1 ring-border')}>
+      <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-md', mine ? 'bg-white/15' : 'bg-primary/10 text-primary')}>
+        {isImage ? <ImageIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-medium">{m.attachmentName}</span>
+        <span className={cn('block text-[10px]', mine ? 'text-primary-fg/70' : 'text-dim')}>{isImage ? t('viewImage') : t('download')}</span>
+      </span>
+      {isImage ? <Eye className="h-3.5 w-3.5 shrink-0 opacity-70" /> : <Download className="h-3.5 w-3.5 shrink-0 opacity-70" />}
     </button>
   );
 }
