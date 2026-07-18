@@ -222,18 +222,18 @@ export function CommandPalette() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 p-md pt-[10vh] backdrop-blur-sm"
+              className="fixed inset-0 z-[60] flex justify-end bg-black/40 backdrop-blur-sm"
               onClick={() => setOpen(false)}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.96, y: -8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: -8 }}
-                transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                className="w-full max-w-xl overflow-hidden rounded-xl border border-border bg-panel shadow-2xl"
+                initial={{ opacity: 0, x: 28 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 28 }}
+                transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="flex h-full w-full max-w-md flex-col border-l border-border bg-panel shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <Command shouldFilter={!showSearch} loop>
+                <Command shouldFilter={!showSearch} loop className="flex h-full flex-col">
                   {/* Input */}
                   <div className="flex items-center gap-sm border-b border-border px-md">
                     {page === 'status' ? (
@@ -256,7 +256,7 @@ export function CommandPalette() {
                     <kbd className="rounded border border-border bg-bg-subtle px-1.5 text-[10px] text-dim">ESC</kbd>
                   </div>
 
-                  <Command.List className="max-h-[52vh] overflow-y-auto p-sm">
+                  <Command.List className="min-h-0 flex-1 overflow-y-auto p-sm">
                     <Command.Empty className="px-md py-lg text-center text-sm text-dim">
                       {enabled ? t('noResults', { q: debounced }) : t('typeToSearch')}
                     </Command.Empty>

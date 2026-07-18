@@ -13,6 +13,7 @@ import { notificationsApi } from '@/shared/api/endpoints';
 import { useSignalR } from '@/features/notifications/use-signalr';
 import { useNotifPrefs, playNotificationSound, showDesktopNotification } from '@/features/notifications/notification-prefs';
 import { useAuthStore } from '@/features/auth/auth-store';
+import { openTicketTab } from '@/features/tickets/ticket-actions';
 import { formatRelative } from '@/shared/lib/datetime';
 import type { Locale } from '@/shared/i18n/config';
 import type { NotificationResponse } from '@/shared/api/types';
@@ -42,19 +43,20 @@ export function NotificationCenter() {
   const [onlyUnread, setOnlyUnread] = useState(false);
   const authenticated = useAuthStore((s) => s.status === 'authenticated');
 
-  // Traduz por type + meta (idioma do usuário); cai para o texto salvo quando não há template.
+  // Traduz por type + meta (idioma do usuário); cai para o texto salvo quando não há
+  // template OU quando a notificação é legada (sem meta) — evita placeholders vazios.
   const resolveText = (n: NotificationResponse): { title: string; body: string } => {
+    if (!n.type || !n.meta) return { title: n.title, body: n.message };
     const base = `tpl.${n.type}`;
     const titleKey = `${base}.title` as Parameters<typeof t.has>[0];
-    if (n.type && t.has(titleKey)) {
-      let params: Record<string, string> = {};
-      try { params = n.meta ? JSON.parse(n.meta) : {}; } catch { /* ignore */ }
-      const title = t(titleKey as Parameters<typeof t>[0], params);
-      const bodyKey = `${base}.body` as Parameters<typeof t.has>[0];
-      const body = t.has(bodyKey) ? t(bodyKey as Parameters<typeof t>[0], params) : n.message;
-      return { title, body };
-    }
-    return { title: n.title, body: n.message };
+    if (!t.has(titleKey)) return { title: n.title, body: n.message };
+    let params: Record<string, string> = {};
+    try { params = JSON.parse(n.meta); } catch { return { title: n.title, body: n.message }; }
+    const bodyKey = `${base}.body` as Parameters<typeof t.has>[0];
+    return {
+      title: t(titleKey as Parameters<typeof t>[0], params),
+      body: t.has(bodyKey) ? t(bodyKey as Parameters<typeof t>[0], params) : n.message,
+    };
   };
 
   const unread = useQuery({
@@ -102,10 +104,16 @@ export function NotificationCenter() {
 
   function openItem(n: NotificationResponse) {
     if (!n.isRead) markRead.mutate(n.id);
-    if (n.link) {
-      setOpen(false);
-      router.push(n.link);
+    if (!n.link) return;
+    setOpen(false);
+    // Tickets abrem em ABA (workspace), não em rota /tickets/{id} (que não existe → 404).
+    const ticketMatch = n.link.match(/\/tickets\/(\d+)/);
+    if (ticketMatch) {
+      openTicketTab({ id: Number(ticketMatch[1]), number: String(n.referenceId ?? ticketMatch[1]) });
+      router.push('/workspace');
+      return;
     }
+    router.push(n.link);
   }
 
   return (

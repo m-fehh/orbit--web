@@ -56,6 +56,26 @@ function initials(name: string): string {
   return ((p[0]?.[0] ?? '') + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase() || '?';
 }
 
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Realça "@Nome" (nomes conhecidos da conversa) no corpo da mensagem. */
+function renderMentions(text: string, names: string[], mine: boolean): React.ReactNode {
+  if (names.length === 0 || !text.includes('@')) return text;
+  const sorted = [...names].filter(Boolean).sort((a, b) => b.length - a.length).map(escapeRegex);
+  const re = new RegExp(`@(?:${sorted.join('|')})`, 'g');
+  const out: React.ReactNode[] = [];
+  let last = 0; let m: RegExpExecArray | null; let key = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    out.push(
+      <span key={key++} className={cn('rounded px-0.5 font-semibold', mine ? 'bg-white/20' : 'bg-primary/15 text-primary')}>{m[0]}</span>,
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
 function OnlineDot({ online }: { online: boolean }) {
   return <span className={cn('absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-panel', online ? 'bg-success' : 'bg-dim/40')} />;
 }
@@ -172,7 +192,7 @@ export function ChatWidget() {
       {open && (
         <Portal>
           <div className="fixed inset-0 z-[80] flex" role="dialog" aria-modal="true" aria-label={t('title')}>
-            <div className="absolute inset-0" onClick={() => setOpen(false)} aria-hidden />
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} aria-hidden />
             <aside className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-border bg-panel shadow-2xl animate-slide-in">
             <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-gradient-to-r from-primary/8 to-transparent px-4">
               {view !== 'list' ? (
@@ -314,10 +334,38 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [matchIdx, setMatchIdx] = useState(0);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastTyping = useRef(0);
+
+  // @menções: participantes da conversa (menos eu) para o autocomplete e o realce.
+  const mentionPeople = (conv?.participants ?? []).filter((p) => p.userId !== meId);
+  const mentionNames = mentionPeople.map((p) => p.name);
+  const mentionMatches = mentionQuery === null
+    ? []
+    : mentionPeople.filter((p) => { const q = mentionQuery.toLowerCase(); return q === '' || p.name.toLowerCase().includes(q); }).slice(0, 6);
+
+  // Detecta o token "@…" imediatamente antes do cursor para abrir/fechar o autocomplete.
+  const onChangeText = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const v = e.target.value;
+    setText(v);
+    notifyTyping();
+    const upto = v.slice(0, e.target.selectionStart ?? v.length);
+    const m = upto.match(/@([\p{L}\d._-]*)$/u);
+    setMentionQuery(m ? m[1] : null);
+  };
+
+  const pickMentionChat = (name: string) => {
+    const el = inputRef.current;
+    const caret = el?.selectionStart ?? text.length;
+    const before = text.slice(0, caret).replace(/@([\p{L}\d._-]*)$/u, `@${name} `);
+    const next = before + text.slice(caret);
+    setText(next);
+    setMentionQuery(null);
+    requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(before.length, before.length); });
+  };
 
   const insertEmoji = (emoji: string) => {
     const el = inputRef.current;
@@ -375,7 +423,7 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
 
   const send = useMutation({
     mutationFn: (body: string) => chatApi.send(conversationId, body, replyTo?.id),
-    onSuccess: () => { setText(''); setReplyTo(null); invalidate(); },
+    onSuccess: () => { setText(''); setReplyTo(null); setMentionQuery(null); invalidate(); },
   });
 
   // Rola até a mensagem citada e a destaca brevemente.
@@ -498,6 +546,7 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
                   onDelete={() => del.mutate(m.id)}
                   onReply={() => startReply(m)}
                   onJumpTo={jumpTo}
+                  mentionNames={mentionNames}
                   receipt={m.id === myLastId ? renderReceipt(m.createdAt) : null}
                   t={t}
                 />
@@ -553,10 +602,24 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
         <button type="button" onClick={() => fileRef.current?.click()} disabled={upload.isPending} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text disabled:opacity-50" aria-label={t('attach')} title={t('attach')}>
           <Paperclip className="h-4 w-4" />
         </button>
+        {mentionQuery !== null && mentionMatches.length > 0 && (
+          <div className="absolute bottom-full left-3 z-20 mb-2 w-60 overflow-hidden rounded-xl border border-border bg-panel shadow-lg">
+            <ul className="max-h-52 overflow-y-auto py-1">
+              {mentionMatches.map((p) => (
+                <li key={p.userId}>
+                  <button type="button" onMouseDown={(e) => { e.preventDefault(); pickMentionChat(p.name); }} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-panel-2">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">{initials(p.name)}</span>
+                    <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <textarea
           ref={inputRef}
           value={text}
-          onChange={(e) => { setText(e.target.value); notifyTyping(); }}
+          onChange={onChangeText}
           onKeyDown={onKey}
           rows={1}
           placeholder={t('messagePlaceholder')}
@@ -586,7 +649,7 @@ function DayDivider({ iso, t }: { iso: string; t: ReturnType<typeof useTranslati
   );
 }
 
-function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, onReply, onJumpTo, receipt, t }: {
+function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onChangeEdit, onSaveEdit, onCancelEdit, onDelete, onReply, onJumpTo, mentionNames, receipt, t }: {
   m: ChatMessageResponse;
   mine: boolean;
   showMeta: boolean;
@@ -599,6 +662,7 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
   onDelete: () => void;
   onReply: () => void;
   onJumpTo: (id: number) => void;
+  mentionNames: string[];
   receipt?: React.ReactNode;
   t: ReturnType<typeof useTranslations>;
 }) {
@@ -668,7 +732,7 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
               </button>
             )}
             {m.attachmentName && <ChatAttachment m={m} mine={mine} t={t} />}
-            {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+            {m.body && <p className="whitespace-pre-wrap break-words">{renderMentions(m.body, mentionNames, mine)}</p>}
             <span className={cn('mt-1 flex items-center justify-end gap-1 text-[9px]', mine ? 'text-primary-fg/70' : 'text-dim')}>
               {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               {m.editedAt && <span>· {t('edited')}</span>}
