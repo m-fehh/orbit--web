@@ -1022,6 +1022,8 @@ export interface ChatConversationResponse {
   lastMessage: string | null;
   lastMessageAt: string | null;
   unreadCount: number;
+  teamId: number | null;
+  isBroadcast: boolean;
 }
 export interface ChatMessageResponse {
   id: number;

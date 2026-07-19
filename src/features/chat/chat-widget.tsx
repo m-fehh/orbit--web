@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   MessageSquare, X, Plus, ArrowLeft, Send, Users, Search, Check, CheckCheck,
   Pencil, Trash2, Paperclip, Download, FileText, Smile, Settings2, UserPlus, LogOut, UserMinus, Reply,
-  Bell, BellOff, ChevronUp, ChevronDown, Image as ImageIcon, Eye, Forward, Pin, Ticket, Clock,
+  Bell, BellOff, ChevronUp, ChevronDown, Image as ImageIcon, Eye, Forward, Pin, Ticket, Clock, Megaphone, Bot,
 } from 'lucide-react';
 
 /** Emojis curados (sem dependência externa) para o seletor do compositor. */
@@ -23,6 +23,7 @@ import { WorklogType } from '@/shared/enums';
 import { openNewTicketWindow } from '@/features/tickets/ticket-actions';
 import { apiErrorMessage, type ChatConversationResponse, type ChatMessageResponse } from '@/shared/api/types';
 import { useAuthStore } from '@/features/auth/auth-store';
+import { usePermissions } from '@/features/auth/use-permissions';
 import { useSignalR } from '@/features/notifications/use-signalr';
 import { Portal } from '@/shared/ui/portal';
 import { Button } from '@/shared/ui/button';
@@ -186,6 +187,16 @@ export function ChatWidget() {
   const unreadTotal = unread.data?.unread ?? 0;
   const activeConv = conversations.data?.find((c) => c.id === activeId) ?? null;
 
+  // Canais (Lote C): equipe do usuário + avisos (broadcast).
+  const myTeamId = useAuthStore((s) => s.user?.teamId ?? null);
+  const openChannel = useMutation({
+    mutationFn: (kind: 'team' | 'broadcast') => kind === 'broadcast'
+      ? chatApi.broadcastChannel()
+      : chatApi.teamChannel(myTeamId!),
+    onSuccess: (c) => { qc.invalidateQueries({ queryKey: ['chat', 'conversations'] }); openConversation(c.id); },
+    onError: (e) => toast.error(apiErrorMessage(e, t('forwardError'))),
+  });
+
   // Conversa → ticket: monta uma descrição HTML com o transcript e abre o formulário.
   const threadToTicket = () => {
     if (activeId == null) return;
@@ -264,7 +275,7 @@ export function ChatWidget() {
                 </button>
               </header>
 
-              {view === 'list' && <ConversationList data={conversations.data} loading={conversations.isLoading} onlineSet={onlineSet} onOpen={openConversation} onNew={() => setView('new')} t={t} />}
+              {view === 'list' && <ConversationList data={conversations.data} loading={conversations.isLoading} onlineSet={onlineSet} onOpen={openConversation} onNew={() => setView('new')} hasTeam={myTeamId != null} onOpenChannel={(k) => openChannel.mutate(k)} channelPending={openChannel.isPending} t={t} />}
               {view === 'thread' && activeId != null && <Thread conversationId={activeId} conv={activeConv} typingName={typingByConv[activeId]} searchActive={threadSearch} t={t} />}
               {view === 'new' && <NewConversation t={t} onlineSet={onlineSet} onCreated={(c) => openConversation(c.id)} />}
               {view === 'manage' && activeConv && <ManageGroup conv={activeConv} onlineSet={onlineSet} onLeft={() => { setView('list'); setActiveId(null); }} t={t} />}
@@ -276,23 +287,44 @@ export function ChatWidget() {
   );
 }
 
-function ConversationList({ data, loading, onlineSet, onOpen, onNew, t }: {
+function ConversationList({ data, loading, onlineSet, onOpen, onNew, hasTeam, onOpenChannel, channelPending, t }: {
   data: ChatConversationResponse[] | undefined;
   loading: boolean;
   onlineSet: Set<number>;
   onOpen: (id: number) => void;
   onNew: () => void;
+  hasTeam: boolean;
+  onOpenChannel: (kind: 'team' | 'broadcast') => void;
+  channelPending: boolean;
   t: ReturnType<typeof useTranslations>;
 }) {
   const meId = useAuthStore((s) => s.user?.id);
   const [term, setTerm] = useState('');
+
+  const channelsStrip = (
+    <div className="flex shrink-0 items-center gap-1.5 border-b border-border/60 p-2">
+      <span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-dim">{t('channels')}</span>
+      {hasTeam && (
+        <button type="button" disabled={channelPending} onClick={() => onOpenChannel('team')} className="inline-flex items-center gap-1 rounded-full border border-border bg-panel px-2 py-1 text-[11px] font-medium text-text hover:bg-panel-2 disabled:opacity-50">
+          <Users className="h-3 w-3 text-primary" /> {t('teamChannel')}
+        </button>
+      )}
+      <button type="button" disabled={channelPending} onClick={() => onOpenChannel('broadcast')} className="inline-flex items-center gap-1 rounded-full border border-border bg-panel px-2 py-1 text-[11px] font-medium text-text hover:bg-panel-2 disabled:opacity-50">
+        <Megaphone className="h-3 w-3 text-warning" /> {t('broadcastChannel')}
+      </button>
+    </div>
+  );
+
   if (loading) return <LoadingState />;
   if (!data || data.length === 0) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-        <span className="grid h-12 w-12 place-items-center rounded-full bg-primary/10 text-primary"><MessageSquare className="h-5 w-5" /></span>
-        <p className="text-sm text-muted">{t('empty')}</p>
-        <Button size="sm" className="gap-1.5" onClick={onNew}><Plus className="h-3.5 w-3.5" /> {t('newConversation')}</Button>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {channelsStrip}
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+          <span className="grid h-12 w-12 place-items-center rounded-full bg-primary/10 text-primary"><MessageSquare className="h-5 w-5" /></span>
+          <p className="text-sm text-muted">{t('empty')}</p>
+          <Button size="sm" className="gap-1.5" onClick={onNew}><Plus className="h-3.5 w-3.5" /> {t('newConversation')}</Button>
+        </div>
       </div>
     );
   }
@@ -300,6 +332,7 @@ function ConversationList({ data, loading, onlineSet, onOpen, onNew, t }: {
   const filtered = q ? data.filter((c) => (c.name ?? '').toLowerCase().includes(q) || (c.lastMessage ?? '').toLowerCase().includes(q)) : data;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {channelsStrip}
       <div className="shrink-0 border-b border-border/60 p-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-dim" />
@@ -455,9 +488,17 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
     qc.invalidateQueries({ queryKey: ['chat', 'conversations'] });
   };
 
+  // Canal de avisos: publicar usa a via guardada; quem não pode publicar vê somente leitura.
+  const isBroadcast = conv?.isBroadcast ?? false;
+  const canBroadcast = usePermissions().can('notification.manage');
+
   const send = useMutation({
-    mutationFn: (body: string) => chatApi.send(conversationId, body, replyTo?.id),
+    mutationFn: async (body: string) => {
+      if (isBroadcast) await chatApi.broadcast(body);
+      else await chatApi.send(conversationId, body, replyTo?.id);
+    },
     onSuccess: () => { setText(''); setReplyTo(null); setMentionQuery(null); invalidate(); },
+    onError: (e) => toast.error(apiErrorMessage(e, t('sendError'))),
   });
 
   // Rola até a mensagem citada e a destaca brevemente.
@@ -618,6 +659,12 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
         )}
       </div>
 
+      {isBroadcast && !canBroadcast ? (
+        <div className="flex shrink-0 items-center justify-center gap-2 border-t border-border bg-panel-2/40 px-3 py-3 text-xs text-dim">
+          <Megaphone className="h-3.5 w-3.5" /> {t('broadcastReadOnly')}
+        </div>
+      ) : (
+        <>
       {replyTo && (
         <div className="flex shrink-0 items-center gap-2 border-t border-border bg-panel-2/40 px-3 py-2">
           <span className="h-8 w-0.5 shrink-0 rounded-full bg-primary" />
@@ -680,6 +727,8 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
           <Send className="h-4 w-4" />
         </Button>
       </div>
+        </>
+      )}
 
       {forwardMsg && (
         <ForwardPicker
@@ -885,7 +934,9 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
       {/* Coluna do avatar (só para o outro); ocupa espaço mesmo quando agrupado, p/ alinhar. */}
       {!mine && (
         <span className="w-7 shrink-0 self-end">
-          {showMeta && <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-panel-2 to-bg-subtle text-[10px] font-bold text-muted ring-1 ring-border">{initials(m.senderName)}</span>}
+          {showMeta && (m.senderId === 0
+            ? <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/20"><Bot className="h-3.5 w-3.5" /></span>
+            : <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-panel-2 to-bg-subtle text-[10px] font-bold text-muted ring-1 ring-border">{initials(m.senderName)}</span>)}
         </span>
       )}
       <div className={cn('flex min-w-0 flex-col', mine ? 'items-end' : 'items-start')}>
