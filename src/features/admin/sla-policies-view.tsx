@@ -8,7 +8,7 @@ import { Gauge, Save, CalendarClock } from 'lucide-react';
 import { slaPoliciesApi, businessHoursApi } from '@/shared/api/endpoints';
 import {
   Priority, apiErrorMessage,
-  type PriorityName, type PriorityValue, type SlaPolicyResponse, type BusinessHoursResponse,
+  type PriorityName, type PriorityValue, type SlaPolicyResponse, type BusinessHoursResponse, type BusinessHoursDay,
 } from '@/shared/api/types';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -18,7 +18,6 @@ import { DataGrid, type ColumnDef, useDataGridLabels } from '@/shared/ui/data-gr
 import { PageTransition, LoadingState, ErrorState } from '@/shared/ui/states';
 import { cn } from '@/shared/lib/utils';
 
-const ISO_DAYS = [1, 2, 3, 4, 5, 6, 7];
 const toHHMM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const fromHHMM = (v: string) => { const [h, m] = v.split(':').map(Number); return (h || 0) * 60 + (m || 0); };
 const fmtDuration = (m: number) => {
@@ -27,7 +26,28 @@ const fmtDuration = (m: number) => {
   return h > 0 ? `${h}h${mm ? ` ${mm}min` : ''}` : `${mm}min`;
 };
 
-/** Expediente do tenant — quando ativo, o SLA conta só em horário útil. */
+/** Fusos comuns (foco Brasil + alguns internacionais). O fuso salvo é sempre incluído. */
+const COMMON_TIME_ZONES: { id: string; label: string }[] = [
+  { id: 'America/Sao_Paulo', label: 'Brasília (GMT-3)' },
+  { id: 'America/Manaus', label: 'Manaus (GMT-4)' },
+  { id: 'America/Cuiaba', label: 'Cuiabá (GMT-4)' },
+  { id: 'America/Campo_Grande', label: 'Campo Grande (GMT-4)' },
+  { id: 'America/Rio_Branco', label: 'Rio Branco (GMT-5)' },
+  { id: 'America/Belem', label: 'Belém (GMT-3)' },
+  { id: 'America/Fortaleza', label: 'Fortaleza (GMT-3)' },
+  { id: 'America/Recife', label: 'Recife (GMT-3)' },
+  { id: 'America/Bahia', label: 'Salvador (GMT-3)' },
+  { id: 'America/Noronha', label: 'Fernando de Noronha (GMT-2)' },
+  { id: 'UTC', label: 'UTC (GMT+0)' },
+  { id: 'America/New_York', label: 'New York (GMT-5/-4)' },
+  { id: 'America/Chicago', label: 'Chicago (GMT-6/-5)' },
+  { id: 'America/Los_Angeles', label: 'Los Angeles (GMT-8/-7)' },
+  { id: 'Europe/Lisbon', label: 'Lisboa (GMT+0/+1)' },
+  { id: 'Europe/London', label: 'Londres (GMT+0/+1)' },
+  { id: 'Europe/Madrid', label: 'Madri (GMT+1/+2)' },
+];
+
+/** Expediente do tenant — quando ativo, o SLA conta só em horário útil (por dia). */
 function BusinessHoursCard() {
   const t = useTranslations('slaSettings');
   const locale = useLocale();
@@ -38,7 +58,7 @@ function BusinessHoursCard() {
   useEffect(() => { if (data) setForm(data); }, [data]);
 
   const dayLabel = (iso: number) =>
-    new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2024, 0, iso)));
+    new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2024, 0, iso)));
 
   const save = useMutation({
     mutationFn: (body: BusinessHoursResponse) => businessHoursApi.save(body),
@@ -47,12 +67,14 @@ function BusinessHoursCard() {
   });
 
   if (!form) return null;
-  const activeDays = new Set(form.workDays.split(',').map((d) => Number(d.trim())).filter(Boolean));
-  const toggleDay = (iso: number) => {
-    const next = new Set(activeDays);
-    if (next.has(iso)) next.delete(iso); else next.add(iso);
-    setForm({ ...form, workDays: [...next].sort((a, b) => a - b).join(',') });
-  };
+
+  const days = [...form.days].sort((a, b) => a.day - b.day);
+  const patchDay = (iso: number, patch: Partial<BusinessHoursDay>) =>
+    setForm({ ...form, days: form.days.map((d) => (d.day === iso ? { ...d, ...patch } : d)) });
+
+  const tzOptions = COMMON_TIME_ZONES.some((z) => z.id === form.timeZoneId)
+    ? COMMON_TIME_ZONES
+    : [{ id: form.timeZoneId, label: form.timeZoneId }, ...COMMON_TIME_ZONES];
 
   return (
     <div className="card-surface overflow-hidden">
@@ -69,48 +91,66 @@ function BusinessHoursCard() {
 
       {form.enabled && (
         <div className="flex flex-col gap-4 p-lg">
-          {/* Janela de expediente + fuso (aplicada aos dias ativos) */}
-          <div className="flex flex-wrap items-end gap-4">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-dim">{t('start')} → {t('end')}</span>
-              <span className="inline-flex items-center gap-2 rounded-lg border border-border bg-panel-2/40 px-3 py-1.5">
-                <CalendarClock className="h-4 w-4 shrink-0 text-info" />
-                <Input type="time" aria-label={t('start')} value={toHHMM(form.startMinute)} onChange={(e) => setForm({ ...form, startMinute: fromHHMM(e.target.value) })} className="h-8 w-28" />
-                <span className="text-dim">→</span>
-                <Input type="time" aria-label={t('end')} value={toHHMM(form.endMinute)} onChange={(e) => setForm({ ...form, endMinute: fromHHMM(e.target.value) })} className="h-8 w-28" />
-              </span>
-            </label>
-            <label className="flex min-w-[200px] flex-1 flex-col gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-dim">{t('timeZone')}</span>
-              <Input value={form.timeZoneId} onChange={(e) => setForm({ ...form, timeZoneId: e.target.value })} placeholder="America/Sao_Paulo" className="h-9" />
-            </label>
-          </div>
+          {/* Fuso horário — obrigatório para o expediente fazer sentido */}
+          <label className="flex max-w-md flex-col gap-1.5">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-dim">{t('timeZone')}</span>
+            <select
+              value={form.timeZoneId}
+              onChange={(e) => setForm({ ...form, timeZoneId: e.target.value })}
+              className="h-9 rounded-lg border border-border bg-bg-subtle px-2.5 text-sm text-text outline-none focus:border-primary"
+            >
+              {tzOptions.map((z) => (
+                <option key={z.id} value={z.id}>{z.label}</option>
+              ))}
+            </select>
+            <span className="text-[11px] text-dim">{t('timeZoneHint')}</span>
+          </label>
 
-          {/* Dias úteis como TABELA (uma linha por dia) */}
-          <div className="overflow-hidden rounded-xl border border-border">
-            <table className="w-full text-sm">
+          {/* Dias da semana como TABELA — cada dia com seu próprio horário */}
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full min-w-[520px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-panel-2/50 text-[10px] font-semibold uppercase tracking-wider text-dim">
                   <th className="px-4 py-2 text-left">{t('day')}</th>
                   <th className="px-4 py-2 text-left">{t('situation')}</th>
-                  <th className="px-4 py-2 text-left">{t('schedule')}</th>
+                  <th className="px-4 py-2 text-left">{t('start')}</th>
+                  <th className="px-4 py-2 text-left">{t('end')}</th>
                   <th className="px-4 py-2 text-right">{t('active')}</th>
                 </tr>
               </thead>
               <tbody>
-                {ISO_DAYS.map((iso) => {
-                  const on = activeDays.has(iso);
+                {days.map((d) => {
+                  const on = d.enabled;
                   return (
-                    <tr key={iso} className="border-b border-border/50 last:border-0 hover:bg-panel-2/30">
-                      <td className="px-4 py-2.5 font-medium capitalize text-text">{dayLabel(iso)}</td>
+                    <tr key={d.day} className="border-b border-border/50 last:border-0 hover:bg-panel-2/30">
+                      <td className="px-4 py-2.5 font-medium capitalize text-text">{dayLabel(d.day)}</td>
                       <td className="px-4 py-2.5">
                         <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', on ? 'bg-success/15 text-success' : 'bg-panel-2 text-dim')}>
                           {on ? t('workDay') : t('dayOff')}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-muted">{on ? `${toHHMM(form.startMinute)} – ${toHHMM(form.endMinute)}` : '—'}</td>
+                      <td className="px-4 py-2.5">
+                        <Input
+                          type="time"
+                          aria-label={`${dayLabel(d.day)} — ${t('start')}`}
+                          value={toHHMM(d.startMinute)}
+                          disabled={!on}
+                          onChange={(e) => patchDay(d.day, { startMinute: fromHHMM(e.target.value) })}
+                          className="h-8 w-28"
+                        />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <Input
+                          type="time"
+                          aria-label={`${dayLabel(d.day)} — ${t('end')}`}
+                          value={toHHMM(d.endMinute)}
+                          disabled={!on}
+                          onChange={(e) => patchDay(d.day, { endMinute: fromHHMM(e.target.value) })}
+                          className="h-8 w-28"
+                        />
+                      </td>
                       <td className="px-4 py-2.5 text-right">
-                        <button type="button" role="switch" aria-checked={on} aria-label={dayLabel(iso)} onClick={() => toggleDay(iso)} className={cn('relative inline-flex h-5 w-9 items-center rounded-full transition-colors', on ? 'bg-success' : 'bg-border-strong')}>
+                        <button type="button" role="switch" aria-checked={on} aria-label={dayLabel(d.day)} onClick={() => patchDay(d.day, { enabled: !on })} className={cn('relative inline-flex h-5 w-9 items-center rounded-full transition-colors', on ? 'bg-success' : 'bg-border-strong')}>
                           <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform', on ? 'translate-x-4' : 'translate-x-0.5')} />
                         </button>
                       </td>
@@ -275,7 +315,8 @@ export function SlaPoliciesView() {
   if (isError) return <ErrorState title={t('loadError')} onRetry={() => refetch()} retryLabel={t('retry')} />;
 
   return (
-    <PageTransition className="flex h-full flex-col gap-lg overflow-auto p-lg">
+    <PageTransition className="flex h-full flex-col">
+      <div className="flex min-h-0 flex-1 flex-col gap-lg overflow-auto p-lg">
       <header className="flex flex-wrap items-center gap-3">
         <span className="grid h-11 w-11 place-items-center rounded-xl border border-primary/20 bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
           <Gauge className="h-5 w-5" />
@@ -304,6 +345,7 @@ export function SlaPoliciesView() {
       <p className="text-xs text-dim">{t('hint')}</p>
 
       <BusinessHoursCard />
+      </div>
 
       {editing && <SlaEditModal row={editing} onClose={() => setEditing(null)} />}
     </PageTransition>

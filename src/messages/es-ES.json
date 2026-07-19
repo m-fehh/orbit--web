@@ -1329,6 +1329,7 @@
     "enabled": "Activar horario laboral",
     "workDays": "Días hábiles",
     "timeZone": "Zona horaria",
+    "timeZoneHint": "Los horarios de abajo se interpretan en esta zona.",
     "day": "Día",
     "situation": "Estado",
     "schedule": "Horario",

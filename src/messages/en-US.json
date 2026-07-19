@@ -1329,6 +1329,7 @@
     "enabled": "Enable business hours",
     "workDays": "Work days",
     "timeZone": "Time zone",
+    "timeZoneHint": "The times below are interpreted in this zone.",
     "day": "Day",
     "situation": "Status",
     "schedule": "Hours",

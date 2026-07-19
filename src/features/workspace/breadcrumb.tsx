@@ -73,14 +73,18 @@ export function Breadcrumb() {
   if (!tab) return null;
 
   const loc = currentLocation(tab);
-  const sectionIsDistinct = loc.kind !== sectionIndex[loc.kind].kind;
+  // Uma aba persistida (localStorage) pode ter um kind removido em versões
+  // anteriores — nesse caso o índice de seção não tem entrada. Trata como
+  // seção própria (sem link de volta) em vez de quebrar a tela.
+  const section = sectionIndex[loc.kind];
+  const sectionIsDistinct = !!section && loc.kind !== section.kind;
 
   return (
     <div className="flex h-10 items-center gap-sm border-b border-border/40 px-md text-sm">
       <nav aria-label="breadcrumb" className="flex min-w-0 items-center gap-1 text-muted">
         <button
           type="button"
-          onClick={() => openTab(sectionIndex[loc.kind])}
+          onClick={() => section && openTab(section)}
           className={cn(
             'inline-flex items-center gap-1.5 rounded px-1 py-0.5',
             sectionIsDistinct ? 'hover:bg-panel-2 hover:text-text' : 'cursor-default',
@@ -88,7 +92,7 @@ export function Breadcrumb() {
           disabled={!sectionIsDistinct}
         >
           <Icon name={loc.icon} className="h-3.5 w-3.5 text-primary" />
-          {t(SECTION_NAV_KEY[loc.kind] as 'tickets')}
+          {SECTION_NAV_KEY[loc.kind] ? t(SECTION_NAV_KEY[loc.kind] as 'tickets') : loc.title}
         </button>
         {sectionIsDistinct && (
           <>

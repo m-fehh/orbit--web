@@ -1329,6 +1329,7 @@
     "enabled": "Ativar expediente",
     "workDays": "Dias úteis",
     "timeZone": "Fuso horário",
+    "timeZoneHint": "Os horários abaixo são interpretados neste fuso.",
     "day": "Dia",
     "situation": "Situação",
     "schedule": "Expediente",

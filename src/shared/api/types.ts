@@ -1226,13 +1226,18 @@ export interface SaveSlaPolicyRequest {
 }
 
 /* ---- Business Hours (expediente para cálculo de SLA) ---- */
-export interface BusinessHoursResponse {
+/** Janela de expediente de um dia ISO (1=Seg … 7=Dom), em minutos desde a meia-noite. */
+export interface BusinessHoursDay {
+  day: number;
   enabled: boolean;
-  /** Dias úteis em ISO (1=Seg … 7=Dom), separados por vírgula. */
-  workDays: string;
   startMinute: number;
   endMinute: number;
+}
+export interface BusinessHoursResponse {
+  enabled: boolean;
   timeZoneId: string;
+  /** Sempre 7 janelas (dias 1..7), cada dia com seu próprio horário. */
+  days: BusinessHoursDay[];
 }
 export type SaveBusinessHoursRequest = BusinessHoursResponse;
 
