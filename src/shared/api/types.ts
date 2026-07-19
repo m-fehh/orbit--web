@@ -1048,6 +1048,11 @@ export interface ChatReactionResponse {
   count: number;
   mine: boolean;
 }
+export type PresenceStatus = 'available' | 'busy' | 'away' | 'dnd';
+export interface UserStatusResponse {
+  userId: number;
+  status: PresenceStatus;
+}
 export interface ChatSearchResultResponse {
   messageId: number;
   conversationId: number;

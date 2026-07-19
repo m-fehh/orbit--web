@@ -24,7 +24,7 @@ import { WorklogType } from '@/shared/enums';
 import { openNewTicketWindow, openTicketTab } from '@/features/tickets/ticket-actions';
 import { useCannedResponses, useHydrateCanned } from '@/features/chat/chat-canned';
 import { useRouter } from 'next/navigation';
-import { apiErrorMessage, type ChatConversationResponse, type ChatMessageResponse } from '@/shared/api/types';
+import { apiErrorMessage, type ChatConversationResponse, type ChatMessageResponse, type PresenceStatus } from '@/shared/api/types';
 import { useAuthStore } from '@/features/auth/auth-store';
 import { usePermissions } from '@/features/auth/use-permissions';
 import { useSignalR } from '@/features/notifications/use-signalr';
@@ -97,8 +97,44 @@ function renderBody(text: string, names: string[], highlight: string, mine: bool
   return out;
 }
 
-function OnlineDot({ online }: { online: boolean }) {
-  return <span className={cn('absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-panel', online ? 'bg-success' : 'bg-dim/40')} />;
+/** Cor do indicador de presença por status. */
+const STATUS_COLOR: Record<PresenceStatus, string> = {
+  available: 'bg-success',
+  busy: 'bg-warning',
+  away: 'bg-amber-400',
+  dnd: 'bg-danger',
+};
+
+function OnlineDot({ online, status }: { online: boolean; status?: PresenceStatus }) {
+  return <span className={cn('absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-panel', online ? (STATUS_COLOR[status ?? 'available']) : 'bg-dim/40')} />;
+}
+
+const STATUS_OPTIONS: PresenceStatus[] = ['available', 'busy', 'away', 'dnd'];
+const statusLabel = (t: ReturnType<typeof useTranslations>, s: PresenceStatus) =>
+  t(({ available: 'statusAvailable', busy: 'statusBusy', away: 'statusAway', dnd: 'statusDnd' } as const)[s]);
+
+/** Botão de status de disponibilidade (dot colorido + menu). */
+function StatusPickerButton({ value, onChange, t }: { value: PresenceStatus; onChange: (s: PresenceStatus) => void; t: ReturnType<typeof useTranslations> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-panel-2" aria-label={t('myStatus')} title={statusLabel(t, value)}>
+        <span className={cn('h-3 w-3 rounded-full ring-2 ring-panel', STATUS_COLOR[value])} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
+          <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-panel shadow-lg">
+            {STATUS_OPTIONS.map((s) => (
+              <button key={s} type="button" onClick={() => { onChange(s); setOpen(false); }} className={cn('flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-panel-2', s === value && 'bg-panel-2 font-medium')}>
+                <span className={cn('h-2.5 w-2.5 rounded-full', STATUS_COLOR[s])} /> {statusLabel(t, s)}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 /** Chat interno: ícone no header (não lidas) + painel lateral com lista, thread e nova conversa. */
@@ -129,6 +165,17 @@ export function ChatWidget() {
   const presence = useQuery({ queryKey: ['chat', 'presence'], queryFn: () => chatApi.presence(), retry: false, refetchInterval: 120_000 });
   const onlineSet = useMemo(() => new Set(presence.data ?? []), [presence.data]);
 
+  // Presença rica (status): disponível/ocupado/ausente/não perturbe.
+  const statuses = useQuery({ queryKey: ['chat', 'statuses'], queryFn: () => chatApi.statuses(), retry: false, refetchInterval: 60_000, enabled: open });
+  const statusMap = useMemo(() => new Map((statuses.data ?? []).map((s) => [s.userId, s.status])), [statuses.data]);
+  const [myStatus, setMyStatus] = useState<PresenceStatus>('available');
+  useEffect(() => { const s = meId != null ? statusMap.get(meId) : undefined; if (s) setMyStatus(s); }, [statusMap, meId]);
+  const setStatus = useMutation({
+    mutationFn: (s: PresenceStatus) => chatApi.setStatus(s),
+    onMutate: (s) => setMyStatus(s),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['chat', 'statuses'] }),
+  });
+
   // Tempo real: todos os eventos chegam via 'ReceiveEvent' (nome + payload).
   useSignalR('ReceiveEvent', (...args: unknown[]) => {
     const ev = args[0] as string;
@@ -143,8 +190,8 @@ export function ChatWidget() {
       if (ev === 'chat.message' && viewing) {
         chatApi.markRead(convId).then(() => qc.invalidateQueries({ queryKey: ['chat', 'unread'] })).catch(() => { });
       }
-      // Toast quando chega mensagem de outro e não estou olhando a conversa.
-      if (ev === 'chat.message' && !viewing && Number(payload?.senderId) !== meId) {
+      // Toast quando chega mensagem de outro e não estou olhando a conversa (silencia se DND).
+      if (ev === 'chat.message' && !viewing && Number(payload?.senderId) !== meId && myStatus !== 'dnd') {
         const who = String(payload?.senderName ?? '');
         const body = payload?.attachmentName ? `📎 ${payload.attachmentName}` : String(payload?.body ?? '');
         toast(who, {
@@ -250,6 +297,7 @@ export function ChatWidget() {
                 </p>
                 {view === 'list' && (
                   <>
+                    <StatusPickerButton value={myStatus} onChange={(s) => setStatus.mutate(s)} t={t} />
                     <button type="button" onClick={toggleSound} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={soundOn ? t('muteSound') : t('unmuteSound')} title={soundOn ? t('muteSound') : t('unmuteSound')}>
                       {soundOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
                     </button>
@@ -278,7 +326,7 @@ export function ChatWidget() {
                 </button>
               </header>
 
-              {view === 'list' && <ConversationList data={conversations.data} loading={conversations.isLoading} onlineSet={onlineSet} onOpen={openConversation} onNew={() => setView('new')} hasTeam={myTeamId != null} onOpenChannel={(k) => openChannel.mutate(k)} channelPending={openChannel.isPending} t={t} />}
+              {view === 'list' && <ConversationList data={conversations.data} loading={conversations.isLoading} onlineSet={onlineSet} statusMap={statusMap} onOpen={openConversation} onNew={() => setView('new')} hasTeam={myTeamId != null} onOpenChannel={(k) => openChannel.mutate(k)} channelPending={openChannel.isPending} t={t} />}
               {view === 'thread' && activeId != null && <Thread conversationId={activeId} conv={activeConv} typingName={typingByConv[activeId]} searchActive={threadSearch} t={t} />}
               {view === 'new' && <NewConversation t={t} onlineSet={onlineSet} onCreated={(c) => openConversation(c.id)} />}
               {view === 'manage' && activeConv && <ManageGroup conv={activeConv} onlineSet={onlineSet} onLeft={() => { setView('list'); setActiveId(null); }} t={t} />}
@@ -290,10 +338,11 @@ export function ChatWidget() {
   );
 }
 
-function ConversationList({ data, loading, onlineSet, onOpen, onNew, hasTeam, onOpenChannel, channelPending, t }: {
+function ConversationList({ data, loading, onlineSet, statusMap, onOpen, onNew, hasTeam, onOpenChannel, channelPending, t }: {
   data: ChatConversationResponse[] | undefined;
   loading: boolean;
   onlineSet: Set<number>;
+  statusMap: Map<number, PresenceStatus>;
   onOpen: (id: number) => void;
   onNew: () => void;
   hasTeam: boolean;
@@ -364,7 +413,7 @@ function ConversationList({ data, loading, onlineSet, onOpen, onNew, hasTeam, on
                     <span className={cn('grid h-11 w-11 place-items-center rounded-full text-sm font-bold', c.isGroup ? 'bg-gradient-to-br from-primary/25 to-primary/10 text-primary' : 'bg-gradient-to-br from-panel-2 to-bg-subtle text-muted ring-1 ring-border')}>
                       {c.isGroup ? <Users className="h-5 w-5" /> : initials(c.name)}
                     </span>
-                    {!c.isGroup && <OnlineDot online={online} />}
+                    {!c.isGroup && <OnlineDot online={online} status={other ? statusMap.get(other.userId) : undefined} />}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
