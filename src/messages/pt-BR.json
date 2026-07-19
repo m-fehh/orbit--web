@@ -2256,6 +2256,18 @@
     "fromResolved": "De tickets resolvidos",
     "fromGuides": "Sobre o Orbit",
     "openTicket": "Abrir o ticket",
+    "newSession": "Nova sessão",
+    "noSessions": "Nenhuma sessão ainda",
+    "untitledSession": "Sem título",
+    "sessionDeleted": "Sessão apagada",
+    "deleteSessionTitle": "Apagar sessão",
+    "deleteSessionBody": "Esta conversa e todo o seu histórico serão apagados. Deseja continuar?",
+    "info": {
+      "title": "Sobre o Copiloto",
+      "usage": "Você usou {used} de {limit} perguntas hoje. O limite renova diariamente.",
+      "retention": "As sessões são apagadas automaticamente após o período de retenção configurado.",
+      "local": "Tudo roda no motor de conhecimento local do Orbit — nenhum dado sai da sua instância."
+    },
     "usageRemaining": "{remaining} restantes hoje",
     "usageReached": "Limite de hoje atingido — volta amanhã",
     "usageTooltip": "{used} de {limit} perguntas usadas hoje",

@@ -92,6 +92,7 @@ import type {
   PlaybookSuggestion,
   CopilotAnswerResponse,
   CopilotHistoryItem,
+  CopilotSessionResponse,
   CopilotUsageResponse,
   IntakeAnalysis,
   TriagePredictionResponse,
@@ -315,11 +316,18 @@ export const intelligenceApi = {
     api.get<TaasReliabilityResponse>('/intelligence/reliability', { params: { days } }),
   /** Copiloto de Conhecimento: pergunta em texto livre → resposta + soluções comprovadas.
    *  Passe ticketId para escopar a resposta ao contexto real daquele ticket. */
-  ask: (q: string, maxResults = 5, ticketId?: number) =>
-    api.get<CopilotAnswerResponse>('/intelligence/ask', { params: { q, maxResults, ...(ticketId ? { ticketId } : {}) } }),
-  /** Histórico da conversa do copiloto (por ticket, se informado; senão do sistema). */
-  copilotHistory: (ticketId?: number) =>
-    api.get<CopilotHistoryItem[]>('/intelligence/copilot-history', { params: ticketId ? { ticketId } : {} }),
+  ask: (q: string, maxResults = 5, ticketId?: number, sessionId?: number) =>
+    api.get<CopilotAnswerResponse>('/intelligence/ask', {
+      params: { q, maxResults, ...(ticketId ? { ticketId } : {}), ...(sessionId ? { sessionId } : {}) },
+    }),
+  /** Histórico da conversa do copiloto para uma sessão específica. */
+  copilotHistory: (sessionId?: number) =>
+    api.get<CopilotHistoryItem[]>('/intelligence/copilot-history', { params: sessionId ? { sessionId } : {} }),
+  /** Sessões do copiloto (opcionalmente escopadas a um ticket). */
+  copilotSessions: (ticketId?: number) =>
+    api.get<CopilotSessionResponse[]>('/intelligence/copilot-sessions', { params: ticketId ? { ticketId } : {} }),
+  /** Apaga uma sessão do copiloto (e seus turnos). */
+  deleteCopilotSession: (id: number) => api.delete<void>(`/intelligence/copilot-sessions/${id}`),
   /** Uso diário do copiloto (usado/limite/restante). */
   copilotUsage: () => api.get<CopilotUsageResponse>('/intelligence/copilot-usage'),
   /** Smart Intake: título + descrição → sugestões de triagem + duplicatas abertas. */

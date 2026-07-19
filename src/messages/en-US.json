@@ -2256,6 +2256,18 @@
     "fromResolved": "From resolved tickets",
     "fromGuides": "About Orbit",
     "openTicket": "Open the ticket",
+    "newSession": "New session",
+    "noSessions": "No sessions yet",
+    "untitledSession": "Untitled",
+    "sessionDeleted": "Session deleted",
+    "deleteSessionTitle": "Delete session",
+    "deleteSessionBody": "This conversation and all its history will be deleted. Continue?",
+    "info": {
+      "title": "About the Copilot",
+      "usage": "You've used {used} of {limit} questions today. The limit resets daily.",
+      "retention": "Sessions are automatically deleted after the configured retention period.",
+      "local": "Everything runs on Orbit's local knowledge engine — no data leaves your instance."
+    },
     "usageRemaining": "{remaining} left today",
     "usageReached": "Today's limit reached — back tomorrow",
     "usageTooltip": "{used} of {limit} questions used today",

@@ -524,6 +524,17 @@ export interface CopilotAnswerResponse {
   resolutions: ResolutionSuggestion[];
   /** Guias do próprio Orbit (mapa de telas/recursos) usados para responder dúvidas de uso. */
   guides: CopilotGuide[];
+  /** Sessão à qual este turno pertence (criada sob demanda no primeiro turno). */
+  sessionId: number;
+}
+
+/** Uma sessão de conversa do copiloto — GET /intelligence/copilot-sessions. */
+export interface CopilotSessionResponse {
+  id: number;
+  title: string;
+  ticketId: number | null;
+  createdAt: string;
+  lastInteractionAt: string;
 }
 
 /** Um turno do histórico do copiloto (para reidratar a conversa ao reabrir). */

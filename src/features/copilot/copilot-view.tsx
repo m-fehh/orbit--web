@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import {
   Sparkles, CheckCircle2, GitBranch, Zap, Star, Send, Loader2, User, BookOpen, ArrowUpRight,
+  Plus, Trash2, Info, X, MessageSquare,
 } from 'lucide-react';
 import { intelligenceApi } from '@/shared/api/endpoints';
+import { useConfirm } from '@/shared/ui/confirm-dialog';
 import {
   apiErrorMessage,
   type PlaybookConfidence, type PlaybookStepKind, type PlaybookStepView, type PlaybookSuggestion,
@@ -174,10 +177,13 @@ const nextId = () => `m${++messageSeq}`;
 export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedded?: boolean } = {}) {
   const t = useTranslations('copilot');
   const tc = useTranslations('common');
+  const confirm = useConfirm();
 
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pending, setPending] = useState(false);
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
   const qc = useQueryClient();
 
   const usage = useQuery({ queryKey: ['copilot', 'usage'], queryFn: () => intelligenceApi.copilotUsage(), retry: false });
@@ -192,24 +198,55 @@ export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedde
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, pending]);
 
-  // Reidrata o histórico da conversa (por ticket ou do sistema) ao abrir.
-  const history = useQuery({
-    queryKey: ['copilot', 'history', ticketId ?? 'system'],
-    queryFn: () => intelligenceApi.copilotHistory(ticketId),
+  // Lista de sessões (escopadas ao ticket quando embutido).
+  const sessions = useQuery({
+    queryKey: ['copilot', 'sessions', ticketId ?? 'system'],
+    queryFn: () => intelligenceApi.copilotSessions(ticketId),
     retry: false,
   });
-  const seeded = useRef(false);
+
+  // Reidrata os turnos da sessão ativa. Só busca quando há sessão selecionada.
+  const history = useQuery({
+    queryKey: ['copilot', 'history', activeSessionId],
+    queryFn: () => intelligenceApi.copilotHistory(activeSessionId ?? undefined),
+    enabled: activeSessionId != null,
+    retry: false,
+  });
   useEffect(() => {
-    if (seeded.current || !history.data || history.data.length === 0) return;
-    seeded.current = true;
+    if (activeSessionId == null || !history.data) return;
     const seededMsgs = history.data.flatMap((h) => [
       { id: nextId(), role: 'user' as const, text: h.question },
       { id: nextId(), role: 'assistant' as const, text: h.answer },
     ]);
-    // Só reidrata se a conversa ainda está vazia (não sobrescreve o que o usuário já digitou
-    // caso o histórico chegue depois do primeiro envio).
+    // Só semeia quando a conversa local está vazia — preserva os cards ricos
+    // (soluções/guias) da resposta recém-recebida no primeiro turno.
     setMessages((prev) => (prev.length > 0 ? prev : seededMsgs));
-  }, [history.data]);
+  }, [history.data, activeSessionId]);
+
+  /** Troca de sessão: limpa a conversa e deixa o histórico reidratar. */
+  function selectSession(id: number | null) {
+    if (id === activeSessionId) return;
+    setMessages([]);
+    setActiveSessionId(id);
+    setInput('');
+  }
+
+  const del = useMutation({
+    mutationFn: (id: number) => intelligenceApi.deleteCopilotSession(id),
+    onSuccess: (_r, id) => {
+      toast.success(t('sessionDeleted'));
+      qc.invalidateQueries({ queryKey: ['copilot', 'sessions'] });
+      if (id === activeSessionId) { setActiveSessionId(null); setMessages([]); }
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, tc('errorBody'))),
+  });
+  async function onDeleteSession(id: number) {
+    if (await confirm.confirm({
+      title: t('deleteSessionTitle'),
+      message: t('deleteSessionBody'),
+      danger: true,
+    })) del.mutate(id);
+  }
 
   async function send(question: string) {
     const q = question.trim();
@@ -220,7 +257,8 @@ export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedde
     setPending(true);
 
     try {
-      const res = await intelligenceApi.ask(q, 5, ticketId);
+      const res = await intelligenceApi.ask(q, 5, ticketId, activeSessionId ?? undefined);
+      if (res.sessionId > 0 && res.sessionId !== activeSessionId) setActiveSessionId(res.sessionId);
       const hasAnswer = !!res.answer?.trim();
       const solutions = res.solutions ?? [];
       const resolutions = res.resolutions ?? [];
@@ -235,6 +273,7 @@ export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedde
         ...prev,
         { id: nextId(), role: 'assistant', text, solutions, resolutions, guides },
       ]);
+      qc.invalidateQueries({ queryKey: ['copilot', 'sessions'] });
     } catch (err) {
       setMessages((prev) => [
         ...prev,
@@ -259,12 +298,13 @@ export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedde
   }
 
   const isEmpty = messages.length === 0;
+  const sessionList = sessions.data ?? [];
 
-  return (
-    <div className="flex h-full flex-col">
+  const conversation = (
+    <div className="flex h-full min-w-0 flex-1 flex-col">
       {/* Header (oculto quando embutido, ex.: aba do painel do ticket) */}
       {!embedded && (
-      <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+      <div className="relative flex items-center gap-3 border-b border-border px-6 py-4">
         <div className="grid h-11 w-11 place-items-center rounded-xl border border-primary/20 bg-gradient-to-br from-primary/20 to-primary/5">
           <Sparkles className="h-5 w-5 text-primary" />
         </div>
@@ -282,6 +322,37 @@ export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedde
           >
             {exhausted ? t('usageReached') : t('usageRemaining', { remaining: usage.data!.remaining })}
           </span>
+        )}
+        {/* Botão de informações ("i") */}
+        <button
+          type="button"
+          onClick={() => setShowInfo((v) => !v)}
+          aria-label={t('info.title')}
+          aria-expanded={showInfo}
+          className={cn(
+            'grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border text-muted transition-colors hover:border-primary/40 hover:text-text',
+            showInfo && 'border-primary/40 text-primary',
+          )}
+        >
+          <Info className="h-4 w-4" />
+        </button>
+        {showInfo && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowInfo(false)} aria-hidden />
+            <div className="absolute right-4 top-16 z-50 w-72 rounded-xl border border-border bg-panel p-4 text-xs shadow-xl">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold text-text">{t('info.title')}</p>
+                <button type="button" onClick={() => setShowInfo(false)} aria-label={tc('close')} className="text-dim hover:text-text">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <ul className="flex flex-col gap-2 text-muted">
+                {limited && <li>{t('info.usage', { used: usage.data!.used, limit: usage.data!.limit })}</li>}
+                <li>{t('info.retention')}</li>
+                <li>{t('info.local')}</li>
+              </ul>
+            </div>
+          </>
         )}
       </div>
       )}
@@ -418,6 +489,66 @@ export function CopilotView({ ticketId, embedded }: { ticketId?: number; embedde
           </button>
         </div>
       </div>
+    </div>
+  );
+
+  // Embutido (aba do ticket): sem sidebar de sessões.
+  if (embedded) return conversation;
+
+  return (
+    <div className="flex h-full min-h-0">
+      {/* Sidebar de sessões */}
+      <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-panel/40">
+        <div className="flex items-center gap-2 border-b border-border px-3 py-3">
+          <button
+            type="button"
+            onClick={() => selectSession(null)}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+          >
+            <Plus className="h-3.5 w-3.5" /> {t('newSession')}
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+          {sessionList.length === 0 ? (
+            <p className="px-2 py-6 text-center text-[11px] text-dim">{t('noSessions')}</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {sessionList.map((s) => (
+                <li key={s.id}>
+                  <div
+                    className={cn(
+                      'group flex items-center gap-1.5 rounded-lg px-2 py-2 transition-colors',
+                      s.id === activeSessionId ? 'bg-primary/10' : 'hover:bg-panel-2',
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => selectSession(s.id)}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    >
+                      <MessageSquare className={cn('h-3.5 w-3.5 shrink-0', s.id === activeSessionId ? 'text-primary' : 'text-dim')} />
+                      <span className={cn('min-w-0 flex-1 truncate text-xs', s.id === activeSessionId ? 'font-semibold text-text' : 'text-muted')}>
+                        {s.title || t('untitledSession')}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void onDeleteSession(s.id)}
+                      aria-label={t('deleteSessionTitle')}
+                      className="shrink-0 rounded p-1 text-dim opacity-0 transition-opacity hover:text-danger group-hover:opacity-100"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </aside>
+
+      {conversation}
+      {confirm.node}
     </div>
   );
 }
