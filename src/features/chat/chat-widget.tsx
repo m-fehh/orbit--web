@@ -8,6 +8,7 @@ import {
   MessageSquare, X, Plus, ArrowLeft, Send, Users, Search, Check, CheckCheck,
   Pencil, Trash2, Paperclip, Download, FileText, Smile, Settings2, UserPlus, LogOut, UserMinus, Reply,
   Bell, BellOff, ChevronUp, ChevronDown, Image as ImageIcon, Eye, Forward, Pin, Ticket, Clock, Megaphone, Bot,
+  Bookmark, Slash, Trash,
 } from 'lucide-react';
 
 /** Emojis curados (sem dependência externa) para o seletor do compositor. */
@@ -20,7 +21,9 @@ const EMOJIS = [
 ];
 import { chatApi, usersApi, ticketsApi, worklogsApi, searchApi } from '@/shared/api/endpoints';
 import { WorklogType } from '@/shared/enums';
-import { openNewTicketWindow } from '@/features/tickets/ticket-actions';
+import { openNewTicketWindow, openTicketTab } from '@/features/tickets/ticket-actions';
+import { useCannedResponses, useHydrateCanned } from '@/features/chat/chat-canned';
+import { useRouter } from 'next/navigation';
 import { apiErrorMessage, type ChatConversationResponse, type ChatMessageResponse } from '@/shared/api/types';
 import { useAuthStore } from '@/features/auth/auth-store';
 import { usePermissions } from '@/features/auth/use-permissions';
@@ -402,10 +405,21 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
   const [searchTerm, setSearchTerm] = useState('');
   const [matchIdx, setMatchIdx] = useState(0);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [quickOpen, setQuickOpen] = useState<'canned' | 'slash' | null>(null);
+  const [ticketPickerOpen, setTicketPickerOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastTyping = useRef(0);
+  const router = useRouter();
+
+  // Respostas prontas (canned) — localStorage.
+  useHydrateCanned();
+  const canned = useCannedResponses((s) => s.items);
+  const addCanned = useCannedResponses((s) => s.add);
+  const removeCanned = useCannedResponses((s) => s.remove);
+  const slashQuery = quickOpen === 'slash' ? text.slice(1).toLowerCase() : '';
+  const cannedFiltered = quickOpen === 'slash' ? canned.filter((c) => c.text.toLowerCase().includes(slashQuery)) : canned;
 
   // @menções: participantes da conversa (menos eu) para o autocomplete e o realce.
   const mentionPeople = (conv?.participants ?? []).filter((p) => p.userId !== meId);
@@ -422,7 +436,13 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
     const upto = v.slice(0, e.target.selectionStart ?? v.length);
     const m = upto.match(/@([\p{L}\d._-]*)$/u);
     setMentionQuery(m ? m[1] : null);
+    // Slash-commands: "/" no início abre o menu de comandos/respostas.
+    if (/^\/\S*$/.test(v)) setQuickOpen('slash');
+    else if (quickOpen === 'slash') setQuickOpen(null);
   };
+
+  const insertCanned = (t: string) => { setText(t); setQuickOpen(null); requestAnimationFrame(() => inputRef.current?.focus()); };
+  const runTicketCommand = () => { setQuickOpen(null); setText(''); setTicketPickerOpen(true); };
 
   const pickMentionChat = (name: string) => {
     const el = inputRef.current;
@@ -700,6 +720,40 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
         <button type="button" onClick={() => fileRef.current?.click()} disabled={upload.isPending} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text disabled:opacity-50" aria-label={t('attach')} title={t('attach')}>
           <Paperclip className="h-4 w-4" />
         </button>
+        <button type="button" onClick={() => setQuickOpen((v) => (v ? null : 'canned'))} className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-lg hover:bg-panel-2 hover:text-text', quickOpen ? 'text-primary' : 'text-muted')} aria-label={t('quickReplies')} title={t('quickReplies')}>
+          <Bookmark className="h-4 w-4" />
+        </button>
+
+        {/* Menu de respostas prontas / slash-commands */}
+        {quickOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setQuickOpen(null)} aria-hidden />
+            <div className="absolute bottom-full left-3 z-20 mb-2 w-72 overflow-hidden rounded-xl border border-border bg-panel shadow-lg">
+              {quickOpen === 'slash' && (
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); runTicketCommand(); }} className="flex w-full items-center gap-2 border-b border-border/60 px-3 py-2 text-left text-sm hover:bg-panel-2">
+                  <span className="grid h-6 w-6 place-items-center rounded bg-primary/10 text-primary"><Ticket className="h-3.5 w-3.5" /></span>
+                  <span><span className="font-mono text-primary">/ticket</span> <span className="text-dim">— {t('slashTicket')}</span></span>
+                </button>
+              )}
+              <p className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-dim"><Slash className="h-3 w-3" /> {t('quickReplies')}</p>
+              <ul className="max-h-52 overflow-y-auto pb-1">
+                {cannedFiltered.length === 0 ? (
+                  <li className="px-3 py-2 text-xs text-dim">{t('noCanned')}</li>
+                ) : cannedFiltered.map((c) => (
+                  <li key={c.id} className="group flex items-center">
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); insertCanned(c.text); }} className="min-w-0 flex-1 truncate px-3 py-1.5 text-left text-sm hover:bg-panel-2">{c.text}</button>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); removeCanned(c.id); }} className="mr-1 grid h-6 w-6 shrink-0 place-items-center rounded text-dim opacity-0 hover:text-danger group-hover:opacity-100" aria-label={t('delete')}><Trash className="h-3 w-3" /></button>
+                  </li>
+                ))}
+              </ul>
+              {quickOpen === 'canned' && text.trim() && !text.startsWith('/') && (
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); addCanned(text); }} className="flex w-full items-center gap-1.5 border-t border-border/60 px-3 py-2 text-left text-xs font-medium text-primary hover:bg-primary/5">
+                  <Plus className="h-3.5 w-3.5" /> {t('saveCanned')}
+                </button>
+              )}
+            </div>
+          </>
+        )}
         {mentionQuery !== null && mentionMatches.length > 0 && (
           <div className="absolute bottom-full left-3 z-20 mb-2 w-60 overflow-hidden rounded-xl border border-border bg-panel shadow-lg">
             <ul className="max-h-52 overflow-y-auto py-1">
@@ -742,7 +796,48 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
       {shareMsg && (
         <SharePicker message={shareMsg} onClose={() => setShareMsg(null)} t={t} />
       )}
+      {ticketPickerOpen && (
+        <TicketQuickPicker
+          onPick={(id, title) => { setTicketPickerOpen(false); openTicketTab({ id, number: '', title }); router.push('/workspace'); }}
+          onClose={() => setTicketPickerOpen(false)}
+          t={t}
+        />
+      )}
     </>
+  );
+}
+
+/** Busca rápida de ticket (comando /ticket) — abre a aba do ticket escolhido. */
+function TicketQuickPicker({ onPick, onClose, t }: { onPick: (id: number, title: string) => void; onClose: () => void; t: ReturnType<typeof useTranslations> }) {
+  const [term, setTerm] = useState('');
+  const [debounced, setDebounced] = useState('');
+  useEffect(() => { const h = setTimeout(() => setDebounced(term.trim()), 250); return () => clearTimeout(h); }, [term]);
+  const results = useQuery({ queryKey: ['chat', 'ticket-cmd', debounced], queryFn: () => searchApi.search(debounced, 8), enabled: debounced.length >= 2, retry: false });
+  const tickets = (results.data?.results ?? []).filter((r) => r.type === 'ticket');
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[80%] w-full max-w-xs flex-col overflow-hidden rounded-xl border border-border bg-panel shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 border-b border-border p-2">
+          <Search className="h-4 w-4 shrink-0 text-dim" />
+          <input value={term} onChange={(e) => setTerm(e.target.value)} autoFocus placeholder={t('searchTicket')} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+          <button type="button" onClick={onClose} className="grid h-6 w-6 shrink-0 place-items-center rounded text-dim hover:text-text"><X className="h-4 w-4" /></button>
+        </div>
+        <ul className="min-h-0 flex-1 overflow-y-auto p-2">
+          {debounced.length < 2 ? (
+            <p className="p-4 text-center text-xs text-dim">{t('searchTicketHint')}</p>
+          ) : tickets.length === 0 ? (
+            <p className="p-4 text-center text-xs text-dim">{t('noConversationMatch')}</p>
+          ) : tickets.map((r) => (
+            <li key={r.id}>
+              <button type="button" onClick={() => onPick(r.id, r.title)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-panel-2/60">
+                <Ticket className="h-4 w-4 shrink-0 text-primary" />
+                <span className="min-w-0 flex-1 truncate text-sm text-text">{r.title}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
 
