@@ -303,6 +303,9 @@ function ConversationList({ data, loading, onlineSet, onOpen, onNew, hasTeam, on
 }) {
   const meId = useAuthStore((s) => s.user?.id);
   const [term, setTerm] = useState('');
+  const [debouncedTerm, setDebouncedTerm] = useState('');
+  useEffect(() => { const h = setTimeout(() => setDebouncedTerm(term.trim()), 300); return () => clearTimeout(h); }, [term]);
+  const msgSearch = useQuery({ queryKey: ['chat', 'msg-search', debouncedTerm], queryFn: () => chatApi.searchMessages(debouncedTerm), enabled: debouncedTerm.length >= 2, retry: false });
 
   const channelsStrip = (
     <div className="flex shrink-0 items-center gap-1.5 border-b border-border/60 p-2">
@@ -347,10 +350,9 @@ function ConversationList({ data, loading, onlineSet, onOpen, onNew, hasTeam, on
           />
         </div>
       </div>
-      {filtered.length === 0 ? (
-        <p className="p-6 text-center text-sm text-dim">{t('noConversationMatch')}</p>
-      ) : (
-        <ul className="flex-1 space-y-0.5 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {filtered.length > 0 && (
+        <ul className="space-y-0.5 p-2">
           {filtered.map((c) => {
             const other = c.isGroup ? null : c.participants.find((p) => p.userId !== meId);
             const online = other ? onlineSet.has(other.userId) : false;
@@ -379,7 +381,38 @@ function ConversationList({ data, loading, onlineSet, onOpen, onNew, hasTeam, on
             );
           })}
         </ul>
-      )}
+        )}
+
+        {/* Busca global: mensagens (entre todas as conversas) */}
+        {debouncedTerm.length >= 2 && (
+          <div className="border-t border-border/60 p-2">
+            <p className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-wide text-dim">{t('messagesSection')}</p>
+            {msgSearch.isLoading ? (
+              <p className="p-2 text-center text-xs text-dim">…</p>
+            ) : (msgSearch.data ?? []).length === 0 ? (
+              <p className="p-2 text-center text-xs text-dim">{t('noConversationMatch')}</p>
+            ) : (
+              <ul className="space-y-0.5">
+                {(msgSearch.data ?? []).map((r) => (
+                  <li key={r.messageId}>
+                    <button type="button" onClick={() => onOpen(r.conversationId)} className="flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-1.5 text-left hover:bg-panel-2/60">
+                      <span className="flex items-center gap-2 text-[11px]">
+                        <span className="truncate font-semibold text-text">{r.conversationName}</span>
+                        <span className="ml-auto shrink-0 text-dim">{relTime(r.createdAt)}</span>
+                      </span>
+                      <span className="truncate text-xs text-muted"><span className="text-dim">{r.senderName}: </span>{r.body}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {filtered.length === 0 && debouncedTerm.length < 2 && (
+          <p className="p-6 text-center text-sm text-dim">{t('noConversationMatch')}</p>
+        )}
+      </div>
     </div>
   );
 }

@@ -1048,6 +1048,14 @@ export interface ChatReactionResponse {
   count: number;
   mine: boolean;
 }
+export interface ChatSearchResultResponse {
+  messageId: number;
+  conversationId: number;
+  conversationName: string;
+  senderName: string;
+  body: string;
+  createdAt: string;
+}
 export interface CreateConversationRequest {
   userIds: number[];
   isGroup: boolean;

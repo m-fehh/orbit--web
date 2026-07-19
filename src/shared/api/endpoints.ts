@@ -10,6 +10,7 @@ import type {
   PagedResponse,
   UnreadCountResponse,
   ChatConversationResponse,
+  ChatSearchResultResponse,
   ChatMessageResponse,
   CreateConversationRequest,
   UserResponse,
@@ -600,6 +601,7 @@ export const chatApi = {
   teamChannel: (teamId: number) => api.post<ChatConversationResponse>(`/chat/channels/team/${teamId}`, {}),
   broadcastChannel: () => api.post<ChatConversationResponse>('/chat/channels/broadcast', {}),
   broadcast: (message: string) => api.post<void>('/chat/channels/broadcast/message', { message }),
+  searchMessages: (q: string) => api.get<ChatSearchResultResponse[]>('/chat/search', { params: { q } }),
   pin: (id: number) => api.post<void>(`/chat/messages/${id}/pin`, {}),
   forward: (id: number, targetConversationId: number) => api.post<ChatMessageResponse>(`/chat/messages/${id}/forward`, { targetConversationId }),
   sendAttachment: (id: number, file: File) => {
