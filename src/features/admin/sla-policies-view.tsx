@@ -55,7 +55,7 @@ function BusinessHoursCard() {
   const { data } = useQuery({ queryKey: ['business-hours'], queryFn: () => businessHoursApi.get() });
 
   const [form, setForm] = useState<BusinessHoursResponse | null>(null);
-  useEffect(() => { if (data) setForm(data); }, [data]);
+  useEffect(() => { if (data) setForm(normalizeBusinessHours(data)); }, [data]);
 
   const dayLabel = (iso: number) =>
     new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2024, 0, iso)));
