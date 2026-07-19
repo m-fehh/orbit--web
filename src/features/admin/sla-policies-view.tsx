@@ -68,33 +68,57 @@ function BusinessHoursCard() {
       </div>
 
       {form.enabled && (
-        <div className="flex flex-col gap-5 p-lg">
-          <div>
-            <span className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-dim">{t('workDays')}</span>
-            <div className="flex flex-wrap gap-1.5">
-              {ISO_DAYS.map((iso) => (
-                <button
-                  key={iso}
-                  type="button"
-                  onClick={() => toggleDay(iso)}
-                  className={cn(
-                    'grid h-9 min-w-[44px] place-items-center rounded-full border px-3 text-xs font-semibold capitalize transition-colors',
-                    activeDays.has(iso) ? 'border-info bg-info/10 text-info' : 'border-border text-dim hover:border-info/40 hover:text-text',
-                  )}
-                >
-                  {dayLabel(iso)}
-                </button>
-              ))}
-            </div>
+        <div className="flex flex-col gap-4 p-lg">
+          {/* Janela de expediente + fuso (aplicada aos dias ativos) */}
+          <div className="flex flex-wrap items-end gap-4">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-dim">{t('start')} → {t('end')}</span>
+              <span className="inline-flex items-center gap-2 rounded-lg border border-border bg-panel-2/40 px-3 py-1.5">
+                <CalendarClock className="h-4 w-4 shrink-0 text-info" />
+                <Input type="time" aria-label={t('start')} value={toHHMM(form.startMinute)} onChange={(e) => setForm({ ...form, startMinute: fromHHMM(e.target.value) })} className="h-8 w-28" />
+                <span className="text-dim">→</span>
+                <Input type="time" aria-label={t('end')} value={toHHMM(form.endMinute)} onChange={(e) => setForm({ ...form, endMinute: fromHHMM(e.target.value) })} className="h-8 w-28" />
+              </span>
+            </label>
+            <label className="flex min-w-[200px] flex-1 flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-dim">{t('timeZone')}</span>
+              <Input value={form.timeZoneId} onChange={(e) => setForm({ ...form, timeZoneId: e.target.value })} placeholder="America/Sao_Paulo" className="h-9" />
+            </label>
           </div>
-          <div>
-            <span className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-dim">{t('start')} → {t('end')}</span>
-            <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-panel-2/40 px-3 py-2">
-              <CalendarClock className="h-4 w-4 shrink-0 text-info" />
-              <Input type="time" aria-label={t('start')} value={toHHMM(form.startMinute)} onChange={(e) => setForm({ ...form, startMinute: fromHHMM(e.target.value) })} className="h-8 w-28" />
-              <span className="text-dim">→</span>
-              <Input type="time" aria-label={t('end')} value={toHHMM(form.endMinute)} onChange={(e) => setForm({ ...form, endMinute: fromHHMM(e.target.value) })} className="h-8 w-28" />
-            </div>
+
+          {/* Dias úteis como TABELA (uma linha por dia) */}
+          <div className="overflow-hidden rounded-xl border border-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-panel-2/50 text-[10px] font-semibold uppercase tracking-wider text-dim">
+                  <th className="px-4 py-2 text-left">{t('day')}</th>
+                  <th className="px-4 py-2 text-left">{t('situation')}</th>
+                  <th className="px-4 py-2 text-left">{t('schedule')}</th>
+                  <th className="px-4 py-2 text-right">{t('active')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ISO_DAYS.map((iso) => {
+                  const on = activeDays.has(iso);
+                  return (
+                    <tr key={iso} className="border-b border-border/50 last:border-0 hover:bg-panel-2/30">
+                      <td className="px-4 py-2.5 font-medium capitalize text-text">{dayLabel(iso)}</td>
+                      <td className="px-4 py-2.5">
+                        <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', on ? 'bg-success/15 text-success' : 'bg-panel-2 text-dim')}>
+                          {on ? t('workDay') : t('dayOff')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-muted">{on ? `${toHHMM(form.startMinute)} – ${toHHMM(form.endMinute)}` : '—'}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <button type="button" role="switch" aria-checked={on} aria-label={dayLabel(iso)} onClick={() => toggleDay(iso)} className={cn('relative inline-flex h-5 w-9 items-center rounded-full transition-colors', on ? 'bg-success' : 'bg-border-strong')}>
+                          <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform', on ? 'translate-x-4' : 'translate-x-0.5')} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
