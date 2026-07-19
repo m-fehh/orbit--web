@@ -261,19 +261,19 @@ export function ChatWidget() {
 
   return (
     <>
-      {/* Botão flutuante (FAB) — some quando o painel está aberto. */}
+      {/* Aba lateral fixa na borda direita — abre o chat (que expande para a esquerda). */}
       {!open && (
         <button
           type="button"
           onClick={() => { setOpen(true); setView('list'); }}
-          className="fixed bottom-5 right-5 z-[70] grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-fg shadow-lg shadow-primary/30 transition-transform hover:scale-105 active:scale-95"
+          className="fixed right-0 top-1/2 z-[70] flex -translate-y-1/2 flex-col items-center gap-1.5 rounded-l-xl bg-primary py-3 pl-2.5 pr-2 text-primary-fg shadow-lg shadow-primary/30 transition-all hover:pl-3"
           aria-label={t('title')}
           title={t('title')}
         >
-          <MessageSquare className="h-6 w-6" aria-hidden />
+          <MessageSquare className="h-5 w-5" aria-hidden />
           {unreadTotal > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-danger px-1 text-[10px] font-bold text-white ring-2 ring-panel">
-              {unreadTotal > 9 ? '9+' : unreadTotal}
+            <span className="grid h-5 min-w-5 place-items-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+              {unreadTotal > 99 ? '99+' : unreadTotal}
             </span>
           )}
         </button>
@@ -306,7 +306,7 @@ export function ChatWidget() {
                     </button>
                   </>
                 )}
-                {view === 'thread' && (
+                {view === 'thread' && !activeConv?.isBroadcast && activeConv?.teamId == null && (
                   <button type="button" onClick={threadToTicket} className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text" aria-label={t('threadToTicket')} title={t('threadToTicket')}>
                     <Ticket className="h-4 w-4" />
                   </button>

@@ -11,7 +11,7 @@ import type { Locale } from '@/shared/i18n/config';
 import { DataGrid, type ColumnDef } from '@/shared/ui/data-grid';
 import { PageTransition } from '@/shared/ui/states';
 import { DateRangePicker, type DateRange } from '@/shared/ui/date-range-picker';
-import { AsyncCombobox, type ComboOption } from '@/shared/ui/async-combobox';
+import { type ComboOption } from '@/shared/ui/async-combobox';
 import { formatDateTime } from '@/shared/lib/datetime';
 import { useBrandingStore } from '@/features/tenant/branding-store';
 import { cn } from '@/shared/lib/utils';
@@ -174,7 +174,7 @@ export function AuditLogsView() {
     },
   ], [t, tr, locale, timeZone, expanded, userName]);
 
-  const selectCls = 'h-8 rounded-lg border border-border bg-bg-subtle px-2 text-xs text-text outline-none focus:border-primary';
+  const selectCls = 'h-9 rounded-lg border border-border bg-bg-subtle px-2.5 text-xs text-text outline-none focus:border-primary';
 
   return (
     <PageTransition className="flex h-full flex-col gap-lg p-lg">
@@ -197,21 +197,22 @@ export function AuditLogsView() {
         emptyIcon={ScrollText}
         toolbar={
           <div className="flex flex-wrap items-center gap-2">
-            <select value={entityName} onChange={(e) => { setEntityName(e.target.value); setPage(1); }} className={selectCls} aria-label={t('filterEntity')}>
+            <select value={entityName} onChange={(e) => { setEntityName(e.target.value); setPage(1); }} className={cn(selectCls, 'w-40')} aria-label={t('filterEntity')}>
               <option value="">{t('allEntities')}</option>
               {ENTITIES.map((n) => <option key={n} value={n}>{label('entities', n)}</option>)}
             </select>
-            <select value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }} className={selectCls} aria-label={t('filterAction')}>
+            <select value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }} className={cn(selectCls, 'w-36')} aria-label={t('filterAction')}>
               <option value="">{t('allActions')}</option>
               {ACTIONS.map((a) => <option key={a} value={a}>{label('actions', a)}</option>)}
             </select>
-            <div className="w-48">
-              <AsyncCombobox options={userOptions} value={userId} onChange={(v) => { setUserId(v); setPage(1); }} loading={usersQuery.isLoading} placeholder={t('filterUser')} />
-            </div>
+            <select value={userId ?? ''} onChange={(e) => { setUserId(e.target.value ? Number(e.target.value) : null); setPage(1); }} className={cn(selectCls, 'w-44')} aria-label={t('filterUser')}>
+              <option value="">{t('filterUser')}</option>
+              {userOptions.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
+            </select>
             <input value={entityId} onChange={(e) => { setEntityId(e.target.value.replace(/\D/g, '')); setPage(1); }} placeholder={t('entityIdPh')} className={cn(selectCls, 'w-24')} />
             <DateRangePicker value={dateRange} onChange={(r) => { setDateRange(r); setPage(1); }} />
             {hasFilters && (
-              <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-xs text-muted hover:bg-panel-2 hover:text-text">
+              <button type="button" onClick={clearFilters} className="inline-flex h-9 items-center gap-1 rounded-lg border border-border px-2.5 text-xs text-muted hover:bg-panel-2 hover:text-text">
                 <X className="h-3.5 w-3.5" /> {t('clearFilters')}
               </button>
             )}
