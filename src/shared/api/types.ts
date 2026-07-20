@@ -136,6 +136,10 @@ export interface GamificationGoalResponse {
   myValue: number;
   progress: number;
   achieved: boolean;
+  teamId: number | null;
+  userId: number | null;
+  teamName: string | null;
+  userName: string | null;
 }
 
 /** Criação/edição de meta pelo gestor. */
@@ -147,6 +151,8 @@ export interface SaveGoalRequest {
   periodDays: number;
   reward?: string | null;
   active: boolean;
+  teamId?: number | null;
+  userId?: number | null;
 }
 
 /** Painel de Desempenho (gamificação) — GET /gamification/performance. */

@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Trophy, CheckCircle2, ShieldCheck, Medal, Target, Gift, Plus, Pencil, Trash2, Settings2, Crown, Zap, Flame, BookOpen, Timer, RotateCcw, Sparkles, Swords, BadgeCheck, Award, Lock, Activity, Check } from 'lucide-react';
-import { gamificationApi } from '@/shared/api/endpoints';
+import { gamificationApi, teamsApi, usersApi } from '@/shared/api/endpoints';
 import { apiErrorMessage, GoalMetric, type LeaderboardEntry, type GamificationGoalResponse, type GoalMetricName, type ScoreBreakdown, type AchievementResponse, type HistoryPoint, type GoalAchievementResponse, type TeamLeaderboardEntry } from '@/shared/api/types';
 import { useAuthStore } from '@/features/auth/auth-store';
 import { usePermissions } from '@/features/auth/use-permissions';
@@ -293,8 +293,11 @@ function ManageGoalsDrawer({ onClose }: { onClose: () => void }) {
             <div key={g.id} className={cn('rounded-xl border p-3.5', g.active ? 'border-border bg-panel-2/30' : 'border-border/50 bg-panel-2/10 opacity-70')}>
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="truncate text-sm font-semibold text-text">{g.name}</p>
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">
+                      {g.userName ? `👤 ${g.userName}` : g.teamName ? `👥 ${g.teamName}` : t('scopeAll')}
+                    </span>
                     {!g.active && <span className="rounded-full bg-panel-2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-dim">{t('goalInactive')}</span>}
                   </div>
                   <p className="mt-0.5 text-[11px] text-dim">
@@ -370,6 +373,12 @@ function GoalForm({ goal, onBack, onClose }: { goal: GamificationGoalResponse | 
   const [periodDays, setPeriodDays] = useState(String(goal?.periodDays ?? 30));
   const [reward, setReward] = useState(goal?.reward ?? '');
   const [active, setActive] = useState(goal?.active ?? true);
+  const [scope, setScope] = useState<'all' | 'team' | 'user'>(goal?.userId ? 'user' : goal?.teamId ? 'team' : 'all');
+  const [teamId, setTeamId] = useState<number | null>(goal?.teamId ?? null);
+  const [userId, setUserId] = useState<number | null>(goal?.userId ?? null);
+
+  const teams = useQuery({ queryKey: ['teams'], queryFn: () => teamsApi.list(), enabled: scope === 'team' });
+  const users = useQuery({ queryKey: ['users', 'options', 200], queryFn: () => usersApi.list(1, 200), enabled: scope === 'user' });
 
   const save = useMutation({
     mutationFn: () => gamificationApi.saveGoal({
@@ -380,6 +389,8 @@ function GoalForm({ goal, onBack, onClose }: { goal: GamificationGoalResponse | 
       periodDays: Number(periodDays) || 30,
       reward: reward.trim() || null,
       active,
+      teamId: scope === 'team' ? teamId : null,
+      userId: scope === 'user' ? userId : null,
     }),
     onSuccess: () => {
       toast.success(t('goalSaved'));
@@ -390,7 +401,8 @@ function GoalForm({ goal, onBack, onClose }: { goal: GamificationGoalResponse | 
     onError: (e) => toast.error(apiErrorMessage(e, t('goalError'))),
   });
 
-  const invalid = name.trim() === '' || Number(target) <= 0;
+  const invalid = name.trim() === '' || Number(target) <= 0
+    || (scope === 'team' && !teamId) || (scope === 'user' && !userId);
 
   return (
     <Drawer
@@ -435,6 +447,41 @@ function GoalForm({ goal, onBack, onClose }: { goal: GamificationGoalResponse | 
             <Input type="number" min={7} value={periodDays} onChange={(e) => setPeriodDays(e.target.value)} placeholder="30" />
           </label>
         </div>
+
+        <label className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-dim">{t('goalScope')}</span>
+          <Select<'all' | 'team' | 'user'>
+            value={scope}
+            onChange={(v) => { setScope(v); if (v !== 'team') setTeamId(null); if (v !== 'user') setUserId(null); }}
+            options={[
+              { value: 'all', label: t('scopeAll') },
+              { value: 'team', label: t('scopeTeam') },
+              { value: 'user', label: t('scopeUser') },
+            ]}
+          />
+          <span className="text-[11px] text-dim">{t('goalScopeHint')}</span>
+        </label>
+
+        {scope === 'team' && (
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-dim">{t('scopeTeam')}</span>
+            <Select<number>
+              value={teamId ?? 0}
+              onChange={(v) => setTeamId(v || null)}
+              options={[{ value: 0, label: t('scopePick') }, ...(teams.data ?? []).map((tm) => ({ value: tm.id, label: tm.name }))]}
+            />
+          </label>
+        )}
+        {scope === 'user' && (
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-dim">{t('scopeUser')}</span>
+            <Select<number>
+              value={userId ?? 0}
+              onChange={(v) => setUserId(v || null)}
+              options={[{ value: 0, label: t('scopePick') }, ...((users.data?.items ?? []).map((u) => ({ value: u.id, label: u.name })))]}
+            />
+          </label>
+        )}
 
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-dim">{t('goalReward')}</span>
