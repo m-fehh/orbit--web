@@ -1650,6 +1650,8 @@
     "retry": "Intentar de nuevo",
     "refresh": "Actualizar",
     "exportCsv": "Exportar CSV",
+    "exportPdf": "Exportar PDF",
+    "exportLabel": "Exportar",
     "page": "Página",
     "pageSize": "Por página",
     "first": "Primera",

@@ -24,6 +24,8 @@ import {
   Inbox,
   AlertCircle,
   X,
+  FileText,
+  FileSpreadsheet,
   type LucideIcon,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -83,6 +85,8 @@ export interface DataGridLabels {
   retry: string;
   refresh: string;
   exportCsv: string;
+  exportPdf: string;
+  exportLabel: string;
   page: string;
   pageSize: string;
   first: string;
@@ -110,6 +114,8 @@ const DEFAULT_LABELS: DataGridLabels = {
   retry: 'Retry',
   refresh: 'Refresh',
   exportCsv: 'Export CSV',
+  exportPdf: 'Export PDF',
+  exportLabel: 'Export',
   page: 'Page',
   pageSize: 'Page size',
   first: 'First',
@@ -143,6 +149,8 @@ export function useDataGridLabels(): DataGridLabels {
     retry: tGrid('retry'),
     refresh: tGrid('refresh'),
     exportCsv: tGrid('exportCsv'),
+    exportPdf: tGrid('exportPdf'),
+    exportLabel: tGrid('exportLabel'),
     page: tGrid('page'),
     pageSize: tGrid('pageSize'),
     first: tGrid('first'),
@@ -616,6 +624,37 @@ function FilterActions({
 // DataGrid
 // ---------------------------------------------------------------------------
 
+/** Menu de exportação genérico (CSV / PDF) reutilizado por toda grid padrão. */
+function ExportMenu({ onCsv, onPdf, labels }: { onCsv: () => void; onPdf: () => void; labels: DataGridLabels }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title={labels.exportLabel}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="p-1.5 rounded hover:bg-bg-subtle text-muted hover:text-text transition-colors"
+      >
+        <Download className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
+          <div role="menu" className="absolute right-0 z-50 mt-1 w-40 overflow-hidden rounded-lg border border-border bg-panel py-1 shadow-xl">
+            <button role="menuitem" onClick={() => { setOpen(false); onCsv(); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-text hover:bg-panel-2">
+              <FileSpreadsheet className="h-3.5 w-3.5 text-success" /> {labels.exportCsv}
+            </button>
+            <button role="menuitem" onClick={() => { setOpen(false); onPdf(); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-text hover:bg-panel-2">
+              <FileText className="h-3.5 w-3.5 text-danger" /> {labels.exportPdf}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function DataGrid<T extends Record<string, any>>({
   gridId,
   columns: columnsProp,
@@ -923,7 +962,28 @@ export function DataGrid<T extends Record<string, any>>({
     link.download = `${gridId}-export.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [onExport, columns, data, gridId]);
+  }, [onExport, columns, displayData, gridId]);
+
+  // --- Export PDF (genérico: abre uma janela imprimível → "Salvar como PDF") ---
+  const handleExportPdf = useCallback(() => {
+    const esc = (s: string) => s.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch));
+    const headers = columns.map((c) => `<th>${esc(c.header)}</th>`).join('');
+    const body = displayData
+      .map((row) => `<tr>${columns.map((c) => `<td>${esc(String(getNestedValue(row, c.field) ?? ''))}</td>`).join('')}</tr>`)
+      .join('');
+    const win = window.open('', '_blank', 'noopener');
+    if (!win) return;
+    win.document.write(
+      `<!doctype html><html><head><meta charset="utf-8"><title>${esc(gridId)}</title>` +
+      '<style>body{font-family:system-ui,Segoe UI,sans-serif;padding:24px;color:#111}' +
+      'h1{font-size:15px;margin:0 0 12px}table{border-collapse:collapse;width:100%;font-size:11px}' +
+      'th,td{border:1px solid #d0d0d0;padding:5px 8px;text-align:left;vertical-align:top}' +
+      'th{background:#f3f4f6;font-weight:600}tr:nth-child(even) td{background:#fafafa}</style></head>' +
+      `<body><h1>${esc(gridId)}</h1><table><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table>` +
+      '<script>window.onload=function(){setTimeout(function(){window.print();},150);};</script></body></html>',
+    );
+    win.document.close();
+  }, [columns, displayData, gridId]);
 
   // --- Pagination ---
   const hasActiveFilters = Object.keys(filters).length > 0;
@@ -994,13 +1054,7 @@ export function DataGrid<T extends Record<string, any>>({
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
         )}
-        <button
-          onClick={handleExport}
-          title={labels.exportCsv}
-          className="p-1.5 rounded hover:bg-bg-subtle text-muted hover:text-text transition-colors"
-        >
-          <Download className="h-3.5 w-3.5" />
-        </button>
+        <ExportMenu onCsv={handleExport} onPdf={handleExportPdf} labels={labels} />
       </div>
 
       {/* Table wrapper */}
