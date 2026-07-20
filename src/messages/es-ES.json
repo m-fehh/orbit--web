@@ -1098,7 +1098,7 @@
       "searchPlaceholder": "Buscar rol…",
       "new": "Nuevo",
       "newRole": "Nuevo rol",
-    "names": { "Admin": "Administrador", "Analyst": "Analista", "Operator": "Operador", "Viewer": "Visor" },
+    "names": { "admin": "Administrador", "manager": "Gerente", "analyst": "Analista", "customer": "Cliente" },
       "loadError": "Error al cargar",
       "retry": "Intentar de nuevo",
       "empty": "Ningún rol encontrado.",

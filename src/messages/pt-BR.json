@@ -1098,7 +1098,7 @@
       "searchPlaceholder": "Buscar papel…",
       "new": "Novo",
       "newRole": "Novo papel",
-    "names": { "Admin": "Administrador", "Analyst": "Analista", "Operator": "Operador", "Viewer": "Visualizador" },
+    "names": { "admin": "Administrador", "manager": "Gerente", "analyst": "Analista", "customer": "Cliente" },
       "loadError": "Erro ao carregar",
       "retry": "Tentar de novo",
       "empty": "Nenhum papel encontrado.",

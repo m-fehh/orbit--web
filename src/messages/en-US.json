@@ -1098,7 +1098,7 @@
       "searchPlaceholder": "Search role…",
       "new": "New",
       "newRole": "New role",
-    "names": { "Admin": "Admin", "Analyst": "Analyst", "Operator": "Operator", "Viewer": "Viewer" },
+    "names": { "admin": "Administrator", "manager": "Manager", "analyst": "Analyst", "customer": "Customer" },
       "loadError": "Error loading",
       "retry": "Try again",
       "empty": "No roles found.",

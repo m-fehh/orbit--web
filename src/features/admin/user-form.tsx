@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -34,6 +34,14 @@ export function UserForm({ windowId, user }: { windowId: string; user?: UserResp
   const profiles = useQuery({ queryKey: ['profile-groups'], queryFn: () => internalApi.profileGroups.list() });
 
   const roleOptions: ComboOption[] = (roles.data ?? []).map((r) => ({ id: r.id, label: r.name, hint: r.key }));
+
+  // Na edição, o usuário traz o papel pela KEY (user.role). Resolve para o id assim que a
+  // lista de papéis carrega, para o combobox exibir o papel atual já selecionado.
+  useEffect(() => {
+    if (!isEdit || roleId != null || !roles.data || !user?.role) return;
+    const match = roles.data.find((r) => r.key === user.role);
+    if (match) setRoleId(match.id);
+  }, [isEdit, roleId, roles.data, user?.role]);
   const teamOptions: ComboOption[] = (teams.data ?? []).map((t) => ({ id: t.id, label: t.name }));
   const profileOptions: ComboOption[] = (profiles.data ?? []).map((p) => ({
     id: p.id,
