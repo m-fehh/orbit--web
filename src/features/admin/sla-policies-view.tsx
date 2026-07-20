@@ -78,7 +78,7 @@ function BusinessHoursCard() {
     setForm({ ...form, days: form.days.map((d) => (d.day === iso ? { ...d, ...patch } : d)) });
 
   return (
-    <div className="card-surface overflow-hidden">
+    <div className="card-surface">
       <div className="flex flex-wrap items-center gap-3 border-b border-border bg-gradient-to-r from-info/8 to-transparent px-lg py-3">
         <span className="grid h-9 w-9 place-items-center rounded-lg bg-info/10 text-info">
           <CalendarClock className="h-4 w-4" />

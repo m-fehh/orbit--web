@@ -87,8 +87,8 @@ export function UsersView() {
       width: 70,
       align: 'center',
       render: (v) => v
-        ? <span className="text-success" title="MFA enabled">●</span>
-        : <span className="text-dim" title="MFA disabled">○</span>,
+        ? <span className="text-success" title={t('mfaEnabled')}>●</span>
+        : <span className="text-dim" title={t('mfaDisabled')}>○</span>,
     },
   ], [t]);
 

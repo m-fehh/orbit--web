@@ -88,6 +88,14 @@ export function AuditLogsView() {
   const label = (dict: 'entities' | 'fields' | 'actions', key: string) =>
     t.has(`${dict}.${key}`) ? t(`${dict}.${key}`) : key;
 
+  // Descrição do evento: traduz por chave (Audit_TicketCreated → descriptions.TicketCreated),
+  // caindo para o humanizador legível quando não houver tradução.
+  const describe = (key: string | null | undefined): string => {
+    if (!key) return '';
+    const short = key.replace(/^Audit_?/, '');
+    return t.has(`descriptions.${short}`) ? t(`descriptions.${short}`) : humanizeKey(key);
+  };
+
   const humanizeValue = (field: string, value: string | null): string => {
     if (value == null || value === '') return '—';
     if (field === 'Status' && tr.has(`ticketStatus.${value}`)) return tr(`ticketStatus.${value}`);
@@ -113,7 +121,7 @@ export function AuditLogsView() {
       label('actions', r.action),
       `${label('entities', r.entityName)} #${r.entityId}`,
       r.userName ?? '',
-      humanizeKey(r.descriptionKey),
+      describe(r.descriptionKey),
       (r.fields ?? []).map((f) => `${label('fields', f.fieldName)}: ${humanizeValue(f.fieldName, f.oldValue)} → ${humanizeValue(f.fieldName, f.newValue)}`).join(' | '),
     ].map((c) => csvEsc(String(c))).join(','));
     const blob = new Blob(['﻿' + [head.map(csvEsc).join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8' });
@@ -153,7 +161,7 @@ export function AuditLogsView() {
             <span className="font-medium text-text">{label('entities', row.entityName)}</span>
             <span className="ml-1 text-xs text-dim">#{row.entityId}</span>
           </span>
-          {row.descriptionKey && <span className="block text-[11px] text-muted">{humanizeKey(row.descriptionKey)}</span>}
+          {row.descriptionKey && <span className="block text-[11px] text-muted">{describe(row.descriptionKey)}</span>}
         </span>
       ),
     },
