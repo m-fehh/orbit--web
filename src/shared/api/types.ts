@@ -1241,6 +1241,20 @@ export interface BusinessHoursResponse {
 }
 export type SaveBusinessHoursRequest = BusinessHoursResponse;
 
+/* ---- Internal: System Health ---- */
+export interface OutboxHealth { pending: number; failed: number; oldestPendingUtc: string | null; }
+export interface WebhookHealth { pending: number; failed: number; }
+export interface HangfireHealth {
+  servers: number; enqueued: number; scheduled: number; processing: number; succeeded: number; failed: number;
+}
+export interface SystemHealthResponse {
+  outbox: OutboxHealth;
+  webhooks: WebhookHealth;
+  hangfire: HangfireHealth | null;
+  hangfireAvailable: boolean;
+  generatedAtUtc: string;
+}
+
 /* ---- Internal: Tenants ---- */
 export interface TenantResponse {
   id: number;

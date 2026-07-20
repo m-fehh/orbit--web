@@ -19,6 +19,7 @@ import { PlaybooksView } from '@/features/playbooks/playbooks-view';
 import { ReliabilityView } from '@/features/reliability/reliability-view';
 import { CopilotView } from '@/features/copilot/copilot-view';
 import { ProblemsView } from '@/features/problems/problems-view';
+import { SystemHealthView } from '@/features/admin/system-health-view';
 import { PerformanceView } from '@/features/gamification/performance-view';
 import { EmptyState } from '@/shared/ui/states';
 import { PageTransition } from '@/shared/ui/page-transition';
@@ -67,6 +68,8 @@ export function renderView(loc: TabLocation) {
       return wrap(<IterationsView />);
     case 'tags':
       return wrap(<TagsView />);
+    case 'system':
+      return wrap(<SystemHealthView />);
     default:
       return wrap(
         <div className="grid h-full place-items-center">

@@ -85,7 +85,30 @@
     "copilot": "Copiloto",
     "problems": "Radar de Recorrência",
     "performance": "Desempenho",
-    "knowledge": "Conhecimento"
+    "knowledge": "Conhecimento",
+    "system": "Saúde do Sistema"
+  },
+  "systemHealth": {
+    "title": "Saúde do Sistema",
+    "subtitle": "Filas, eventos e entregas em segundo plano",
+    "loading": "Carregando...",
+    "loadError": "Não foi possível carregar a saúde do sistema.",
+    "retry": "Tentar novamente",
+    "refresh": "Atualizar",
+    "outbox": "Outbox (eventos)",
+    "webhooks": "Webhooks",
+    "hangfire": "Jobs (Hangfire)",
+    "hangfireOff": "Hangfire desativado neste ambiente.",
+    "pending": "Pendentes",
+    "failed": "Falhas",
+    "oldestPending": "Pendente mais antigo",
+    "servers": "Servidores",
+    "enqueued": "Na fila",
+    "scheduled": "Agendados",
+    "processing": "Processando",
+    "succeeded": "Concluídos",
+    "failedJobs": "Falhos",
+    "generatedAt": "Atualizado em {time}"
   },
   "login": {
     "title": "Bem-vindo de volta",

@@ -85,7 +85,30 @@
     "copilot": "Copilot",
     "problems": "Recurrence Radar",
     "performance": "Performance",
-    "knowledge": "Knowledge"
+    "knowledge": "Knowledge",
+    "system": "System Health"
+  },
+  "systemHealth": {
+    "title": "System Health",
+    "subtitle": "Background queues, events and deliveries",
+    "loading": "Loading...",
+    "loadError": "Could not load system health.",
+    "retry": "Retry",
+    "refresh": "Refresh",
+    "outbox": "Outbox (events)",
+    "webhooks": "Webhooks",
+    "hangfire": "Jobs (Hangfire)",
+    "hangfireOff": "Hangfire is disabled in this environment.",
+    "pending": "Pending",
+    "failed": "Failed",
+    "oldestPending": "Oldest pending",
+    "servers": "Servers",
+    "enqueued": "Enqueued",
+    "scheduled": "Scheduled",
+    "processing": "Processing",
+    "succeeded": "Succeeded",
+    "failedJobs": "Failed",
+    "generatedAt": "Updated at {time}"
   },
   "login": {
     "title": "Welcome back",

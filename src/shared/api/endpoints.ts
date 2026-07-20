@@ -73,6 +73,7 @@ import type {
   BusinessHoursResponse,
   SaveBusinessHoursRequest,
   TenantResponse,
+  SystemHealthResponse,
   CreateTenantRequest,
   UpdateTenantRequest,
   CreateAccessRuleRequest,
@@ -540,6 +541,7 @@ export const internalApi = {
   },
   system: {
     runMigrations: () => api.post<void>('/internal/system/run-migrations'),
+    health: () => api.get<SystemHealthResponse>('/internal/system/health'),
   },
 };
 
