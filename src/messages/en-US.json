@@ -1330,6 +1330,7 @@
     "workDays": "Work days",
     "timeZone": "Time zone",
     "timeZoneHint": "The times below are interpreted in this zone.",
+    "timeZoneInfo": "Times are considered in the tenant time zone: {tz}.",
     "day": "Day",
     "situation": "Status",
     "schedule": "Hours",

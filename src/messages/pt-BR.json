@@ -1330,6 +1330,7 @@
     "workDays": "Dias úteis",
     "timeZone": "Fuso horário",
     "timeZoneHint": "Os horários abaixo são interpretados neste fuso.",
+    "timeZoneInfo": "Os horários são considerados no fuso do tenant: {tz}.",
     "day": "Dia",
     "situation": "Situação",
     "schedule": "Expediente",

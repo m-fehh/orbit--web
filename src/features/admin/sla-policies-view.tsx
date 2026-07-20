@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Gauge, Save, CalendarClock } from 'lucide-react';
+import { Gauge, Save, CalendarClock, Globe } from 'lucide-react';
 import { slaPoliciesApi, businessHoursApi } from '@/shared/api/endpoints';
 import {
   Priority, apiErrorMessage,
   type PriorityName, type PriorityValue, type SlaPolicyResponse, type BusinessHoursResponse, type BusinessHoursDay,
 } from '@/shared/api/types';
+import { useBrandingStore } from '@/features/tenant/branding-store';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Checkbox } from '@/shared/ui/checkbox';
@@ -25,27 +26,6 @@ const fmtDuration = (m: number) => {
   const h = Math.floor(m / 60), mm = m % 60;
   return h > 0 ? `${h}h${mm ? ` ${mm}min` : ''}` : `${mm}min`;
 };
-
-/** Fusos comuns (foco Brasil + alguns internacionais). O fuso salvo é sempre incluído. */
-const COMMON_TIME_ZONES: { id: string; label: string }[] = [
-  { id: 'America/Sao_Paulo', label: 'Brasília (GMT-3)' },
-  { id: 'America/Manaus', label: 'Manaus (GMT-4)' },
-  { id: 'America/Cuiaba', label: 'Cuiabá (GMT-4)' },
-  { id: 'America/Campo_Grande', label: 'Campo Grande (GMT-4)' },
-  { id: 'America/Rio_Branco', label: 'Rio Branco (GMT-5)' },
-  { id: 'America/Belem', label: 'Belém (GMT-3)' },
-  { id: 'America/Fortaleza', label: 'Fortaleza (GMT-3)' },
-  { id: 'America/Recife', label: 'Recife (GMT-3)' },
-  { id: 'America/Bahia', label: 'Salvador (GMT-3)' },
-  { id: 'America/Noronha', label: 'Fernando de Noronha (GMT-2)' },
-  { id: 'UTC', label: 'UTC (GMT+0)' },
-  { id: 'America/New_York', label: 'New York (GMT-5/-4)' },
-  { id: 'America/Chicago', label: 'Chicago (GMT-6/-5)' },
-  { id: 'America/Los_Angeles', label: 'Los Angeles (GMT-8/-7)' },
-  { id: 'Europe/Lisbon', label: 'Lisboa (GMT+0/+1)' },
-  { id: 'Europe/London', label: 'Londres (GMT+0/+1)' },
-  { id: 'Europe/Madrid', label: 'Madri (GMT+1/+2)' },
-];
 
 /**
  * Normaliza a resposta do expediente para o formato por dia. Tolera backends antigos que ainda
@@ -73,6 +53,7 @@ function BusinessHoursCard() {
   const t = useTranslations('slaSettings');
   const locale = useLocale();
   const qc = useQueryClient();
+  const branding = useBrandingStore((s) => s.branding);
   const { data } = useQuery({ queryKey: ['business-hours'], queryFn: () => businessHoursApi.get() });
 
   const [form, setForm] = useState<BusinessHoursResponse | null>(null);
@@ -89,13 +70,12 @@ function BusinessHoursCard() {
 
   if (!form) return null;
 
+  // Fuso é sempre o do cadastro do tenant (não se edita aqui). Mostrado apenas como informação.
+  const tenantTz = branding?.timeZone || form.timeZoneId || 'America/Sao_Paulo';
+
   const days = [...form.days].sort((a, b) => a.day - b.day);
   const patchDay = (iso: number, patch: Partial<BusinessHoursDay>) =>
     setForm({ ...form, days: form.days.map((d) => (d.day === iso ? { ...d, ...patch } : d)) });
-
-  const tzOptions = COMMON_TIME_ZONES.some((z) => z.id === form.timeZoneId)
-    ? COMMON_TIME_ZONES
-    : [{ id: form.timeZoneId, label: form.timeZoneId }, ...COMMON_TIME_ZONES];
 
   return (
     <div className="card-surface overflow-hidden">
@@ -112,20 +92,11 @@ function BusinessHoursCard() {
 
       {form.enabled && (
         <div className="flex flex-col gap-4 p-lg">
-          {/* Fuso horário — obrigatório para o expediente fazer sentido */}
-          <label className="flex max-w-md flex-col gap-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-dim">{t('timeZone')}</span>
-            <select
-              value={form.timeZoneId}
-              onChange={(e) => setForm({ ...form, timeZoneId: e.target.value })}
-              className="h-9 rounded-lg border border-border bg-bg-subtle px-2.5 text-sm text-text outline-none focus:border-primary"
-            >
-              {tzOptions.map((z) => (
-                <option key={z.id} value={z.id}>{z.label}</option>
-              ))}
-            </select>
-            <span className="text-[11px] text-dim">{t('timeZoneHint')}</span>
-          </label>
+          {/* Fuso: informativo — vem do cadastro do tenant, não se edita aqui */}
+          <div className="flex items-center gap-2 rounded-lg border border-info/20 bg-info/5 px-3 py-2 text-xs text-muted">
+            <Globe className="h-4 w-4 shrink-0 text-info" />
+            <span>{t('timeZoneInfo', { tz: tenantTz })}</span>
+          </div>
 
           {/* Dias da semana como TABELA — cada dia com seu próprio horário */}
           <div className="overflow-x-auto rounded-xl border border-border">
