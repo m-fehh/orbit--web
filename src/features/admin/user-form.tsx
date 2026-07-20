@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { usersApi, rolesApi, teamsApi, internalApi } from '@/shared/api/endpoints';
 import { apiErrorMessage, type UserResponse } from '@/shared/api/types';
 import { useWindowStore } from '@/features/windows/window-store';
-import { openRolesIndexWindow, openTeamFormWindow } from './admin-actions';
+import { openRoleFormWindow, openTeamFormWindow } from './admin-actions';
 import { AsyncCombobox, type ComboOption } from '@/shared/ui/async-combobox';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -84,7 +84,7 @@ export function UserForm({ windowId, user }: { windowId: string; user?: UserResp
 
       <div className="flex flex-col gap-1.5 text-sm font-medium">
         {t('role')}
-        <AsyncCombobox options={roleOptions} value={roleId} onChange={setRoleId} loading={roles.isLoading} placeholder={t('selectRole')} allowClear={false} onCreate={() => openRolesIndexWindow(tRoles('title'))} createLabel={t('manageRoles')} />
+        <AsyncCombobox options={roleOptions} value={roleId} onChange={setRoleId} loading={roles.isLoading} placeholder={t('selectRole')} allowClear={false} onCreate={() => openRoleFormWindow(tRoles('newRole'), (role) => { setRoleId(role.id); roles.refetch(); })} createLabel={tRoles('newRole')} />
       </div>
 
       <div className="flex flex-col gap-1.5 text-sm font-medium">

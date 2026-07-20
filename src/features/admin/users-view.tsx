@@ -16,6 +16,9 @@ type UserRow = UserResponse & { profileName: string };
 
 export function UsersView() {
   const t = useTranslations('admin.users');
+  const tRoles = useTranslations('admin.roles');
+  // Traduz nomes de papéis padrão (Admin/Analyst/…); papéis customizados caem no próprio nome.
+  const roleLabel = (v: string) => (tRoles.has(`names.${v}`) ? tRoles(`names.${v}`) : v);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState('');
@@ -64,14 +67,14 @@ export function UsersView() {
       filterable: true,
       filterType: 'select',
       filterOptions: [
-        { label: 'Admin', value: 'Admin' },
-        { label: 'Analyst', value: 'Analyst' },
-        { label: 'Operator', value: 'Operator' },
-        { label: 'Viewer', value: 'Viewer' },
+        { label: roleLabel('Admin'), value: 'Admin' },
+        { label: roleLabel('Analyst'), value: 'Analyst' },
+        { label: roleLabel('Operator'), value: 'Operator' },
+        { label: roleLabel('Viewer'), value: 'Viewer' },
       ],
       width: 120,
       render: (v) => (
-        <span className="rounded-full border border-border px-2 py-0.5 text-xs">{v}</span>
+        <span className="rounded-full border border-border px-2 py-0.5 text-xs">{roleLabel(v)}</span>
       ),
     },
     {

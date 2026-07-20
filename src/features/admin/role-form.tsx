@@ -5,13 +5,17 @@ import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { rolesApi } from '@/shared/api/endpoints';
-import { apiErrorMessage } from '@/shared/api/types';
+import { apiErrorMessage, type RoleResponse } from '@/shared/api/types';
 import { useWindowStore } from '@/features/windows/window-store';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 
-/** Cria um novo papel (Role) — tabela, não enum. A "key" é o identificador único. */
-export function RoleForm({ windowId }: { windowId: string }) {
+/**
+ * Cria um novo papel (Role) — tabela, não enum. A "key" é o identificador único.
+ * Quando aberto a partir de um "+" (select2), passe `onCreated` para o chamador
+ * auto-selecionar o papel recém-criado e voltar ao formulário anterior.
+ */
+export function RoleForm({ windowId, onCreated }: { windowId: string; onCreated?: (role: RoleResponse) => void }) {
   const t = useTranslations('admin.roles');
   const tc = useTranslations('common');
   const qc = useQueryClient();
@@ -31,9 +35,10 @@ export function RoleForm({ windowId }: { windowId: string }) {
 
   const save = useMutation({
     mutationFn: () => rolesApi.create({ name: name.trim(), key: key.trim(), description: description.trim() || null }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       toast.success(t('created'));
       qc.invalidateQueries({ queryKey: ['roles'] });
+      onCreated?.(created);
       closeWindow(windowId);
     },
     onError: (err) => toast.error(apiErrorMessage(err, t('createError'))),
