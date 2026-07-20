@@ -47,6 +47,27 @@ const COMMON_TIME_ZONES: { id: string; label: string }[] = [
   { id: 'Europe/Madrid', label: 'Madri (GMT+1/+2)' },
 ];
 
+/**
+ * Normaliza a resposta do expediente para o formato por dia. Tolera backends antigos que ainda
+ * devolvem apenas os campos legados (workDays/startMinute/endMinute) sem `days`, derivando as
+ * 7 janelas a partir deles — evita quebrar a tela antes da migração/rebuild do backend.
+ */
+function normalizeBusinessHours(data: BusinessHoursResponse): BusinessHoursResponse {
+  if (Array.isArray(data.days) && data.days.length > 0) return data;
+
+  const legacy = data as unknown as { workDays?: string; startMinute?: number; endMinute?: number };
+  const workDays = new Set(
+    (legacy.workDays ?? '1,2,3,4,5').split(',').map((d) => Number(d.trim())).filter(Boolean),
+  );
+  const start = legacy.startMinute ?? 540;
+  const end = legacy.endMinute ?? 1080;
+  const days: BusinessHoursDay[] = Array.from({ length: 7 }, (_, i) => {
+    const day = i + 1;
+    return { day, enabled: workDays.has(day), startMinute: start, endMinute: end };
+  });
+  return { enabled: data.enabled, timeZoneId: data.timeZoneId || 'America/Sao_Paulo', days };
+}
+
 /** Expediente do tenant — quando ativo, o SLA conta só em horário útil (por dia). */
 function BusinessHoursCard() {
   const t = useTranslations('slaSettings');
