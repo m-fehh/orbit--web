@@ -441,6 +441,8 @@
     "pin": "Fixar",
     "unpin": "Desafixar",
     "pinned": "Fixada",
+    "pinnedCount": "{count, plural, one {# fixada} other {# fixadas}}",
+    "moreEmojis": "Mais emojis",
     "shareToTicket": "Compartilhar no ticket",
     "searchTicket": "Buscar ticket…",
     "searchTicketHint": "Digite ao menos 2 caracteres para buscar.",

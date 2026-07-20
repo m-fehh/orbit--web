@@ -441,6 +441,8 @@
     "pin": "Pin",
     "unpin": "Unpin",
     "pinned": "Pinned",
+    "pinnedCount": "{count, plural, one {# pinned} other {# pinned}}",
+    "moreEmojis": "More emojis",
     "shareToTicket": "Share to ticket",
     "searchTicket": "Search ticket…",
     "searchTicketHint": "Type at least 2 characters to search.",

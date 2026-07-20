@@ -489,6 +489,7 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [quickOpen, setQuickOpen] = useState<'canned' | 'slash' | null>(null);
   const [ticketPickerOpen, setTicketPickerOpen] = useState(false);
+  const [pinnedOpen, setPinnedOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -557,6 +558,11 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
   const [hasMore, setHasMore] = useState(true);
   useEffect(() => { setOlder([]); setHasMore(true); }, [conversationId]);
   const all = useMemo(() => [...older, ...(messages.data ?? [])], [older, messages.data]);
+  // Mensagens fixadas (dentre as carregadas), mais recentes primeiro.
+  const pinned = useMemo(
+    () => all.filter((m) => m.pinnedAt).sort((a, b) => new Date(b.pinnedAt!).getTime() - new Date(a.pinnedAt!).getTime()),
+    [all],
+  );
   const loadOlder = useMutation({
     mutationFn: () => chatApi.messages(conversationId, all[0]?.id, PAGE_SIZE),
     onSuccess: (page) => {
@@ -692,6 +698,34 @@ function Thread({ conversationId, conv, typingName, searchActive, t }: { convers
           <button type="button" onClick={() => goMatch(1)} disabled={matches.length === 0} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-text disabled:opacity-40" aria-label={t('nextMatch')}>
             <ChevronDown className="h-4 w-4" />
           </button>
+        </div>
+      )}
+      {pinned.length > 0 && (
+        <div className="shrink-0 border-b border-border bg-panel-2/40">
+          <button
+            type="button"
+            onClick={() => setPinnedOpen((v) => !v)}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[11px] font-medium text-muted hover:text-text"
+          >
+            <Pin className="h-3 w-3 shrink-0 text-primary" />
+            <span className="flex-1">{t('pinnedCount', { count: pinned.length })}</span>
+            <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', pinnedOpen ? '' : '-rotate-90')} />
+          </button>
+          {pinnedOpen && (
+            <ul className="max-h-40 overflow-y-auto border-t border-border/60 py-1">
+              {pinned.map((m) => (
+                <li key={m.id} className="group flex items-center gap-2 px-3 py-1">
+                  <button type="button" onClick={() => { jumpTo(m.id); setPinnedOpen(false); }} className="min-w-0 flex-1 text-left">
+                    <span className="block truncate text-[11px] font-semibold text-primary">{m.senderName}</span>
+                    <span className="block truncate text-xs text-muted">{m.attachmentName ? `📎 ${m.attachmentName}` : m.body}</span>
+                  </button>
+                  <button type="button" onClick={() => pin.mutate(m.id)} className="grid h-6 w-6 shrink-0 place-items-center rounded text-dim opacity-0 hover:text-danger group-hover:opacity-100" aria-label={t('unpin')} title={t('unpin')}>
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
       <div ref={scrollRef} className="flex-1 space-y-1 overflow-y-auto bg-panel p-4">
@@ -1083,6 +1117,8 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
 }) {
   const [confirming, setConfirming] = useState(false);
   const [reactOpen, setReactOpen] = useState(false);
+  const [reactMore, setReactMore] = useState(false);
+  const closeReact = () => { setReactOpen(false); setReactMore(false); };
   if (editing !== null) {
     return (
       <div className="flex flex-col items-end pl-9">
@@ -1127,7 +1163,7 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
             </span>
           ) : (
             <span className="relative flex gap-0.5 self-center opacity-0 transition-opacity group-hover:opacity-100">
-              <button type="button" onClick={() => setReactOpen((v) => !v)} className={cn('grid h-6 w-6 place-items-center rounded hover:bg-panel-2 hover:text-text', reactOpen ? 'text-primary' : 'text-dim')} aria-label={t('react')} title={t('react')}><Smile className="h-3 w-3" /></button>
+              <button type="button" onClick={() => { setReactOpen((v) => !v); setReactMore(false); }} className={cn('grid h-6 w-6 place-items-center rounded hover:bg-panel-2 hover:text-text', reactOpen ? 'text-primary' : 'text-dim')} aria-label={t('react')} title={t('react')}><Smile className="h-3 w-3" /></button>
               <button type="button" onClick={onReply} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('reply')} title={t('reply')}><Reply className="h-3 w-3" /></button>
               <button type="button" onClick={onForward} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('forward')} title={t('forward')}><Forward className="h-3 w-3" /></button>
               <button type="button" onClick={onShare} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('shareToTicket')} title={t('shareToTicket')}><Ticket className="h-3 w-3" /></button>
@@ -1135,11 +1171,25 @@ function MessageBubble({ m, mine, showMeta, isGroup, editing, onStartEdit, onCha
               {mine && !m.attachmentName && <button type="button" onClick={onStartEdit} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-panel-2 hover:text-text" aria-label={t('edit')}><Pencil className="h-3 w-3" /></button>}
               {mine && <button type="button" onClick={() => setConfirming(true)} className="grid h-6 w-6 place-items-center rounded text-dim hover:bg-danger/10 hover:text-danger" aria-label={t('delete')}><Trash2 className="h-3 w-3" /></button>}
               {reactOpen && (
-                <span className="absolute bottom-full z-20 mb-1 flex gap-0.5 rounded-full border border-border bg-panel px-1.5 py-1 shadow-lg">
-                  {QUICK_REACTIONS.map((e) => (
-                    <button key={e} type="button" onClick={() => { onReact(e); setReactOpen(false); }} className="grid h-7 w-7 place-items-center rounded-full text-base hover:bg-panel-2" aria-label={e}>{e}</button>
-                  ))}
-                </span>
+                <>
+                  <span className="fixed inset-0 z-10" onClick={closeReact} aria-hidden />
+                  {reactMore ? (
+                    <span className="absolute bottom-full z-20 mb-1 w-64 rounded-xl border border-border bg-panel p-2 shadow-lg">
+                      <span className="mb-1 grid grid-cols-8 gap-0.5">
+                        {EMOJIS.map((e) => (
+                          <button key={e} type="button" onClick={() => { onReact(e); closeReact(); }} className="grid h-7 w-7 place-items-center rounded text-lg hover:bg-panel-2" aria-label={e}>{e}</button>
+                        ))}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="absolute bottom-full z-20 mb-1 flex gap-0.5 rounded-full border border-border bg-panel px-1.5 py-1 shadow-lg">
+                      {QUICK_REACTIONS.map((e) => (
+                        <button key={e} type="button" onClick={() => { onReact(e); closeReact(); }} className="grid h-7 w-7 place-items-center rounded-full text-base hover:bg-panel-2" aria-label={e}>{e}</button>
+                      ))}
+                      <button type="button" onClick={() => setReactMore(true)} className="grid h-7 w-7 place-items-center rounded-full text-dim hover:bg-panel-2 hover:text-text" aria-label={t('moreEmojis')} title={t('moreEmojis')}><Plus className="h-3.5 w-3.5" /></button>
+                    </span>
+                  )}
+                </>
               )}
             </span>
           )}
