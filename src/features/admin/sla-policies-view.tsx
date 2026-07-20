@@ -15,7 +15,7 @@ import { Input } from '@/shared/ui/input';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { Modal } from '@/shared/ui/modal';
 import { DataGrid, type ColumnDef, useDataGridLabels } from '@/shared/ui/data-grid';
-import { PageTransition, LoadingState, ErrorState } from '@/shared/ui/states';
+import { LoadingState, ErrorState } from '@/shared/ui/states';
 import { cn } from '@/shared/lib/utils';
 
 const toHHMM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
@@ -336,7 +336,7 @@ export function SlaPoliciesView() {
   if (isError) return <ErrorState title={t('loadError')} onRetry={() => refetch()} retryLabel={t('retry')} />;
 
   return (
-    <PageTransition className="flex h-full flex-col">
+    <div className="flex h-full flex-col">
       <div className="flex min-h-0 flex-1 flex-col gap-lg overflow-auto p-lg">
       <header className="flex flex-wrap items-center gap-3">
         <span className="grid h-11 w-11 place-items-center rounded-xl border border-primary/20 bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
@@ -369,6 +369,6 @@ export function SlaPoliciesView() {
       </div>
 
       {editing && <SlaEditModal row={editing} onClose={() => setEditing(null)} />}
-    </PageTransition>
+    </div>
   );
 }
