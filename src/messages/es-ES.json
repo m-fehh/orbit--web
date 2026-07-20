@@ -265,6 +265,7 @@
     "AtRisk": "En riesgo",
     "Breached": "Incumplido",
     "None": "Sin SLA",
+    "Paused": "Pausado (esperando al cliente)",
     "due": "vence",
     "remaining": "Tiempo restante",
     "overdue": "Retraso"

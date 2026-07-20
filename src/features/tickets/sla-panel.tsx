@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ShieldAlert, ShieldCheck, Timer } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Timer, PauseCircle } from 'lucide-react';
 import type { Locale } from '@/shared/i18n/config';
 import type { SlaSnapshotResponse } from '@/shared/api/types';
 import { formatDateTime } from '@/shared/lib/datetime';
@@ -13,6 +13,7 @@ const COLOR: Record<SlaSnapshotResponse['status'], { text: string; bar: string; 
   AtRisk: { text: 'text-warning', bar: 'bg-warning', bg: 'bg-warning/10', ring: 'ring-warning/25' },
   Breached: { text: 'text-danger', bar: 'bg-danger', bg: 'bg-danger/10', ring: 'ring-danger/25' },
   None: { text: 'text-dim', bar: 'bg-panel-2', bg: 'bg-panel-2', ring: 'ring-border' },
+  Paused: { text: 'text-info', bar: 'bg-info', bg: 'bg-info/10', ring: 'ring-info/25' },
 };
 
 /** Formata "tempo restante" em algo humano, em qualquer ordem de grandeza. */
@@ -64,7 +65,7 @@ export function SlaPanel({ sla, dense = false, bare = false }: { sla: SlaSnapsho
 
   const c = COLOR[sla.status];
   const pct = consumedPct(sla);
-  const Icon = sla.status === 'Breached' ? ShieldAlert : sla.status === 'OnTrack' ? ShieldCheck : Timer;
+  const Icon = sla.status === 'Breached' ? ShieldAlert : sla.status === 'Paused' ? PauseCircle : sla.status === 'OnTrack' ? ShieldCheck : Timer;
 
   if (dense) {
     return (

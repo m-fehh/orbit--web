@@ -265,6 +265,7 @@
     "AtRisk": "At risk",
     "Breached": "Breached",
     "None": "No SLA",
+    "Paused": "Paused (awaiting customer)",
     "due": "due",
     "remaining": "Time remaining",
     "overdue": "Overdue"

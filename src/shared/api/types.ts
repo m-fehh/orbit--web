@@ -763,7 +763,7 @@ export interface TicketCreatedResponse {
   recommendations: IntakeRecommendation[];
 }
 
-export type SlaStatus = 'OnTrack' | 'AtRisk' | 'Breached' | 'None';
+export type SlaStatus = 'OnTrack' | 'AtRisk' | 'Breached' | 'None' | 'Paused';
 
 export interface SlaSnapshotResponse {
   ticketId: number;
