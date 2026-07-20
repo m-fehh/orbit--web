@@ -74,6 +74,10 @@ import type {
   SaveBusinessHoursRequest,
   TenantResponse,
   SystemHealthResponse,
+  ReportScheduleResponse,
+  GeneratedReportResponse,
+  SaveReportScheduleRequest,
+  RunReportRequest,
   CreateTenantRequest,
   UpdateTenantRequest,
   CreateAccessRuleRequest,
@@ -543,6 +547,16 @@ export const internalApi = {
     runMigrations: () => api.post<void>('/internal/system/run-migrations'),
     health: () => api.get<SystemHealthResponse>('/internal/system/health'),
   },
+};
+
+/** Relatórios agendados/avulsos (CSV/PDF). */
+export const reportsApi = {
+  schedules: () => api.get<ReportScheduleResponse[]>('/reports/schedules'),
+  saveSchedule: (body: SaveReportScheduleRequest) => api.post<ReportScheduleResponse>('/reports/schedules', body),
+  deleteSchedule: (id: number) => api.delete<void>(`/reports/schedules/${id}`),
+  run: (body: RunReportRequest) => api.post<GeneratedReportResponse>('/reports/run', body),
+  list: () => api.get<GeneratedReportResponse[]>('/reports'),
+  downloadBlob: (id: number) => api.raw(`/reports/${id}/download`, { method: 'GET' }).then((r) => r.blob()),
 };
 
 /** Busca global  */

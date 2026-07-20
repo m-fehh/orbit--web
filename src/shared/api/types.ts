@@ -1261,6 +1261,40 @@ export interface SystemHealthResponse {
   generatedAtUtc: string;
 }
 
+/* ---- Reports (scheduled CSV/PDF) ---- */
+export type ReportDatasetName = 'Tickets' | 'Audit';
+export type ReportFormatName = 'Csv' | 'Pdf';
+export type ReportFrequencyName = 'Daily' | 'Weekly' | 'Monthly';
+export interface ReportScheduleResponse {
+  id: number;
+  name: string;
+  dataset: ReportDatasetName;
+  format: ReportFormatName;
+  frequency: ReportFrequencyName;
+  windowDays: number;
+  active: boolean;
+  lastRunAt: string | null;
+}
+export interface GeneratedReportResponse {
+  id: number;
+  name: string;
+  dataset: ReportDatasetName;
+  format: ReportFormatName;
+  fileName: string;
+  rowCount: number;
+  generatedAt: string;
+}
+export interface SaveReportScheduleRequest {
+  id?: number | null;
+  name: string;
+  dataset: number;
+  format: number;
+  frequency: number;
+  windowDays: number;
+  active: boolean;
+}
+export interface RunReportRequest { dataset: number; format: number; windowDays: number; }
+
 /* ---- Internal: Tenants ---- */
 export interface TenantResponse {
   id: number;

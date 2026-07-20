@@ -20,6 +20,7 @@ import { ReliabilityView } from '@/features/reliability/reliability-view';
 import { CopilotView } from '@/features/copilot/copilot-view';
 import { ProblemsView } from '@/features/problems/problems-view';
 import { SystemHealthView } from '@/features/admin/system-health-view';
+import { ReportsView } from '@/features/admin/reports-view';
 import { PerformanceView } from '@/features/gamification/performance-view';
 import { EmptyState } from '@/shared/ui/states';
 import { PageTransition } from '@/shared/ui/page-transition';
@@ -70,6 +71,8 @@ export function renderView(loc: TabLocation) {
       return wrap(<TagsView />);
     case 'system':
       return wrap(<SystemHealthView />);
+    case 'reports':
+      return wrap(<ReportsView />);
     default:
       return wrap(
         <div className="grid h-full place-items-center">

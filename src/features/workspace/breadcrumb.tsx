@@ -29,6 +29,7 @@ const SECTION_NAV_KEY: Record<ViewKind, string> = {
   iterations: 'iterations',
   tags: 'tags',
   system: 'system',
+  reports: 'reports',
   settings: 'settings',
 };
 
@@ -51,6 +52,7 @@ const SECTION_META: Record<ViewKind, { indexKind: ViewKind; icon: TabLocation['i
   iterations: { indexKind: 'iterations', icon: 'tickets' },
   tags: { indexKind: 'tags', icon: 'admin' },
   system: { indexKind: 'system', icon: 'admin' },
+  reports: { indexKind: 'reports', icon: 'analytics' },
   settings: { indexKind: 'settings', icon: 'admin' },
 };
 

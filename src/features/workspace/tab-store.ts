@@ -20,6 +20,7 @@ export type ViewKind =
   | 'iterations'
   | 'tags'
   | 'system'
+  | 'reports'
   | 'settings';
 
 /** Chave de ícone (resolvida para um componente lucide no TabBar). */
