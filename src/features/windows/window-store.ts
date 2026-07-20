@@ -34,6 +34,7 @@ interface WindowState {
   topZ: number;
   open: (opts: OpenWindowOptions) => string;
   close: (id: string) => void;
+  closeAll: () => void;
   focus: (id: string) => void;
   update: (id: string, patch: Partial<OrbitWindow>) => void;
   toggleMinimize: (id: string) => void;
@@ -97,6 +98,8 @@ export const useWindowStore = create<WindowState>((set, get) => ({
   },
 
   close: (id) => set((s) => ({ windows: s.windows.filter((w) => w.id !== id) })),
+
+  closeAll: () => set({ windows: [] }),
 
   focus: (id) =>
     set((s) => {

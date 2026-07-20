@@ -1,6 +1,6 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { X, XCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useWindowStore, type OrbitWindow } from '@/features/windows/window-store';
 
@@ -10,7 +10,13 @@ import { useWindowStore, type OrbitWindow } from '@/features/windows/window-stor
  */
 export function FloatingWindow({ win }: { win: OrbitWindow }) {
   const close = useWindowStore((s) => s.close);
+  const closeAll = useWindowStore((s) => s.closeAll);
+  const windows = useWindowStore((s) => s.windows);
   const tc = useTranslations('common');
+
+  // "Fechar tudo" só aparece na janela do topo quando há uma pilha (2+ drawers).
+  const isTop = windows.length > 0 && win.z === Math.max(...windows.map((w) => w.z));
+  const showCloseAll = windows.length > 1 && isTop;
 
   return (
     <div className="fixed inset-0" role="dialog" aria-modal="true" aria-label={win.title} style={{ zIndex: win.z }}>
@@ -23,6 +29,16 @@ export function FloatingWindow({ win }: { win: OrbitWindow }) {
         <header className="flex h-12 shrink-0 items-center gap-sm border-b border-border px-md">
           {win.icon && <span className="grid h-5 w-5 place-items-center text-primary">{win.icon}</span>}
           <span className="flex-1 truncate text-sm font-semibold">{win.title}</span>
+          {showCloseAll && (
+            <button
+              type="button"
+              onClick={() => closeAll()}
+              className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted hover:bg-panel-2 hover:text-text"
+              title={tc('closeAll')}
+            >
+              <XCircle className="h-3.5 w-3.5" aria-hidden /> {tc('closeAll')}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => close(win.id)}

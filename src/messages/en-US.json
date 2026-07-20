@@ -46,6 +46,7 @@
     "retry": "Retry",
     "search": "Search",
     "close": "Close",
+    "closeAll": "Close all",
     "empty": "Nothing here yet.",
     "errorTitle": "Something went wrong",
     "errorBody": "Could not load. Please try again.",

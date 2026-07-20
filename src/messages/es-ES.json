@@ -46,6 +46,7 @@
     "retry": "Reintentar",
     "search": "Buscar",
     "close": "Cerrar",
+    "closeAll": "Cerrar todo",
     "empty": "Nada por aquí todavía.",
     "errorTitle": "Algo salió mal",
     "errorBody": "No se pudo cargar. Inténtalo de nuevo.",
