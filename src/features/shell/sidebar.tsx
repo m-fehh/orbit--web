@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
@@ -13,6 +14,7 @@ import {
   Gauge,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   X,
   Milestone,
   Brain,
@@ -38,7 +40,7 @@ interface NavItem {
 }
 
 interface NavSection {
-  titleKey: 'secOperation' | 'secInsights' | 'secAdmin';
+  titleKey: 'secOperation' | 'secIntelligence' | 'secAnalysis' | 'secAdmin';
   items: NavItem[];
 }
 
@@ -52,15 +54,20 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    titleKey: 'secInsights',
+    titleKey: 'secIntelligence',
     items: [
-      { loc: { kind: 'intelligence', params: {}, title: 'Intelligence', icon: 'analytics' }, labelKey: 'intelligence', icon: Brain, perm: ['intelligence.view'] },
       { loc: { kind: 'copilot', params: {}, title: 'Copiloto de Conhecimento', icon: 'analytics' }, labelKey: 'copilot', icon: Sparkles, perm: ['intelligence.view'] },
       { loc: { kind: 'problems', params: {}, title: 'Radar de Recorrência', icon: 'analytics' }, labelKey: 'problems', icon: Radar, perm: ['intelligence.view'] },
       { loc: { kind: 'playbooks', params: {}, title: 'Base de Soluções', icon: 'analytics' }, labelKey: 'playbooks', icon: Library, perm: ['intelligence.view'] },
       { loc: { kind: 'reliability', params: {}, title: 'Confiabilidade', icon: 'analytics' }, labelKey: 'reliability', icon: ShieldCheck, perm: ['intelligence.view'] },
-      { loc: { kind: 'performance', params: {}, title: 'Desempenho', icon: 'analytics' }, labelKey: 'performance', icon: Trophy, perm: ['ticket.view'] },
+    ],
+  },
+  {
+    titleKey: 'secAnalysis',
+    items: [
+      { loc: { kind: 'intelligence', params: {}, title: 'Intelligence', icon: 'analytics' }, labelKey: 'intelligence', icon: Brain, perm: ['intelligence.view'] },
       { loc: { kind: 'analytics', params: {}, title: 'Analytics', icon: 'analytics' }, labelKey: 'analytics', icon: BarChart3, perm: ['analytics.dashboard', 'analytics.kpis'] },
+      { loc: { kind: 'performance', params: {}, title: 'Desempenho', icon: 'analytics' }, labelKey: 'performance', icon: Trophy, perm: ['ticket.view'] },
     ],
   },
   {
@@ -146,54 +153,95 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const activeTab = tabs.find((tb) => tb.id === activeId);
   const activeKind = activeTab ? currentLocation(activeTab).kind : null;
 
+  // Grupos visíveis (após filtro de permissão) e qual contém a tela ativa.
+  const visibleSections = SECTIONS
+    .map((s) => ({ ...s, items: s.items.filter((it) => !it.perm || canAny(it.perm)) }))
+    .filter((s) => s.items.length > 0);
+  const activeSection = visibleSections.find((s) => s.items.some((it) => it.loc.kind === activeKind));
+
+  // Estado de expansão do accordion. Fechados manualmente ficam em `closed`;
+  // o grupo da tela ativa abre sozinho (a menos que fechado explicitamente).
+  const [closed, setClosed] = useState<Set<string>>(new Set());
+  const toggleGroup = (key: string) =>
+    setClosed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+
   function open(loc: TabLocation) {
     openTab(loc);
     router.push('/workspace');
     onNavigate?.();
   }
 
+  function NavButton({ loc, labelKey, Icon }: { loc: TabLocation; labelKey: NavLabel; Icon: LucideIcon }) {
+    const active = activeKind === loc.kind;
+    return (
+      <button
+        type="button"
+        onClick={() => open(loc)}
+        aria-current={active ? 'page' : undefined}
+        title={collapsed ? t(labelKey) : undefined}
+        className={cn(
+          'group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
+          active ? 'bg-primary/10 font-semibold text-primary' : 'text-muted hover:bg-panel-2 hover:text-text',
+          collapsed && 'justify-center px-0',
+        )}
+      >
+        {active && !collapsed && (
+          <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" aria-hidden />
+        )}
+        <span
+          className={cn(
+            'grid h-7 w-7 shrink-0 place-items-center rounded-lg transition-colors',
+            active ? 'bg-primary/15 text-primary' : 'text-current group-hover:bg-panel',
+          )}
+        >
+          <Icon className="h-4 w-4" aria-hidden />
+        </span>
+        {!collapsed && <span className="truncate">{t(labelKey)}</span>}
+      </button>
+    );
+  }
+
+  // Modo colapsado: lista plana de ícones, grupos separados por divisória.
+  if (collapsed) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-sm">
+        {visibleSections.map((section, i) => (
+          <div key={section.titleKey} className="flex flex-col gap-0.5">
+            {i > 0 && <div className="mx-2 my-1 border-t border-border/60" aria-hidden />}
+            {section.items.map(({ loc, labelKey, icon }) => (
+              <NavButton key={loc.kind} loc={loc} labelKey={labelKey} Icon={icon} />
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Modo expandido: grupos colapsáveis (accordion). O grupo ativo abre por padrão.
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-md overflow-y-auto p-sm">
-      {SECTIONS.map((section) => {
-        const items = section.items.filter((it) => !it.perm || canAny(it.perm));
-        if (items.length === 0) return null;
+    <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-sm">
+      {visibleSections.map((section) => {
+        const isOpen = !closed.has(section.titleKey);
+        const hasActive = section === activeSection;
         return (
           <div key={section.titleKey} className="flex flex-col gap-0.5">
-            {!collapsed && (
-              <p className="px-md pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-dim">
-                {t(section.titleKey)}
-              </p>
-            )}
-            {items.map(({ loc, labelKey, icon: Icon }) => {
-              const active = activeKind === loc.kind;
-              return (
-                <button
-                  key={loc.kind}
-                  type="button"
-                  onClick={() => open(loc)}
-                  aria-current={active ? 'page' : undefined}
-                  title={collapsed ? t(labelKey) : undefined}
-                  className={cn(
-                    'group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
-                    active ? 'bg-primary/10 font-semibold text-primary' : 'text-muted hover:bg-panel-2 hover:text-text',
-                    collapsed && 'justify-center px-0',
-                  )}
-                >
-                  {active && !collapsed && (
-                    <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" aria-hidden />
-                  )}
-                  <span
-                    className={cn(
-                      'grid h-7 w-7 shrink-0 place-items-center rounded-lg transition-colors',
-                      active ? 'bg-primary/15 text-primary' : 'text-current group-hover:bg-panel',
-                    )}
-                  >
-                    <Icon className="h-4 w-4" aria-hidden />
-                  </span>
-                  {!collapsed && <span className="truncate">{t(labelKey)}</span>}
-                </button>
-              );
-            })}
+            <button
+              type="button"
+              onClick={() => toggleGroup(section.titleKey)}
+              aria-expanded={isOpen}
+              className="flex items-center gap-1.5 rounded-md px-md pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-dim transition-colors hover:text-text"
+            >
+              <ChevronDown className={cn('h-3 w-3 shrink-0 transition-transform', isOpen ? '' : '-rotate-90')} aria-hidden />
+              <span className="flex-1 text-left">{t(section.titleKey)}</span>
+              {!isOpen && hasActive && <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />}
+            </button>
+            {isOpen && section.items.map(({ loc, labelKey, icon }) => (
+              <NavButton key={loc.kind} loc={loc} labelKey={labelKey} Icon={icon} />
+            ))}
           </div>
         );
       })}

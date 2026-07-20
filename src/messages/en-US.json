@@ -74,6 +74,8 @@
     "tags": "Tags",
     "secOperation": "Operation",
     "secInsights": "Insights",
+    "secIntelligence": "Intelligence",
+    "secAnalysis": "Analysis",
     "secAdmin": "Administration",
     "settings": "Settings",
     "security": "Security",
