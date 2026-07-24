@@ -1263,7 +1263,7 @@ export interface SystemHealthResponse {
 
 /* ---- Reports (scheduled CSV/PDF) ---- */
 export type ReportDatasetName = 'Tickets' | 'Audit';
-export type ReportFormatName = 'Csv' | 'Pdf';
+export type ReportFormatName = 'Csv' | 'Pdf' | 'Xlsx';
 export type ReportFrequencyName = 'Daily' | 'Weekly' | 'Monthly';
 export interface ReportScheduleResponse {
   id: number;

@@ -139,7 +139,19 @@
     "processing": "Procesando",
     "succeeded": "Completados",
     "failedJobs": "Fallidos",
-    "generatedAt": "Actualizado a las {time}"
+    "generatedAt": "Actualizado a las {time}",
+    "live": "En vivo",
+    "statusHealthy": "Todo saludable",
+    "statusDegraded": "Atención necesaria",
+    "statusCritical": "Fallo crítico",
+    "summaryHealthy": "Todas las colas y entregas en segundo plano funcionan con normalidad.",
+    "summaryIssues": "{count, plural, one {# incidencia detectada} other {# incidencias detectadas}}.",
+    "successRate": "Tasa de éxito",
+    "issueNoServers": "Ningún servidor Hangfire activo — los jobs en segundo plano no se están ejecutando.",
+    "issueOutboxFailed": "{count, plural, one {# evento del Outbox falló} other {# eventos del Outbox fallaron}}.",
+    "issueWebhookFailed": "{count, plural, one {# entrega de webhook falló} other {# entregas de webhook fallaron}}.",
+    "issueJobsFailed": "{count, plural, one {# job de Hangfire falló} other {# jobs de Hangfire fallaron}}.",
+    "issueOutboxStale": "Evento más antiguo del Outbox pendiente hace {min} min."
   },
   "login": {
     "title": "Bienvenido de nuevo",

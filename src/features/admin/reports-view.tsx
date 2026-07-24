@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { FileBarChart, Download, Plus, Trash2, Play, FileText, FileSpreadsheet } from 'lucide-react';
+import { FileBarChart, Download, Plus, Trash2, Play, FileText, FileSpreadsheet, FileType } from 'lucide-react';
 import { reportsApi } from '@/shared/api/endpoints';
 import { apiErrorMessage, type SaveReportScheduleRequest } from '@/shared/api/types';
 import { formatDateTime } from '@/shared/lib/datetime';
@@ -18,8 +18,15 @@ import { cn } from '@/shared/lib/utils';
 import type { Locale } from '@/shared/i18n/config';
 
 const DATASET = { Tickets: 1, Audit: 2 } as const;
-const FORMAT = { Csv: 1, Pdf: 2 } as const;
+const FORMAT = { Csv: 1, Pdf: 2, Xlsx: 3 } as const;
 const FREQUENCY = { Daily: 1, Weekly: 2, Monthly: 3 } as const;
+
+/** Ícone + cor por formato de arquivo (usado nas listas de agendamentos e gerados). */
+function formatMeta(fmt: string) {
+  if (fmt === 'Pdf') return { Icon: FileText, cls: 'bg-danger/10 text-danger' };
+  if (fmt === 'Csv') return { Icon: FileType, cls: 'bg-sky-500/10 text-sky-500' };
+  return { Icon: FileSpreadsheet, cls: 'bg-success/10 text-success' }; // Xlsx
+}
 
 /** Baixa um relatório gerado (blob autenticado → download com o nome do arquivo). */
 async function downloadReport(id: number, fileName: string) {
@@ -42,7 +49,7 @@ export function ReportsView() {
   // Form (criar agendamento / gerar agora compartilham dataset+format+janela).
   const [name, setName] = useState('');
   const [dataset, setDataset] = useState<number>(DATASET.Tickets);
-  const [format, setFormat] = useState<number>(FORMAT.Csv);
+  const [format, setFormat] = useState<number>(FORMAT.Xlsx);
   const [frequency, setFrequency] = useState<number>(FREQUENCY.Weekly);
   const [windowDays, setWindowDays] = useState('7');
 
@@ -69,6 +76,7 @@ export function ReportsView() {
     { value: DATASET.Audit, label: t('dsAudit') },
   ];
   const formatOpts = [
+    { value: FORMAT.Xlsx, label: 'Excel (XLSX)' },
     { value: FORMAT.Csv, label: 'CSV' },
     { value: FORMAT.Pdf, label: 'PDF' },
   ];
@@ -139,9 +147,10 @@ export function ReportsView() {
             <ul className="divide-y divide-border/60">
               {(schedules.data ?? []).map((s) => (
                 <li key={s.id} className="flex items-center gap-3 px-lg py-2.5">
-                  <span className={cn('grid h-7 w-7 shrink-0 place-items-center rounded-lg', s.format === 'Pdf' ? 'bg-danger/10 text-danger' : 'bg-success/10 text-success')}>
-                    {s.format === 'Pdf' ? <FileText className="h-3.5 w-3.5" /> : <FileSpreadsheet className="h-3.5 w-3.5" />}
-                  </span>
+                  {(() => { const m = formatMeta(s.format); return (
+                  <span className={cn('grid h-7 w-7 shrink-0 place-items-center rounded-lg', m.cls)}>
+                    <m.Icon className="h-3.5 w-3.5" />
+                  </span>); })()}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-text">{s.name}</p>
                     <p className="text-[11px] text-dim">
@@ -168,9 +177,10 @@ export function ReportsView() {
             <ul className="divide-y divide-border/60">
               {(generated.data ?? []).map((r) => (
                 <li key={r.id} className="flex items-center gap-3 px-lg py-2.5">
-                  <span className={cn('grid h-7 w-7 shrink-0 place-items-center rounded-lg', r.format === 'Pdf' ? 'bg-danger/10 text-danger' : 'bg-success/10 text-success')}>
-                    {r.format === 'Pdf' ? <FileText className="h-3.5 w-3.5" /> : <FileSpreadsheet className="h-3.5 w-3.5" />}
-                  </span>
+                  {(() => { const m = formatMeta(r.format); return (
+                  <span className={cn('grid h-7 w-7 shrink-0 place-items-center rounded-lg', m.cls)}>
+                    <m.Icon className="h-3.5 w-3.5" />
+                  </span>); })()}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-text">{r.fileName}</p>
                     <p className="text-[11px] text-dim">{t('rows', { count: r.rowCount })} · {formatDateTime(r.generatedAt, { locale, timeZone })}</p>

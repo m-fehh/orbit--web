@@ -139,7 +139,19 @@
     "processing": "Processing",
     "succeeded": "Succeeded",
     "failedJobs": "Failed",
-    "generatedAt": "Updated at {time}"
+    "generatedAt": "Updated at {time}",
+    "live": "Live",
+    "statusHealthy": "All healthy",
+    "statusDegraded": "Attention needed",
+    "statusCritical": "Critical failure",
+    "summaryHealthy": "All background queues and deliveries are operating normally.",
+    "summaryIssues": "{count, plural, one {# issue detected} other {# issues detected}}.",
+    "successRate": "Success rate",
+    "issueNoServers": "No active Hangfire server — background jobs are not running.",
+    "issueOutboxFailed": "{count, plural, one {# Outbox event failed} other {# Outbox events failed}}.",
+    "issueWebhookFailed": "{count, plural, one {# webhook delivery failed} other {# webhook deliveries failed}}.",
+    "issueJobsFailed": "{count, plural, one {# Hangfire job failed} other {# Hangfire jobs failed}}.",
+    "issueOutboxStale": "Oldest Outbox event pending for {min} min."
   },
   "login": {
     "title": "Welcome back",
