@@ -88,7 +88,8 @@
     "knowledge": "Conocimiento",
     "system": "Salud del Sistema",
     "reports": "Informes",
-    "webhooks": "Webhooks"
+    "webhooks": "Webhooks",
+    "config": "Configuración"
   },
   "reports": {
     "title": "Informes",
@@ -2596,5 +2597,13 @@
     "attempts": "Intentos",
     "failed": "Falló",
     "pending": "Pendiente"
+  },
+  "config": {
+    "title": "Configuración",
+    "subtitle": "Ajustes y toggles activar/desactivar personalizables por cliente.",
+    "default": "Predeterminado",
+    "overridden": "Personalizado",
+    "reset": "Restaurar predeterminado",
+    "empty": "Ninguna configuración disponible."
   }
 }

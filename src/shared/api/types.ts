@@ -1175,6 +1175,20 @@ export interface WebhookSubscriptionResponse {
   createdAt: string;
 }
 
+/* ---- Configuration (feature toggles / parâmetros por tenant) ---- */
+export interface ConfigItemResponse {
+  key: string;
+  group: string;
+  description: string;
+  /** "Bool" | "Int" | "String" | "Date" | "Decimal" */
+  type: string;
+  defaultValue: string;
+  /** Override do tenant, ou null quando usando o default. */
+  value: string | null;
+  effectiveValue: string;
+  isOverridden: boolean;
+}
+
 /* ---- Knowledge Assets ---- */
 export interface KnowledgeAssetResponse {
   id: number;

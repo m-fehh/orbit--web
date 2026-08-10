@@ -26,6 +26,7 @@ import {
   FileBarChart,
   Webhook,
   BookOpen,
+  SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 import { useUiStore } from '@/features/shell/ui-store';
@@ -34,7 +35,7 @@ import { usePermissions } from '@/features/auth/use-permissions';
 import { UserMenu } from '@/features/shell/user-menu';
 import { cn } from '@/shared/lib/utils';
 
-type NavLabel = 'dashboard' | 'tickets' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability' | 'copilot' | 'problems' | 'sla' | 'performance' | 'system' | 'reports' | 'webhooks' | 'knowledge';
+type NavLabel = 'dashboard' | 'tickets' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability' | 'copilot' | 'problems' | 'sla' | 'performance' | 'system' | 'reports' | 'webhooks' | 'knowledge' | 'config';
 
 interface NavItem {
   loc: TabLocation;
@@ -85,6 +86,7 @@ const SECTIONS: NavSection[] = [
       { loc: { kind: 'sla', params: {}, title: 'SLA', icon: 'admin' }, labelKey: 'sla', icon: Gauge, perm: ['sla.view', 'sla.manage'] },
       { loc: { kind: 'system', params: {}, title: 'Saúde do Sistema', icon: 'admin' }, labelKey: 'system', icon: Activity, perm: ['admin.system.migrate'] },
       { loc: { kind: 'webhooks', params: {}, title: 'Webhooks', icon: 'admin' }, labelKey: 'webhooks', icon: Webhook, perm: ['webhook.view'] },
+      { loc: { kind: 'config', params: {}, title: 'Configurações', icon: 'admin' }, labelKey: 'config', icon: SlidersHorizontal, perm: ['admin.system.migrate'] },
     ],
   },
 ];

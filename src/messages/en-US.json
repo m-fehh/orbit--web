@@ -88,7 +88,8 @@
     "knowledge": "Knowledge",
     "system": "System Health",
     "reports": "Reports",
-    "webhooks": "Webhooks"
+    "webhooks": "Webhooks",
+    "config": "Settings"
   },
   "reports": {
     "title": "Reports",
@@ -2596,5 +2597,13 @@
     "attempts": "Attempts",
     "failed": "Failed",
     "pending": "Pending"
+  },
+  "config": {
+    "title": "Settings",
+    "subtitle": "Adjustable options and on/off toggles customizable per client.",
+    "default": "Default",
+    "overridden": "Custom",
+    "reset": "Reset to default",
+    "empty": "No configuration available."
   }
 }

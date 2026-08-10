@@ -88,7 +88,8 @@
     "knowledge": "Conhecimento",
     "system": "Saúde do Sistema",
     "reports": "Relatórios",
-    "webhooks": "Webhooks"
+    "webhooks": "Webhooks",
+    "config": "Configurações"
   },
   "reports": {
     "title": "Relatórios",
@@ -2596,5 +2597,13 @@
     "attempts": "Tentativas",
     "failed": "Falhou",
     "pending": "Pendente"
+  },
+  "config": {
+    "title": "Configurações",
+    "subtitle": "Ajustes e chaves liga/desliga personalizáveis por cliente.",
+    "default": "Padrão",
+    "overridden": "Personalizado",
+    "reset": "Restaurar padrão",
+    "empty": "Nenhuma configuração disponível."
   }
 }

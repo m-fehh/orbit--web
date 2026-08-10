@@ -64,6 +64,7 @@ import type {
   WebhookDeliveryResponse,
   KnowledgeAssetResponse,
   KnowledgeAssetVersionResponse,
+  ConfigItemResponse,
   KpiSnapshot,
   SlaComplianceResult,
   TeamMetrics,
@@ -521,6 +522,13 @@ export const webhooksApi = {
   update: (id: number, body: { name: string; url: string; secret?: string; events: number[]; active: boolean }) =>
     api.put<WebhookSubscriptionResponse>(`/webhooks/${id}`, body),
   remove: (id: number) => api.delete<void>(`/webhooks/${id}`),
+};
+
+/** Configurações do tenant (feature toggles + parâmetros). Chave pode conter ponto (ex.: iterations.autoCreate). */
+export const configApi = {
+  list: () => api.get<ConfigItemResponse[]>('/configuration'),
+  set: (key: string, value: string) => api.put<void>(`/configuration/${encodeURIComponent(key)}`, { value }),
+  reset: (key: string) => api.delete<void>(`/configuration/${encodeURIComponent(key)}`),
 };
 
 /** Base de conhecimento (artigos reutilizáveis, versionados). */
