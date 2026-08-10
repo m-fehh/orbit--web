@@ -1276,6 +1276,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "openView": "Abrir",
     "last7days": "Últimos 7 días",
     "last30days": "Últimos 30 días",
     "last90days": "Últimos 90 días",

@@ -1276,6 +1276,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "openView": "Open",
     "last7days": "Last 7 days",
     "last30days": "Last 30 days",
     "last90days": "Last 90 days",
