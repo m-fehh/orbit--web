@@ -1295,24 +1295,6 @@ export interface SaveReportScheduleRequest {
 }
 export interface RunReportRequest { dataset: number; format: number; windowDays: number; }
 
-/* ---- Internal: Tenants ---- */
-export interface TenantResponse {
-  id: number;
-  name: string;
-  subdomain: string;
-  active: boolean;
-  createdAt: string | null;
-}
-
-export interface CreateTenantRequest {
-  name: string;
-  subdomain: string;
-}
-
-export interface UpdateTenantRequest {
-  name: string;
-}
-
 /* ---- Internal: Access Rules ---- */
 export interface CreateAccessRuleRequest {
   description: string;

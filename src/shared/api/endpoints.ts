@@ -72,14 +72,11 @@ import type {
   SaveSlaPolicyRequest,
   BusinessHoursResponse,
   SaveBusinessHoursRequest,
-  TenantResponse,
   SystemHealthResponse,
   ReportScheduleResponse,
   GeneratedReportResponse,
   SaveReportScheduleRequest,
   RunReportRequest,
-  CreateTenantRequest,
-  UpdateTenantRequest,
   CreateAccessRuleRequest,
   UpdateAccessRuleRequest,
   IntelligenceRootCauseSuggestion,
@@ -518,16 +515,12 @@ export const webhooksApi = {
   remove: (id: number) => api.delete<void>(`/webhooks/${id}`),
 };
 
-/** Administração interna (tenants, perfis, regras de acesso, sistema). */
+/**
+ * Administração interna (perfis, regras de acesso, sistema).
+ * Obs.: gestão/provisionamento de TENANTS é responsabilidade da Intranet (control-plane) —
+ * o Orbit é consumidor puro do catálogo; por isso não há mais internalApi.tenants aqui.
+ */
 export const internalApi = {
-  tenants: {
-    list: () => api.get<TenantResponse[]>('/internal/tenants'),
-    get: (id: number) => api.get<TenantResponse>(`/internal/tenants/${id}`),
-    create: (body: CreateTenantRequest) => api.post<TenantResponse>('/internal/tenants', body),
-    update: (id: number, body: UpdateTenantRequest) => api.put<TenantResponse>(`/internal/tenants/${id}`, body),
-    activate: (id: number) => api.patch<TenantResponse>(`/internal/tenants/${id}/activate`),
-    deactivate: (id: number) => api.patch<TenantResponse>(`/internal/tenants/${id}/deactivate`),
-  },
   profileGroups: {
     list: () => api.get<ProfileGroupResponse[]>('/internal/profilegroups'),
     get: (id: number) => api.get<ProfileGroupResponse>(`/internal/profilegroups/${id}`),
