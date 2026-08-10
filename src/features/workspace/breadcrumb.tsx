@@ -30,6 +30,7 @@ const SECTION_NAV_KEY: Record<ViewKind, string> = {
   tags: 'tags',
   system: 'system',
   reports: 'reports',
+  webhooks: 'webhooks',
   settings: 'settings',
 };
 
@@ -53,6 +54,7 @@ const SECTION_META: Record<ViewKind, { indexKind: ViewKind; icon: TabLocation['i
   tags: { indexKind: 'tags', icon: 'admin' },
   system: { indexKind: 'system', icon: 'admin' },
   reports: { indexKind: 'reports', icon: 'analytics' },
+  webhooks: { indexKind: 'webhooks', icon: 'admin' },
   settings: { indexKind: 'settings', icon: 'admin' },
 };
 

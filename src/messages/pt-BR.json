@@ -87,7 +87,8 @@
     "performance": "Desempenho",
     "knowledge": "Conhecimento",
     "system": "Saúde do Sistema",
-    "reports": "Relatórios"
+    "reports": "Relatórios",
+    "webhooks": "Webhooks"
   },
   "reports": {
     "title": "Relatórios",
@@ -718,7 +719,10 @@
     "aiNotTrained": "Não treinado",
     "aiColdStart": "Ainda sem dados suficientes — usando heurística.",
     "aiModelMeta": "{samples} exemplos · {classes} classes · acurácia",
-    "aiModel": { "priority": "Prioridade", "team": "Equipe" },
+    "aiModel": {
+      "priority": "Prioridade",
+      "team": "Equipe"
+    },
     "assistantTitle": "Assistente de Resolução",
     "assistantSubtitle": "Com base no histórico da sua operação",
     "recommendedPlaybook": "Playbook recomendado",
@@ -1170,7 +1174,12 @@
       "searchPlaceholder": "Buscar papel…",
       "new": "Novo",
       "newRole": "Novo papel",
-    "names": { "admin": "Administrador", "manager": "Gerente", "analyst": "Analista", "customer": "Cliente" },
+      "names": {
+        "admin": "Administrador",
+        "manager": "Gerente",
+        "analyst": "Analista",
+        "customer": "Cliente"
+      },
       "loadError": "Erro ao carregar",
       "retry": "Tentar de novo",
       "empty": "Nenhum papel encontrado.",
@@ -1845,7 +1854,12 @@
     "howItWorks": "Pontos por chamado resolvido, com bônus por prioridade e por resolução validada. Tudo calculado do histórico — sem meta artificial.",
     "periodDays": "{days} dias",
     "resolvedCount": "{count} resolvidos",
-    "tier": { "starter": "Iniciante", "skilled": "Praticante", "expert": "Especialista", "master": "Mestre" },
+    "tier": {
+      "starter": "Iniciante",
+      "skilled": "Praticante",
+      "expert": "Especialista",
+      "master": "Mestre"
+    },
     "goalsTitle": "Metas da equipe",
     "goalsEmpty": "Nenhuma meta definida ainda. Crie a primeira para engajar o time.",
     "goalNew": "Nova meta",
@@ -1881,7 +1895,11 @@
     "scopeUser": "Analista",
     "scopePick": "Selecione…",
     "goalActiveHint": "Metas inativas não aparecem para a equipe.",
-    "metric": { "Points": "Pontos", "Resolved": "Chamados resolvidos", "Validated": "Resoluções validadas" },
+    "metric": {
+      "Points": "Pontos",
+      "Resolved": "Chamados resolvidos",
+      "Validated": "Resoluções validadas"
+    },
     "breakdownTitle": "De onde vêm seus pontos",
     "breakdown": {
       "volume": "Entregas",
@@ -1894,12 +1912,30 @@
     "achievementsTitle": "Conquistas",
     "achievementsCount": "{earned} de {total}",
     "achievement": {
-      "first-resolution": { "name": "Primeiras armas", "desc": "Registre sua primeira resolução." },
-      "centurion": { "name": "Centurião", "desc": "Alcance 100 resoluções." },
-      "curator": { "name": "Curador", "desc": "Tenha uma resolução promovida a conhecimento." },
-      "quality-seal": { "name": "Selo de qualidade", "desc": "Acumule 25 resoluções validadas." },
-      "sla-guardian": { "name": "Guardião do SLA", "desc": "Resolva 20 chamados seguidos dentro do SLA." },
-      "critical-slayer": { "name": "Domador de críticos", "desc": "Resolva 15 chamados de prioridade crítica." }
+      "first-resolution": {
+        "name": "Primeiras armas",
+        "desc": "Registre sua primeira resolução."
+      },
+      "centurion": {
+        "name": "Centurião",
+        "desc": "Alcance 100 resoluções."
+      },
+      "curator": {
+        "name": "Curador",
+        "desc": "Tenha uma resolução promovida a conhecimento."
+      },
+      "quality-seal": {
+        "name": "Selo de qualidade",
+        "desc": "Acumule 25 resoluções validadas."
+      },
+      "sla-guardian": {
+        "name": "Guardião do SLA",
+        "desc": "Resolva 20 chamados seguidos dentro do SLA."
+      },
+      "critical-slayer": {
+        "name": "Domador de críticos",
+        "desc": "Resolva 15 chamados de prioridade crítica."
+      }
     },
     "seasonTitle": "Temporada",
     "seasonLeading": "Liderando agora",
@@ -1917,7 +1953,20 @@
     "boardTeams": "Equipe",
     "teamsEmpty": "Nenhuma equipe pontuou no período.",
     "teamMembers": "{count, plural, one {# membro} other {# membros}}",
-    "months": ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+    "months": [
+      "Janeiro",
+      "Fevereiro",
+      "Março",
+      "Abril",
+      "Maio",
+      "Junho",
+      "Julho",
+      "Agosto",
+      "Setembro",
+      "Outubro",
+      "Novembro",
+      "Dezembro"
+    ]
   },
   "tour": {
     "screenTour": "Tour da tela",
@@ -2029,14 +2078,38 @@
         }
       },
       "performance": {
-        "intro": { "title": "Desempenho", "body": "Acompanhe pontos, nível e ranking do time por produtividade — leve e profissional." },
-        "me": { "title": "Meu desempenho", "body": "Seu nível, pontos e de onde eles vêm: qualidade pesa mais que volume." },
-        "history": { "title": "Sua evolução", "body": "Como seus pontos evoluíram nas últimas semanas." },
-        "achievements": { "title": "Conquistas", "body": "Selos por marcos profissionais — SLA em dia, conhecimento gerado, críticos resolvidos." },
-        "goals": { "title": "Metas", "body": "Metas definidas pelo gestor e seu progresso rumo à premiação." },
-        "manageGoals": { "title": "Gerenciar metas", "body": "Só para gestores: crie metas, defina premiações e conceda os prêmios conquistados." },
-        "ranking": { "title": "Ranking", "body": "Como o time se posiciona — alterne entre indivíduo e equipe." },
-        "season": { "title": "Temporada", "body": "O ranking reseta a cada mês; os campeões ficam no Hall da Fama." }
+        "intro": {
+          "title": "Desempenho",
+          "body": "Acompanhe pontos, nível e ranking do time por produtividade — leve e profissional."
+        },
+        "me": {
+          "title": "Meu desempenho",
+          "body": "Seu nível, pontos e de onde eles vêm: qualidade pesa mais que volume."
+        },
+        "history": {
+          "title": "Sua evolução",
+          "body": "Como seus pontos evoluíram nas últimas semanas."
+        },
+        "achievements": {
+          "title": "Conquistas",
+          "body": "Selos por marcos profissionais — SLA em dia, conhecimento gerado, críticos resolvidos."
+        },
+        "goals": {
+          "title": "Metas",
+          "body": "Metas definidas pelo gestor e seu progresso rumo à premiação."
+        },
+        "manageGoals": {
+          "title": "Gerenciar metas",
+          "body": "Só para gestores: crie metas, defina premiações e conceda os prêmios conquistados."
+        },
+        "ranking": {
+          "title": "Ranking",
+          "body": "Como o time se posiciona — alterne entre indivíduo e equipe."
+        },
+        "season": {
+          "title": "Temporada",
+          "body": "O ranking reseta a cada mês; os campeões ficam no Hall da Fama."
+        }
       },
       "copilot": {
         "intro": {
@@ -2517,5 +2590,33 @@
     "tagsPlaceholder": "Separe as tags por vírgula",
     "rootCause": "Causa Raiz",
     "noRootCause": "Nenhuma"
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "subtitle": "Assinaturas de eventos entregues via HTTP (HMAC-SHA256).",
+    "name": "Nome",
+    "url": "URL de destino",
+    "events": "Eventos",
+    "active": "Ativo",
+    "inactive": "Inativo",
+    "activeLabel": "Assinatura ativa",
+    "createdAt": "Criado em",
+    "newWebhook": "Novo webhook",
+    "editWebhook": "Editar webhook",
+    "empty": "Nenhum webhook cadastrado.",
+    "deliveries": "Entregas",
+    "secret": "Secret (HMAC)",
+    "secretHint": "Ex.: uma chave forte",
+    "secretKeep": "Deixe em branco para manter",
+    "secretDesc": "Usado para assinar o payload no header X-Orbit-Signature.",
+    "eventsRequired": "Selecione ao menos um evento.",
+    "delete": "Excluir",
+    "deliveriesTitle": "Entregas recentes",
+    "noDeliveries": "Nenhuma entrega registrada.",
+    "event": "Evento",
+    "status": "Status",
+    "attempts": "Tentativas",
+    "failed": "Falhou",
+    "pending": "Pendente"
   }
 }

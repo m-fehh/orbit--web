@@ -1169,8 +1169,29 @@ export interface WebhookSubscriptionResponse {
   id: number;
   name: string;
   url: string;
-  events: string[];
+  /** Valores numéricos do enum WebhookEvent (o back não usa string-converter). */
+  events: number[];
   active: boolean;
+  createdAt: string;
+}
+
+/** Item do catálogo de eventos (GET /webhooks/events). */
+export interface WebhookEventInfo {
+  value: number;
+  key: string;
+  group: string;
+}
+
+/** Registro de entrega de webhook (GET /webhooks/{id}/deliveries). */
+export interface WebhookDeliveryResponse {
+  id: number;
+  subscriptionId: number;
+  event: number;
+  attemptCount: number;
+  httpStatusCode: number | null;
+  delivered: boolean;
+  deliveredAt: string | null;
+  lastError: string | null;
   createdAt: string;
 }
 

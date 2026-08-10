@@ -87,7 +87,8 @@
     "performance": "Desempeño",
     "knowledge": "Conocimiento",
     "system": "Salud del Sistema",
-    "reports": "Informes"
+    "reports": "Informes",
+    "webhooks": "Webhooks"
   },
   "reports": {
     "title": "Informes",
@@ -718,7 +719,10 @@
     "aiNotTrained": "No entrenado",
     "aiColdStart": "Aún sin datos suficientes — usando heurística.",
     "aiModelMeta": "{samples} ejemplos · {classes} clases · precisión",
-    "aiModel": { "priority": "Prioridad", "team": "Equipo" },
+    "aiModel": {
+      "priority": "Prioridad",
+      "team": "Equipo"
+    },
     "assistantTitle": "Asistente de Resolución",
     "assistantSubtitle": "Basado en el historial de tu operación",
     "recommendedPlaybook": "Playbook recomendado",
@@ -1170,7 +1174,12 @@
       "searchPlaceholder": "Buscar rol…",
       "new": "Nuevo",
       "newRole": "Nuevo rol",
-    "names": { "admin": "Administrador", "manager": "Gerente", "analyst": "Analista", "customer": "Cliente" },
+      "names": {
+        "admin": "Administrador",
+        "manager": "Gerente",
+        "analyst": "Analista",
+        "customer": "Cliente"
+      },
       "loadError": "Error al cargar",
       "retry": "Intentar de nuevo",
       "empty": "Ningún rol encontrado.",
@@ -1845,7 +1854,12 @@
     "howItWorks": "Puntos por ticket resuelto, con bonos por prioridad y por resolución validada. Todo calculado del histórico — sin meta artificial.",
     "periodDays": "{days} días",
     "resolvedCount": "{count} resueltos",
-    "tier": { "starter": "Principiante", "skilled": "Practicante", "expert": "Especialista", "master": "Maestro" },
+    "tier": {
+      "starter": "Principiante",
+      "skilled": "Practicante",
+      "expert": "Especialista",
+      "master": "Maestro"
+    },
     "goalsTitle": "Metas del equipo",
     "goalsEmpty": "Aún no hay metas definidas. Crea la primera para motivar al equipo.",
     "goalNew": "Nueva meta",
@@ -1881,7 +1895,11 @@
     "scopeUser": "Analista",
     "scopePick": "Selecciona…",
     "goalActiveHint": "Las metas inactivas no se muestran al equipo.",
-    "metric": { "Points": "Puntos", "Resolved": "Tickets resueltos", "Validated": "Resoluciones validadas" },
+    "metric": {
+      "Points": "Puntos",
+      "Resolved": "Tickets resueltos",
+      "Validated": "Resoluciones validadas"
+    },
     "breakdownTitle": "De dónde vienen tus puntos",
     "breakdown": {
       "volume": "Entregas",
@@ -1894,12 +1912,30 @@
     "achievementsTitle": "Logros",
     "achievementsCount": "{earned} de {total}",
     "achievement": {
-      "first-resolution": { "name": "Primeros pasos", "desc": "Registra tu primera resolución." },
-      "centurion": { "name": "Centurión", "desc": "Alcanza 100 resoluciones." },
-      "curator": { "name": "Curador", "desc": "Ten una resolución promovida a conocimiento." },
-      "quality-seal": { "name": "Sello de calidad", "desc": "Acumula 25 resoluciones validadas." },
-      "sla-guardian": { "name": "Guardián del SLA", "desc": "Resuelve 20 tickets seguidos dentro del SLA." },
-      "critical-slayer": { "name": "Domador de críticos", "desc": "Resuelve 15 tickets de prioridad crítica." }
+      "first-resolution": {
+        "name": "Primeros pasos",
+        "desc": "Registra tu primera resolución."
+      },
+      "centurion": {
+        "name": "Centurión",
+        "desc": "Alcanza 100 resoluciones."
+      },
+      "curator": {
+        "name": "Curador",
+        "desc": "Ten una resolución promovida a conocimiento."
+      },
+      "quality-seal": {
+        "name": "Sello de calidad",
+        "desc": "Acumula 25 resoluciones validadas."
+      },
+      "sla-guardian": {
+        "name": "Guardián del SLA",
+        "desc": "Resuelve 20 tickets seguidos dentro del SLA."
+      },
+      "critical-slayer": {
+        "name": "Domador de críticos",
+        "desc": "Resuelve 15 tickets de prioridad crítica."
+      }
     },
     "seasonTitle": "Temporada",
     "seasonLeading": "Liderando ahora",
@@ -1917,7 +1953,20 @@
     "boardTeams": "Equipo",
     "teamsEmpty": "Ningún equipo puntuó en el período.",
     "teamMembers": "{count, plural, one {# miembro} other {# miembros}}",
-    "months": ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    "months": [
+      "Enero",
+      "Febrero",
+      "Marzo",
+      "Abril",
+      "Mayo",
+      "Junio",
+      "Julio",
+      "Agosto",
+      "Septiembre",
+      "Octubre",
+      "Noviembre",
+      "Diciembre"
+    ]
   },
   "tour": {
     "screenTour": "Tour de la pantalla",
@@ -2029,14 +2078,38 @@
         }
       },
       "performance": {
-        "intro": { "title": "Desempeño", "body": "Sigue puntos, nivel y ranking del equipo por productividad — ligero y profesional." },
-        "me": { "title": "Mi desempeño", "body": "Tu nivel, puntos y de dónde vienen: la calidad pesa más que el volumen." },
-        "history": { "title": "Tu evolución", "body": "Cómo evolucionaron tus puntos en las últimas semanas." },
-        "achievements": { "title": "Logros", "body": "Insignias por hitos profesionales — SLA al día, conocimiento generado, críticos resueltos." },
-        "goals": { "title": "Metas", "body": "Metas definidas por el gestor y tu progreso hacia el premio." },
-        "manageGoals": { "title": "Gestionar metas", "body": "Solo gestores: crea metas, define premios y concede los logrados." },
-        "ranking": { "title": "Ranking", "body": "Cómo se posiciona el equipo — alterna entre individual y equipo." },
-        "season": { "title": "Temporada", "body": "El ranking se reinicia cada mes; los campeones quedan en el Salón de la Fama." }
+        "intro": {
+          "title": "Desempeño",
+          "body": "Sigue puntos, nivel y ranking del equipo por productividad — ligero y profesional."
+        },
+        "me": {
+          "title": "Mi desempeño",
+          "body": "Tu nivel, puntos y de dónde vienen: la calidad pesa más que el volumen."
+        },
+        "history": {
+          "title": "Tu evolución",
+          "body": "Cómo evolucionaron tus puntos en las últimas semanas."
+        },
+        "achievements": {
+          "title": "Logros",
+          "body": "Insignias por hitos profesionales — SLA al día, conocimiento generado, críticos resueltos."
+        },
+        "goals": {
+          "title": "Metas",
+          "body": "Metas definidas por el gestor y tu progreso hacia el premio."
+        },
+        "manageGoals": {
+          "title": "Gestionar metas",
+          "body": "Solo gestores: crea metas, define premios y concede los logrados."
+        },
+        "ranking": {
+          "title": "Ranking",
+          "body": "Cómo se posiciona el equipo — alterna entre individual y equipo."
+        },
+        "season": {
+          "title": "Temporada",
+          "body": "El ranking se reinicia cada mes; los campeones quedan en el Salón de la Fama."
+        }
       },
       "copilot": {
         "intro": {
@@ -2517,5 +2590,33 @@
     "tagsPlaceholder": "Separa las etiquetas por coma",
     "rootCause": "Causa Raíz",
     "noRootCause": "Ninguna"
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "subtitle": "Suscripciones de eventos entregadas vía HTTP (HMAC-SHA256).",
+    "name": "Nombre",
+    "url": "URL de destino",
+    "events": "Eventos",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "activeLabel": "Suscripción activa",
+    "createdAt": "Creado",
+    "newWebhook": "Nuevo webhook",
+    "editWebhook": "Editar webhook",
+    "empty": "Ningún webhook aún.",
+    "deliveries": "Entregas",
+    "secret": "Secret (HMAC)",
+    "secretHint": "Ej.: una clave fuerte",
+    "secretKeep": "Déjelo en blanco para mantener",
+    "secretDesc": "Se usa para firmar el payload en el header X-Orbit-Signature.",
+    "eventsRequired": "Seleccione al menos un evento.",
+    "delete": "Eliminar",
+    "deliveriesTitle": "Entregas recientes",
+    "noDeliveries": "Sin entregas registradas.",
+    "event": "Evento",
+    "status": "Estado",
+    "attempts": "Intentos",
+    "failed": "Falló",
+    "pending": "Pendiente"
   }
 }

@@ -21,6 +21,7 @@ export type ViewKind =
   | 'tags'
   | 'system'
   | 'reports'
+  | 'webhooks'
   | 'settings';
 
 /** Chave de ícone (resolvida para um componente lucide no TabBar). */

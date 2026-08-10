@@ -60,6 +60,8 @@ import type {
   ResolutionPatternResponse,
   EngineeringWorkItemResponse,
   WebhookSubscriptionResponse,
+  WebhookEventInfo,
+  WebhookDeliveryResponse,
   KpiSnapshot,
   SlaComplianceResult,
   TeamMetrics,
@@ -506,12 +508,16 @@ export const auditApi = {
     }),
 };
 
-/** Webhooks */
+/** Webhooks — eventos trafegam como NÚMEROS (valores do enum WebhookEvent). */
 export const webhooksApi = {
   list: () => api.get<WebhookSubscriptionResponse[]>('/webhooks'),
   get: (id: number) => api.get<WebhookSubscriptionResponse>(`/webhooks/${id}`),
-  create: (body: { name: string; url: string; events: string[] }) => api.post<WebhookSubscriptionResponse>('/webhooks', body),
-  update: (id: number, body: { name: string; url: string; events: string[] }) => api.put<WebhookSubscriptionResponse>(`/webhooks/${id}`, body),
+  events: () => api.get<WebhookEventInfo[]>('/webhooks/events'),
+  deliveries: (id: number) => api.get<WebhookDeliveryResponse[]>(`/webhooks/${id}/deliveries`),
+  create: (body: { name: string; url: string; secret: string; events: number[] }) =>
+    api.post<WebhookSubscriptionResponse>('/webhooks', body),
+  update: (id: number, body: { name: string; url: string; secret?: string; events: number[]; active: boolean }) =>
+    api.put<WebhookSubscriptionResponse>(`/webhooks/${id}`, body),
   remove: (id: number) => api.delete<void>(`/webhooks/${id}`),
 };
 

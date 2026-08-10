@@ -87,7 +87,8 @@
     "performance": "Performance",
     "knowledge": "Knowledge",
     "system": "System Health",
-    "reports": "Reports"
+    "reports": "Reports",
+    "webhooks": "Webhooks"
   },
   "reports": {
     "title": "Reports",
@@ -718,7 +719,10 @@
     "aiNotTrained": "Not trained",
     "aiColdStart": "Still insufficient data — using heuristics.",
     "aiModelMeta": "{samples} examples · {classes} classes · accuracy",
-    "aiModel": { "priority": "Priority", "team": "Team" },
+    "aiModel": {
+      "priority": "Priority",
+      "team": "Team"
+    },
     "assistantTitle": "Resolution Assistant",
     "assistantSubtitle": "Based on your operation history",
     "recommendedPlaybook": "Recommended playbook",
@@ -1170,7 +1174,12 @@
       "searchPlaceholder": "Search role…",
       "new": "New",
       "newRole": "New role",
-    "names": { "admin": "Administrator", "manager": "Manager", "analyst": "Analyst", "customer": "Customer" },
+      "names": {
+        "admin": "Administrator",
+        "manager": "Manager",
+        "analyst": "Analyst",
+        "customer": "Customer"
+      },
       "loadError": "Error loading",
       "retry": "Try again",
       "empty": "No roles found.",
@@ -1845,7 +1854,12 @@
     "howItWorks": "Points per resolved ticket, with bonuses for priority and validated resolution. All computed from history — no artificial target.",
     "periodDays": "{days} days",
     "resolvedCount": "{count} resolved",
-    "tier": { "starter": "Starter", "skilled": "Skilled", "expert": "Expert", "master": "Master" },
+    "tier": {
+      "starter": "Starter",
+      "skilled": "Skilled",
+      "expert": "Expert",
+      "master": "Master"
+    },
     "goalsTitle": "Team goals",
     "goalsEmpty": "No goals defined yet. Create the first one to engage the team.",
     "goalNew": "New goal",
@@ -1881,7 +1895,11 @@
     "scopeUser": "Analyst",
     "scopePick": "Select…",
     "goalActiveHint": "Inactive goals are hidden from the team.",
-    "metric": { "Points": "Points", "Resolved": "Resolved tickets", "Validated": "Validated resolutions" },
+    "metric": {
+      "Points": "Points",
+      "Resolved": "Resolved tickets",
+      "Validated": "Validated resolutions"
+    },
     "breakdownTitle": "Where your points come from",
     "breakdown": {
       "volume": "Deliveries",
@@ -1894,12 +1912,30 @@
     "achievementsTitle": "Achievements",
     "achievementsCount": "{earned} of {total}",
     "achievement": {
-      "first-resolution": { "name": "First steps", "desc": "Log your first resolution." },
-      "centurion": { "name": "Centurion", "desc": "Reach 100 resolutions." },
-      "curator": { "name": "Curator", "desc": "Have a resolution promoted to knowledge." },
-      "quality-seal": { "name": "Quality seal", "desc": "Accumulate 25 validated resolutions." },
-      "sla-guardian": { "name": "SLA guardian", "desc": "Resolve 20 tickets in a row within SLA." },
-      "critical-slayer": { "name": "Critical slayer", "desc": "Resolve 15 critical-priority tickets." }
+      "first-resolution": {
+        "name": "First steps",
+        "desc": "Log your first resolution."
+      },
+      "centurion": {
+        "name": "Centurion",
+        "desc": "Reach 100 resolutions."
+      },
+      "curator": {
+        "name": "Curator",
+        "desc": "Have a resolution promoted to knowledge."
+      },
+      "quality-seal": {
+        "name": "Quality seal",
+        "desc": "Accumulate 25 validated resolutions."
+      },
+      "sla-guardian": {
+        "name": "SLA guardian",
+        "desc": "Resolve 20 tickets in a row within SLA."
+      },
+      "critical-slayer": {
+        "name": "Critical slayer",
+        "desc": "Resolve 15 critical-priority tickets."
+      }
     },
     "seasonTitle": "Season",
     "seasonLeading": "Leading now",
@@ -1917,7 +1953,20 @@
     "boardTeams": "Team",
     "teamsEmpty": "No team scored in this period.",
     "teamMembers": "{count, plural, one {# member} other {# members}}",
-    "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    "months": [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ]
   },
   "tour": {
     "screenTour": "Screen tour",
@@ -2029,14 +2078,38 @@
         }
       },
       "performance": {
-        "intro": { "title": "Performance", "body": "Track points, level and the team ranking by productivity — light and professional." },
-        "me": { "title": "My performance", "body": "Your level, points and where they come from: quality weighs more than volume." },
-        "history": { "title": "Your evolution", "body": "How your points evolved over the past weeks." },
-        "achievements": { "title": "Achievements", "body": "Badges for professional milestones — SLA streaks, knowledge created, criticals solved." },
-        "goals": { "title": "Goals", "body": "Goals set by managers and your progress toward the reward." },
-        "manageGoals": { "title": "Manage goals", "body": "Managers only: create goals, define rewards and grant the ones achieved." },
-        "ranking": { "title": "Ranking", "body": "Where the team stands — switch between individual and team." },
-        "season": { "title": "Season", "body": "The ranking resets each month; champions stay in the Hall of Fame." }
+        "intro": {
+          "title": "Performance",
+          "body": "Track points, level and the team ranking by productivity — light and professional."
+        },
+        "me": {
+          "title": "My performance",
+          "body": "Your level, points and where they come from: quality weighs more than volume."
+        },
+        "history": {
+          "title": "Your evolution",
+          "body": "How your points evolved over the past weeks."
+        },
+        "achievements": {
+          "title": "Achievements",
+          "body": "Badges for professional milestones — SLA streaks, knowledge created, criticals solved."
+        },
+        "goals": {
+          "title": "Goals",
+          "body": "Goals set by managers and your progress toward the reward."
+        },
+        "manageGoals": {
+          "title": "Manage goals",
+          "body": "Managers only: create goals, define rewards and grant the ones achieved."
+        },
+        "ranking": {
+          "title": "Ranking",
+          "body": "Where the team stands — switch between individual and team."
+        },
+        "season": {
+          "title": "Season",
+          "body": "The ranking resets each month; champions stay in the Hall of Fame."
+        }
       },
       "copilot": {
         "intro": {
@@ -2517,5 +2590,33 @@
     "tagsPlaceholder": "Separate tags by comma",
     "rootCause": "Root Cause",
     "noRootCause": "None"
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "subtitle": "Event subscriptions delivered via HTTP (HMAC-SHA256).",
+    "name": "Name",
+    "url": "Target URL",
+    "events": "Events",
+    "active": "Active",
+    "inactive": "Inactive",
+    "activeLabel": "Subscription active",
+    "createdAt": "Created",
+    "newWebhook": "New webhook",
+    "editWebhook": "Edit webhook",
+    "empty": "No webhooks yet.",
+    "deliveries": "Deliveries",
+    "secret": "Secret (HMAC)",
+    "secretHint": "e.g., a strong key",
+    "secretKeep": "Leave blank to keep",
+    "secretDesc": "Used to sign the payload in the X-Orbit-Signature header.",
+    "eventsRequired": "Select at least one event.",
+    "delete": "Delete",
+    "deliveriesTitle": "Recent deliveries",
+    "noDeliveries": "No deliveries recorded.",
+    "event": "Event",
+    "status": "Status",
+    "attempts": "Attempts",
+    "failed": "Failed",
+    "pending": "Pending"
   }
 }
