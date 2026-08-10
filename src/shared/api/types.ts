@@ -1175,6 +1175,32 @@ export interface WebhookSubscriptionResponse {
   createdAt: string;
 }
 
+/* ---- Knowledge Assets ---- */
+export interface KnowledgeAssetResponse {
+  id: number;
+  title: string;
+  summary: string;
+  content: string;
+  category: string | null;
+  tags: string | null;
+  rootCauseId: number | null;
+  reuseCount: number;
+  isPublished: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface KnowledgeAssetVersionResponse {
+  id: number;
+  assetId: number;
+  versionNumber: number;
+  title: string;
+  summary: string;
+  content: string;
+  createdById: number;
+  createdAt: string;
+}
+
 /** Item do catálogo de eventos (GET /webhooks/events). */
 export interface WebhookEventInfo {
   value: number;

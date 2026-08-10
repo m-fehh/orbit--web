@@ -62,6 +62,8 @@ import type {
   WebhookSubscriptionResponse,
   WebhookEventInfo,
   WebhookDeliveryResponse,
+  KnowledgeAssetResponse,
+  KnowledgeAssetVersionResponse,
   KpiSnapshot,
   SlaComplianceResult,
   TeamMetrics,
@@ -519,6 +521,22 @@ export const webhooksApi = {
   update: (id: number, body: { name: string; url: string; secret?: string; events: number[]; active: boolean }) =>
     api.put<WebhookSubscriptionResponse>(`/webhooks/${id}`, body),
   remove: (id: number) => api.delete<void>(`/webhooks/${id}`),
+};
+
+/** Base de conhecimento (artigos reutilizáveis, versionados). */
+export const knowledgeApi = {
+  list: (params: { page?: number; pageSize?: number; search?: string; category?: string } = {}) =>
+    api.get<PagedResponse<KnowledgeAssetResponse>>('/knowledgeassets', { params }),
+  get: (id: number) => api.get<KnowledgeAssetResponse>(`/knowledgeassets/${id}`),
+  create: (body: { title: string; summary: string; content: string; category?: string | null; tags?: string | null; rootCauseId?: number | null }) =>
+    api.post<KnowledgeAssetResponse>('/knowledgeassets', body),
+  update: (id: number, body: { title: string; summary: string; content: string; category?: string | null; tags?: string | null }) =>
+    api.put<KnowledgeAssetResponse>(`/knowledgeassets/${id}`, body),
+  publish: (id: number) => api.patch<void>(`/knowledgeassets/${id}/publish`),
+  archive: (id: number) => api.patch<void>(`/knowledgeassets/${id}/archive`),
+  incrementReuse: (id: number) => api.patch<void>(`/knowledgeassets/${id}/reuse`),
+  versions: (id: number) => api.get<KnowledgeAssetVersionResponse[]>(`/knowledgeassets/${id}/versions`),
+  rollback: (id: number, versionId: number) => api.post<KnowledgeAssetResponse>(`/knowledgeassets/${id}/rollback/${versionId}`),
 };
 
 /**

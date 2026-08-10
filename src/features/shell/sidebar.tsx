@@ -25,6 +25,7 @@ import {
   Activity,
   FileBarChart,
   Webhook,
+  BookOpen,
   type LucideIcon,
 } from 'lucide-react';
 import { useUiStore } from '@/features/shell/ui-store';
@@ -33,7 +34,7 @@ import { usePermissions } from '@/features/auth/use-permissions';
 import { UserMenu } from '@/features/shell/user-menu';
 import { cn } from '@/shared/lib/utils';
 
-type NavLabel = 'dashboard' | 'tickets' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability' | 'copilot' | 'problems' | 'sla' | 'performance' | 'system' | 'reports' | 'webhooks';
+type NavLabel = 'dashboard' | 'tickets' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability' | 'copilot' | 'problems' | 'sla' | 'performance' | 'system' | 'reports' | 'webhooks' | 'knowledge';
 
 interface NavItem {
   loc: TabLocation;
@@ -62,6 +63,7 @@ const SECTIONS: NavSection[] = [
       { loc: { kind: 'copilot', params: {}, title: 'Copiloto de Conhecimento', icon: 'analytics' }, labelKey: 'copilot', icon: Sparkles, perm: ['intelligence.view'] },
       { loc: { kind: 'problems', params: {}, title: 'Radar de Recorrência', icon: 'analytics' }, labelKey: 'problems', icon: Radar, perm: ['intelligence.view'] },
       { loc: { kind: 'playbooks', params: {}, title: 'Base de Soluções', icon: 'analytics' }, labelKey: 'playbooks', icon: Library, perm: ['intelligence.view'] },
+      { loc: { kind: 'knowledge', params: {}, title: 'Base de Conhecimento', icon: 'knowledge' }, labelKey: 'knowledge', icon: BookOpen, perm: ['knowledge.view'] },
       { loc: { kind: 'reliability', params: {}, title: 'Confiabilidade', icon: 'analytics' }, labelKey: 'reliability', icon: ShieldCheck, perm: ['intelligence.view'] },
     ],
   },
