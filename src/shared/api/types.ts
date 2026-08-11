@@ -888,6 +888,8 @@ export interface UserResponse {
   lastLoginAt: string | null;
   twoFactorEnabled: boolean;
   gdprConsentGiven: boolean;
+  /** Usuário desativado (não pode autenticar). */
+  inactive: boolean;
   profileId: number | null;
 }
 

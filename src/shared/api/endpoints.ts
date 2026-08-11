@@ -436,6 +436,9 @@ export const usersApi = {
   get: (id: number) => api.get<UserResponse>(`/users/${id}`),
   create: (body: CreateUserRequest) => api.post<UserResponse>('/users', body),
   update: (id: number, body: UpdateUserRequest) => api.put<UserResponse>(`/users/${id}`, body),
+  activate: (id: number) => api.patch<void>(`/users/${id}/activate`),
+  deactivate: (id: number) => api.patch<void>(`/users/${id}/deactivate`),
+  /** LGPD (Art. 18): anonimização irreversível dos dados pessoais + desativação. */
   anonymize: (id: number) => api.post<void>(`/users/${id}/anonymize`),
 };
 

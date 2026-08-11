@@ -11,6 +11,7 @@ import { Button } from '@/shared/ui/button';
 import { DataGrid, type ColumnDef, useDataGridLabels } from '@/shared/ui/data-grid';
 import { PageTransition } from '@/shared/ui/states';
 import { openUserWindow } from './user-actions';
+import { UserRowActions } from './user-row-actions';
 
 type UserRow = UserResponse & { profileName: string };
 
@@ -96,6 +97,32 @@ export function UsersView() {
       render: (v) => v
         ? <span className="text-success" title={t('mfaEnabled')}>●</span>
         : <span className="text-dim" title={t('mfaDisabled')}>○</span>,
+    },
+    {
+      field: 'inactive',
+      header: t('status'),
+      width: 100,
+      align: 'center',
+      render: (v) => v
+        ? <span className="rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger">{t('inactive')}</span>
+        : <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">{t('active')}</span>,
+    },
+    {
+      field: 'gdprConsentGiven',
+      header: t('consent'),
+      width: 110,
+      align: 'center',
+      render: (v) => v
+        ? <span className="text-success" title={t('consentGiven')}>✓ LGPD</span>
+        : <span className="text-dim" title={t('consentMissing')}>—</span>,
+    },
+    {
+      field: 'id',
+      header: '',
+      width: 90,
+      align: 'right',
+      sticky: 'right',
+      render: (_v, row) => <UserRowActions user={row} />,
     },
   ], [t, roleLabel, roles.data]);
 
