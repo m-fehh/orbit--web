@@ -24,7 +24,6 @@ import { ReportsView } from '@/features/admin/reports-view';
 import { PerformanceView } from '@/features/gamification/performance-view';
 import { WebhooksView } from '@/features/webhooks/webhooks-view';
 import { KnowledgeView } from '@/features/knowledge/knowledge-view';
-import { ConfigView } from '@/features/config/config-view';
 import { EmptyState } from '@/shared/ui/states';
 import { PageTransition } from '@/shared/ui/page-transition';
 import { ICONS } from './icons';
@@ -80,8 +79,6 @@ export function renderView(loc: TabLocation) {
       return wrap(<WebhooksView />);
     case 'knowledge':
       return wrap(<KnowledgeView />);
-    case 'config':
-      return wrap(<ConfigView />);
     default:
       return wrap(
         <div className="grid h-full place-items-center">

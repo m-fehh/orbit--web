@@ -2605,6 +2605,7 @@
     "default": "Padrão",
     "overridden": "Personalizado",
     "reset": "Restaurar padrão",
-    "empty": "Nenhuma configuração disponível."
+    "empty": "Nenhuma configuração disponível.",
+    "readOnly": "Somente leitura — você não tem permissão para alterar."
   }
 }

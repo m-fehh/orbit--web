@@ -3,21 +3,31 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { RotateCcw, Check, SlidersHorizontal } from 'lucide-react';
+import { RotateCcw, Check, Lock } from 'lucide-react';
 import { configApi } from '@/shared/api/endpoints';
 import type { ConfigItemResponse } from '@/shared/api/types';
 import { apiErrorMessage } from '@/shared/api/types';
+import { usePermissions } from '@/features/auth/use-permissions';
+import { Modal } from '@/shared/ui/modal';
 import { LoadingState, ErrorState } from '@/shared/ui/states';
 import { cn } from '@/shared/lib/utils';
 
-export function ConfigView() {
+/**
+ * Configurações do tenant como MODAL com navegação por categoria (à esquerda). As configs são
+ * GLOBAIS no tenant (não por usuário): quem tem `config.manage` altera para todos; quem só tem
+ * `config.view` enxerga em modo leitura. Aberto pela engrenagem do header.
+ */
+export function ConfigModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useTranslations('config');
   const tc = useTranslations('common');
   const qc = useQueryClient();
+  const { can } = usePermissions();
+  const canManage = can('config.manage');
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['config'],
     queryFn: () => configApi.list(),
+    enabled: open,
   });
 
   const setMut = useMutation({
@@ -39,55 +49,77 @@ export function ConfigView() {
     return Array.from(g.entries());
   }, [data]);
 
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-sm border-b border-border p-md">
-        <SlidersHorizontal className="h-5 w-5 text-primary" aria-hidden />
-        <div>
-          <h1 className="text-lg font-bold">{t('title')}</h1>
-          <p className="text-xs text-muted">{t('subtitle')}</p>
-        </div>
-      </div>
+  const [active, setActive] = useState<string | null>(null);
+  useEffect(() => {
+    if (groups.length === 0) return;
+    setActive((cur) => (cur && groups.some(([g]) => g === cur) ? cur : groups[0][0]));
+  }, [groups]);
 
-      <div className="min-h-0 flex-1 overflow-auto p-lg">
-        {isLoading ? (
-          <LoadingState label={tc('loading')} />
-        ) : error ? (
-          <ErrorState title={apiErrorMessage(error, tc('errorBody'))} onRetry={() => refetch()} retryLabel={tc('retry')} />
-        ) : (
-          <div className="mx-auto flex max-w-3xl flex-col gap-lg">
+  const activeItems = groups.find(([g]) => g === active)?.[1] ?? [];
+  const saving = setMut.isPending || resetMut.isPending;
+
+  return (
+    <Modal open={open} onClose={onClose} title={t('title')} subtitle={t('subtitle')} size="xl">
+      {isLoading ? (
+        <LoadingState label={tc('loading')} />
+      ) : error ? (
+        <ErrorState title={apiErrorMessage(error, tc('errorBody'))} onRetry={() => refetch()} retryLabel={tc('retry')} />
+      ) : groups.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted">{t('empty')}</p>
+      ) : (
+        <div className="-m-lg flex h-[65vh] min-h-[380px]">
+          {/* Rail de categorias */}
+          <nav aria-label={t('title')} className="w-48 shrink-0 overflow-y-auto border-r border-border bg-bg-subtle/30 p-2">
             {groups.map(([group, items]) => (
-              <section key={group} className="rounded-xl border border-border bg-panel">
-                <header className="border-b border-border px-5 py-3">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">{group}</h2>
-                </header>
-                <div className="divide-y divide-border">
-                  {items.map((item) => (
-                    <ConfigRow
-                      key={item.key}
-                      item={item}
-                      saving={setMut.isPending || resetMut.isPending}
-                      onSave={(value) => setMut.mutate({ key: item.key, value })}
-                      onReset={() => resetMut.mutate(item.key)}
-                      labels={{ default: t('default'), overridden: t('overridden'), save: tc('save'), reset: t('reset') }}
-                    />
-                  ))}
-                </div>
-              </section>
+              <button
+                key={group}
+                type="button"
+                onClick={() => setActive(group)}
+                className={cn(
+                  'flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors',
+                  active === group ? 'bg-primary/10 font-semibold text-primary' : 'text-muted hover:bg-panel-2 hover:text-text',
+                )}
+              >
+                <span className="truncate">{group}</span>
+                <span className="shrink-0 rounded-full bg-panel-2 px-1.5 text-[10px] font-medium text-dim">{items.length}</span>
+              </button>
             ))}
-            {groups.length === 0 && <p className="py-10 text-center text-sm text-muted">{t('empty')}</p>}
+          </nav>
+
+          {/* Conteúdo da categoria */}
+          <div className="min-w-0 flex-1 overflow-y-auto">
+            {!canManage && (
+              <div className="flex items-center gap-2 border-b border-border bg-bg-subtle/40 px-5 py-2.5 text-xs text-muted">
+                <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {t('readOnly')}
+              </div>
+            )}
+            <div className="divide-y divide-border">
+              {activeItems.map((item) => (
+                <ConfigRow
+                  key={item.key}
+                  item={item}
+                  saving={saving}
+                  readOnly={!canManage}
+                  onSave={(value) => setMut.mutate({ key: item.key, value })}
+                  onReset={() => resetMut.mutate(item.key)}
+                  labels={{ default: t('default'), overridden: t('overridden'), save: tc('save'), reset: t('reset') }}
+                />
+              ))}
+            </div>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 
 function ConfigRow({
-  item, saving, onSave, onReset, labels,
+  item, saving, readOnly, onSave, onReset, labels,
 }: {
   item: ConfigItemResponse;
   saving: boolean;
+  readOnly: boolean;
   onSave: (value: string) => void;
   onReset: () => void;
   labels: { default: string; overridden: string; save: string; reset: string };
@@ -98,7 +130,8 @@ function ConfigRow({
   // Ressincroniza quando o valor efetivo muda (após salvar/resetar/refetch).
   useEffect(() => { setDraft(item.effectiveValue); }, [item.effectiveValue]);
 
-  const dirty = !isBool && draft !== item.effectiveValue;
+  const disabled = saving || readOnly;
+  const dirty = !isBool && !readOnly && draft !== item.effectiveValue;
 
   const inputType = item.type === 'Int' || item.type === 'Decimal' ? 'number'
     : item.type === 'Date' ? 'date' : 'text';
@@ -122,7 +155,7 @@ function ConfigRow({
         {isBool ? (
           <Toggle
             checked={draft === 'true'}
-            disabled={saving}
+            disabled={disabled}
             onChange={(checked) => { setDraft(String(checked)); onSave(String(checked)); }}
           />
         ) : (
@@ -130,10 +163,10 @@ function ConfigRow({
             <input
               type={inputType}
               value={draft}
-              disabled={saving}
+              disabled={disabled}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && dirty) onSave(draft); }}
-              className="w-44 rounded border border-border bg-bg-subtle px-2.5 py-1.5 text-sm text-text focus:border-primary outline-none"
+              className="w-44 rounded border border-border bg-bg-subtle px-2.5 py-1.5 text-sm text-text focus:border-primary outline-none disabled:opacity-60"
             />
             {dirty && (
               <button
@@ -148,7 +181,7 @@ function ConfigRow({
             )}
           </>
         )}
-        {item.isOverridden && (
+        {item.isOverridden && !readOnly && (
           <button
             type="button"
             onClick={onReset}

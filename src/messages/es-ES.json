@@ -2605,6 +2605,7 @@
     "default": "Predeterminado",
     "overridden": "Personalizado",
     "reset": "Restaurar predeterminado",
-    "empty": "Ninguna configuración disponible."
+    "empty": "Ninguna configuración disponible.",
+    "readOnly": "Solo lectura — no tienes permiso para cambiar la configuración."
   }
 }
