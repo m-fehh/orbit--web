@@ -20,9 +20,7 @@ import {
   Sparkles,
   Radar,
   Trophy,
-  Activity,
   FileBarChart,
-  Webhook,
   BookOpen,
   type LucideIcon,
 } from 'lucide-react';
@@ -32,7 +30,7 @@ import { usePermissions } from '@/features/auth/use-permissions';
 import { UserMenu } from '@/features/shell/user-menu';
 import { cn } from '@/shared/lib/utils';
 
-type NavLabel = 'dashboard' | 'tickets' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability' | 'copilot' | 'problems' | 'sla' | 'performance' | 'system' | 'reports' | 'webhooks' | 'knowledge';
+type NavLabel = 'dashboard' | 'tickets' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability' | 'copilot' | 'problems' | 'sla' | 'performance' | 'reports' | 'knowledge';
 
 interface NavItem {
   loc: TabLocation;
@@ -81,8 +79,6 @@ const SECTIONS: NavSection[] = [
       { loc: { kind: 'admin', params: {}, title: 'Perfis', icon: 'admin' }, labelKey: 'admin', icon: UserCog, perm: ['admin.profiles.view', 'admin.roles.view'] },
       { loc: { kind: 'audit', params: {}, title: 'Logs de auditoria', icon: 'audit' }, labelKey: 'audit', icon: History, perm: ['auditlog.view'] },
       { loc: { kind: 'sla', params: {}, title: 'SLA', icon: 'admin' }, labelKey: 'sla', icon: Gauge, perm: ['sla.view', 'sla.manage'] },
-      { loc: { kind: 'system', params: {}, title: 'Saúde do Sistema', icon: 'admin' }, labelKey: 'system', icon: Activity, perm: ['admin.system.migrate'] },
-      { loc: { kind: 'webhooks', params: {}, title: 'Webhooks', icon: 'admin' }, labelKey: 'webhooks', icon: Webhook, perm: ['webhook.view'] },
     ],
   },
 ];
