@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
-import { X } from 'lucide-react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { X, Maximize2, Minimize2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Portal } from './portal';
 import { cn } from '@/shared/lib/utils';
@@ -65,6 +65,23 @@ export function Modal({
   const tc = useTranslations('common');
   const resolvedCloseLabel = closeLabel ?? tc('close');
   useDialog(open, onClose, preventClose);
+
+  // Centralizada por padrão; arrastável pelo header (offset) e com toggle de fullscreen.
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [maximized, setMaximized] = useState(false);
+  useEffect(() => { if (open) { setOffset({ x: 0, y: 0 }); setMaximized(false); } }, [open]);
+
+  const onDragStart = useCallback((e: React.MouseEvent) => {
+    if (maximized) return;
+    if ((e.target as HTMLElement).closest('button')) return; // não arrasta ao clicar em botões
+    const sx = e.clientX, sy = e.clientY;
+    const ox = offset.x, oy = offset.y;
+    const onMove = (ev: MouseEvent) => setOffset({ x: ox + (ev.clientX - sx), y: oy + (ev.clientY - sy) });
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [maximized, offset.x, offset.y]);
+
   if (!open) return null;
   return (
     <Portal>
@@ -76,12 +93,25 @@ export function Modal({
       >
         <div
           onClick={(e) => e.stopPropagation()}
+          style={maximized ? undefined : { transform: `translate(${offset.x}px, ${offset.y}px)` }}
           className={cn(
-            'flex max-h-[90vh] w-full flex-col overflow-hidden rounded-lg border border-border bg-panel shadow-2xl',
-            MODAL_SIZE[size],
+            'flex flex-col overflow-hidden rounded-lg border border-border bg-panel shadow-2xl',
+            maximized
+              ? 'h-[calc(100vh-16px)] w-[calc(100vw-16px)] max-h-none max-w-none'
+              : cn('max-h-[90vh] w-full', MODAL_SIZE[size]),
           )}
         >
-          <ModalHeader title={title} subtitle={subtitle} onClose={onClose} closeLabel={resolvedCloseLabel} />
+          <ModalHeader
+            title={title}
+            subtitle={subtitle}
+            onClose={onClose}
+            closeLabel={resolvedCloseLabel}
+            onDragStart={onDragStart}
+            draggable={!maximized}
+            maximized={maximized}
+            onToggleMax={() => setMaximized((v) => !v)}
+            maxLabel={maximized ? tc('restore') : tc('maximize')}
+          />
           <div className="flex-1 overflow-y-auto p-lg">{children}</div>
           {footer && (
             <div className="flex flex-wrap items-center justify-end gap-sm border-t border-border bg-bg-subtle/40 p-md">
@@ -136,14 +166,36 @@ export function Drawer({
 }
 
 function ModalHeader({
-  title, subtitle, onClose, closeLabel,
-}: { title: ReactNode; subtitle?: ReactNode; onClose: () => void; closeLabel: string }) {
+  title, subtitle, onClose, closeLabel, onDragStart, draggable, maximized, onToggleMax, maxLabel,
+}: {
+  title: ReactNode; subtitle?: ReactNode; onClose: () => void; closeLabel: string;
+  onDragStart?: (e: React.MouseEvent) => void;
+  draggable?: boolean;
+  maximized?: boolean;
+  onToggleMax?: () => void;
+  maxLabel?: string;
+}) {
   return (
-    <div className="flex items-start gap-sm border-b border-border p-lg">
+    <div
+      onMouseDown={onDragStart}
+      onDoubleClick={onToggleMax}
+      className={cn('flex select-none items-start gap-sm border-b border-border p-lg', draggable && onDragStart && 'cursor-move')}
+    >
       <div className="min-w-0 flex-1">
         <h2 className="truncate text-base font-semibold text-text">{title}</h2>
         {subtitle && <p className="mt-0.5 truncate text-xs text-muted">{subtitle}</p>}
       </div>
+      {onToggleMax && (
+        <button
+          type="button"
+          onClick={onToggleMax}
+          aria-label={maxLabel}
+          title={maxLabel}
+          className="grid h-8 w-8 place-items-center rounded text-muted hover:bg-panel-2 hover:text-text"
+        >
+          {maximized ? <Minimize2 className="h-4 w-4" aria-hidden /> : <Maximize2 className="h-4 w-4" aria-hidden />}
+        </button>
+      )}
       <button
         type="button"
         onClick={onClose}

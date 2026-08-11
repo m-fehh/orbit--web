@@ -47,6 +47,8 @@
     "search": "Search",
     "close": "Close",
     "closeAll": "Close all",
+    "maximize": "Maximize",
+    "restore": "Restore",
     "empty": "Nothing here yet.",
     "errorTitle": "Something went wrong",
     "errorBody": "Could not load. Please try again.",

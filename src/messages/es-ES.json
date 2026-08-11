@@ -47,6 +47,8 @@
     "search": "Buscar",
     "close": "Cerrar",
     "closeAll": "Cerrar todo",
+    "maximize": "Maximizar",
+    "restore": "Restaurar",
     "empty": "Nada por aquí todavía.",
     "errorTitle": "Algo salió mal",
     "errorBody": "No se pudo cargar. Inténtalo de nuevo.",
