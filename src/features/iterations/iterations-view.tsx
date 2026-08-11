@@ -85,6 +85,16 @@ export function IterationsView() {
         error={error ? apiErrorMessage(error, tc('errorBody')) : null}
         onRefresh={() => refetch()}
         onRowClick={handleRowClick}
+        exportFetch={async () => {
+          const acc: IterationResponse[] = [];
+          for (let p = 1; p <= 200; p++) {
+            const r = await iterationsApi.list(p, 200);
+            const arr = Array.isArray(r) ? r : [];
+            acc.push(...arr);
+            if (arr.length < 200) break;
+          }
+          return acc;
+        }}
         toolbar={
           <Button size="sm" onClick={() => openIterationWindow()}>
             <Plus className="h-3.5 w-3.5" />

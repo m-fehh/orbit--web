@@ -112,11 +112,24 @@ export function AuditLogsView() {
     setDateRange({ from: null, to: null }); setPage(1);
   };
 
-  // Exporta o conjunto FILTRADO (até 200) como CSV — sobrepõe o export da página.
+  // Busca o conjunto FILTRADO completo (todas as páginas) — reutilizado pelo CSV e pelo PDF.
+  const fetchAllFiltered = async (): Promise<AuditLogResponse[]> => {
+    const acc: AuditLogResponse[] = [];
+    for (let p = 1; p <= 400; p++) {
+      const res = await auditApi.list({ page: p, pageSize: 500, ...filters });
+      const its = res.items ?? [];
+      acc.push(...its);
+      if (its.length < 500) break;
+      if (res.totalCount && acc.length >= res.totalCount) break;
+    }
+    return acc;
+  };
+
+  // Exporta o conjunto FILTRADO completo como CSV (com a coluna de mudanças).
   const exportCsv = async () => {
-    const res = await auditApi.list({ page: 1, pageSize: 200, ...filters });
+    const all = await fetchAllFiltered();
     const head = [t('colWhen'), t('colAction'), t('colWhat'), t('colUser'), t('colDescription'), t('changes')];
-    const rows = (res.items ?? []).map((r) => [
+    const rows = all.map((r) => [
       formatDateTime(r.occurredAt, { locale, timeZone }),
       label('actions', r.action),
       `${label('entities', r.entityName)} #${r.entityId}`,
@@ -199,6 +212,7 @@ export function AuditLogsView() {
         onRowClick={(row) => { if (row.fields?.length > 0) setExpanded(expanded === row.id ? null : row.id); }}
         onRefresh={() => refetch()}
         onExport={exportCsv}
+        exportFetch={fetchAllFiltered}
         loading={isLoading}
         error={isError ? t('loadError') : null}
         emptyMessage={t('empty')}
