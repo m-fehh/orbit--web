@@ -7,9 +7,9 @@ import { permissionsFromToken } from './permissions';
  * Estado de autenticação para a UI (React). Os tokens vivem no tokenStore;
  * aqui guardamos o usuário, as permissões (PBAC) e o estágio da sessão.
  *
- * `mfa_pending`: a API valida o código MFA já autenticado (não há "requiresMfa"
- * no login). Então, ao logar, se o usuário tem 2FA ativo, marcamos a sessão como
- * pendente e bloqueamos a área logada até `POST /auth/mfa/validate`.
+ * `mfa_pending`: 2FA imposta no SERVIDOR. O login com 2FA ativo devolve `requiresMfa`
+ * + um token de DESAFIO (sem permissões) em vez da sessão. Guardamos só esse token e
+ * bloqueamos a área logada até `POST /auth/mfa/validate`, que devolve a sessão real.
  *
  * `permissions`: extraídas das claims `permission` do JWT (Administrator = `*`).
  */
@@ -33,11 +33,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   permissions: [],
 
   setSessionFromLogin: (auth) => {
+    // Login com 2FA: guarda só o token de DESAFIO (curto, sem permissões) para chamar o mfa/validate.
+    if (auth.requiresMfa) {
+      tokenStore.setTokens(auth.mfaToken ?? '', '');
+      set({ user: auth.user, permissions: [], status: 'mfa_pending' });
+      return;
+    }
     tokenStore.setTokens(auth.accessToken, auth.refreshToken);
     set({
       user: auth.user,
       permissions: permissionsFromToken(auth.accessToken),
-      status: auth.user.twoFactorEnabled ? 'mfa_pending' : 'authenticated',
+      status: 'authenticated',
     });
   },
 

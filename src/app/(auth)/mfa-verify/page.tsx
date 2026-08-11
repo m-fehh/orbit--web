@@ -17,7 +17,7 @@ export default function MfaVerifyPage() {
   const t = useTranslations('mfa');
   const router = useRouter();
   const status = useAuthStore((s) => s.status);
-  const markMfaVerified = useAuthStore((s) => s.markMfaVerified);
+  const setSessionFromLogin = useAuthStore((s) => s.setSessionFromLogin);
 
   const [code, setCode] = useState('');
   const [recovery, setRecovery] = useState(false);
@@ -33,8 +33,9 @@ export default function MfaVerifyPage() {
     if (submitting) return;
     setSubmitting(true);
     try {
-      await mfaApi.validate(value);
-      markMfaVerified();
+      // O validate agora devolve a sessão REAL (tokens completos) — só aqui a sessão é emitida.
+      const auth = await mfaApi.validate(value);
+      setSessionFromLogin(auth);
       router.replace('/workspace');
     } catch (err) {
       toast.error(apiErrorMessage(err, t('invalidCode')));

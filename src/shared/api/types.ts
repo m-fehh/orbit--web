@@ -969,6 +969,10 @@ export interface AuthResponse {
   refreshToken: string;
   expiresAt: string;
   user: UserResponse;
+  /** Quando true, o login exige 2FA: a sessão completa NÃO foi emitida (accessToken/refreshToken vazios). */
+  requiresMfa?: boolean;
+  /** Token de desafio curto e sem permissões, usado só no POST /auth/mfa/validate. */
+  mfaToken?: string | null;
 }
 
 export interface MfaSetupResponse {

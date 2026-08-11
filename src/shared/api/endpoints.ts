@@ -145,7 +145,8 @@ export const mfaApi = {
   setup: () => api.post<MfaSetupResponse>('/auth/mfa/setup'),
   enable: (code: string) => api.post<MfaRecoveryCodesResponse>('/auth/mfa/enable', { code }),
   disable: (code: string) => api.post<void>('/auth/mfa/disable', { code }),
-  validate: (code: string) => api.post<void>('/auth/mfa/validate', { code }),
+  /** Conclui o login 2FA: valida o código e devolve a sessão completa. */
+  validate: (code: string) => api.post<AuthResponse>('/auth/mfa/validate', { code }),
   regenerateRecoveryCodes: () => api.post<MfaRecoveryCodesResponse>('/auth/mfa/recovery-codes'),
 };
 
