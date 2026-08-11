@@ -20,7 +20,6 @@ import {
   Sparkles,
   Radar,
   Trophy,
-  FileBarChart,
   BookOpen,
   type LucideIcon,
 } from 'lucide-react';
@@ -30,7 +29,7 @@ import { usePermissions } from '@/features/auth/use-permissions';
 import { UserMenu } from '@/features/shell/user-menu';
 import { cn } from '@/shared/lib/utils';
 
-type NavLabel = 'dashboard' | 'tickets' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability' | 'copilot' | 'problems' | 'sla' | 'performance' | 'reports' | 'knowledge';
+type NavLabel = 'dashboard' | 'tickets' | 'analytics' | 'users' | 'admin' | 'audit' | 'iterations' | 'intelligence' | 'playbooks' | 'reliability' | 'copilot' | 'problems' | 'sla' | 'performance' | 'knowledge';
 
 interface NavItem {
   loc: TabLocation;
@@ -69,7 +68,6 @@ const SECTIONS: NavSection[] = [
       { loc: { kind: 'intelligence', params: {}, title: 'Intelligence', icon: 'analytics' }, labelKey: 'intelligence', icon: Brain, perm: ['intelligence.view'] },
       { loc: { kind: 'analytics', params: {}, title: 'Analytics', icon: 'analytics' }, labelKey: 'analytics', icon: BarChart3, perm: ['analytics.dashboard', 'analytics.kpis'] },
       { loc: { kind: 'performance', params: {}, title: 'Desempenho', icon: 'analytics' }, labelKey: 'performance', icon: Trophy, perm: ['ticket.view'] },
-      { loc: { kind: 'reports', params: {}, title: 'Relatórios', icon: 'analytics' }, labelKey: 'reports', icon: FileBarChart, perm: ['analytics.kpis'] },
     ],
   },
   {

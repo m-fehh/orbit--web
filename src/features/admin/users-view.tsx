@@ -94,6 +94,7 @@ export function UsersView() {
       header: 'MFA',
       width: 70,
       align: 'center',
+      exportValue: (row) => (row.twoFactorEnabled ? 'MFA' : ''),
       render: (v) => v
         ? <span className="text-success" title={t('mfaEnabled')}>●</span>
         : <span className="text-dim" title={t('mfaDisabled')}>○</span>,
@@ -103,6 +104,7 @@ export function UsersView() {
       header: t('status'),
       width: 100,
       align: 'center',
+      exportValue: (row) => (row.inactive ? t('inactive') : t('active')),
       render: (v) => v
         ? <span className="rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger">{t('inactive')}</span>
         : <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">{t('active')}</span>,
@@ -112,6 +114,7 @@ export function UsersView() {
       header: t('consent'),
       width: 110,
       align: 'center',
+      exportValue: (row) => (row.gdprConsentGiven ? 'LGPD' : ''),
       render: (v) => v
         ? <span className="text-success" title={t('consentGiven')}>✓ LGPD</span>
         : <span className="text-dim" title={t('consentMissing')}>—</span>,
@@ -122,9 +125,22 @@ export function UsersView() {
       width: 90,
       align: 'right',
       sticky: 'right',
+      exportSkip: true,
       render: (_v, row) => <UserRowActions user={row} />,
     },
   ], [t, roleLabel, roles.data]);
+
+  // Exportação: todas as páginas de usuários (respeitando a busca client-side).
+  const exportAll = useCallback(async (): Promise<UserRow[]> => {
+    const acc: UserRow[] = [];
+    for (let p = 1; p <= 200; p++) {
+      const r = await usersApi.list(p, 200);
+      acc.push(...r.items.map((u) => ({ ...u, profileName: profileName(u.profileId) })));
+      if (r.items.length < 200) break;
+    }
+    const q = search.trim().toLowerCase();
+    return q ? acc.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) : acc;
+  }, [profileName, search]);
 
   return (
     <PageTransition className="flex h-full flex-col gap-lg p-lg">
@@ -140,6 +156,7 @@ export function UsersView() {
         onPageSizeChange={(ps) => { setPageSize(ps); setPage(1); }}
         onRowClick={(u) => openUserWindow(u, t('newUser'))}
         onRefresh={() => refetch()}
+        exportFetch={exportAll}
         loading={isLoading}
         error={isError ? t('loadError') : null}
         emptyMessage={t('empty')}

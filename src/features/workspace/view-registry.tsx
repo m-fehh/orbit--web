@@ -20,7 +20,6 @@ import { ReliabilityView } from '@/features/reliability/reliability-view';
 import { CopilotView } from '@/features/copilot/copilot-view';
 import { ProblemsView } from '@/features/problems/problems-view';
 import { SystemHealthView } from '@/features/admin/system-health-view';
-import { ReportsView } from '@/features/admin/reports-view';
 import { PerformanceView } from '@/features/gamification/performance-view';
 import { WebhooksView } from '@/features/webhooks/webhooks-view';
 import { KnowledgeView } from '@/features/knowledge/knowledge-view';
@@ -73,8 +72,6 @@ export function renderView(loc: TabLocation) {
       return wrap(<TagsView />);
     case 'system':
       return wrap(<SystemHealthView />);
-    case 'reports':
-      return wrap(<ReportsView />);
     case 'webhooks':
       return wrap(<WebhooksView />);
     case 'knowledge':

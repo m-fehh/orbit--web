@@ -20,7 +20,6 @@ export type ViewKind =
   | 'iterations'
   | 'tags'
   | 'system'
-  | 'reports'
   | 'webhooks'
   | 'knowledge'
   | 'settings';

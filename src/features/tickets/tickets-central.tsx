@@ -346,6 +346,7 @@ export function TicketsCentral() {
             onSortChange={grid.onSortChange}
             onFilterChange={grid.onFilterChange}
             onRefresh={grid.onRefresh}
+            exportFetch={grid.exportAll}
             onRowClick={handleRowClick}
             loading={grid.isLoading}
             error={grid.error}

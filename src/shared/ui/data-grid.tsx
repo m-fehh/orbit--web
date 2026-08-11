@@ -48,6 +48,11 @@ export interface ColumnDef<T> {
   filterType?: 'text' | 'select' | 'number' | 'date';
   filterOptions?: { label: string; value: string }[];
   render?: (value: any, row: T, index: number) => ReactNode;
+  /** Valor em texto plano para exportação (CSV/PDF). Default: o valor bruto do campo.
+   *  Use quando a coluna renderiza algo complexo (badge, enum, join) e o bruto não serve. */
+  exportValue?: (row: T) => string | number | null | undefined;
+  /** Não incluir esta coluna na exportação (ex.: coluna de ações). */
+  exportSkip?: boolean;
   sticky?: 'left' | 'right';
   hidden?: boolean;
   align?: 'left' | 'center' | 'right';
@@ -185,6 +190,9 @@ export interface DataGridProps<T extends Record<string, any>> {
   onSelectionChange?: (selectedIds: Set<string | number>) => void;
   onRefresh?: () => void;
   onExport?: () => void;
+  /** Busca TODAS as linhas filtradas (todas as páginas) para exportação. Quando ausente,
+   *  exporta os dados carregados (`data`). Use com `useDataGridQuery().exportAll`. */
+  exportFetch?: () => Promise<T[]>;
   onRowClick?: (row: T) => void;
   rowClassName?: (row: T) => string;
   loading?: boolean;
@@ -670,6 +678,7 @@ export function DataGrid<T extends Record<string, any>>({
   onSelectionChange,
   onRefresh,
   onExport,
+  exportFetch,
   onRowClick,
   rowClassName,
   loading = false,
@@ -942,48 +951,96 @@ export function DataGrid<T extends Record<string, any>>({
     [columnWidths],
   );
 
-  // --- Export CSV ---
-  const handleExport = useCallback(() => {
-    if (onExport) {
-      onExport();
-      return;
-    }
-    const header = columns.map((c) => escapeCSV(c.header)).join(',');
-    const rows = displayData.map((row) =>
-      columns
-        .map((c) => escapeCSV(String(getNestedValue(row, c.field) ?? '')))
-        .join(','),
-    );
-    const csv = [header, ...rows].join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${gridId}-export.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [onExport, columns, displayData, gridId]);
+  // --- Export helpers ---------------------------------------------------------
+  // Colunas exportáveis (pula ações e colunas marcadas). Valor: exportValue → bruto.
+  const exportColumns = useMemo(() => columns.filter((c) => !c.exportSkip), [columns]);
+  const [exporting, setExporting] = useState(false);
 
-  // --- Export PDF (genérico: abre uma janela imprimível → "Salvar como PDF") ---
-  const handleExportPdf = useCallback(() => {
-    const esc = (s: string) => s.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch));
-    const headers = columns.map((c) => `<th>${esc(c.header)}</th>`).join('');
-    const body = displayData
-      .map((row) => `<tr>${columns.map((c) => `<td>${esc(String(getNestedValue(row, c.field) ?? ''))}</td>`).join('')}</tr>`)
-      .join('');
-    const win = window.open('', '_blank', 'noopener');
-    if (!win) return;
-    win.document.write(
-      `<!doctype html><html><head><meta charset="utf-8"><title>${esc(gridId)}</title>` +
-      '<style>body{font-family:system-ui,Segoe UI,sans-serif;padding:24px;color:#111}' +
-      'h1{font-size:15px;margin:0 0 12px}table{border-collapse:collapse;width:100%;font-size:11px}' +
-      'th,td{border:1px solid #d0d0d0;padding:5px 8px;text-align:left;vertical-align:top}' +
-      'th{background:#f3f4f6;font-weight:600}tr:nth-child(even) td{background:#fafafa}</style></head>' +
-      `<body><h1>${esc(gridId)}</h1><table><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table>` +
-      '<script>window.onload=function(){setTimeout(function(){window.print();},150);};</script></body></html>',
-    );
-    win.document.close();
-  }, [columns, displayData, gridId]);
+  const cellText = useCallback(
+    (row: T, c: ColumnDef<T>) => {
+      const v = c.exportValue ? c.exportValue(row) : getNestedValue(row, c.field);
+      return v == null ? '' : String(v);
+    },
+    [],
+  );
+
+  // Fonte de dados da exportação: TODAS as linhas filtradas (exportFetch) ou as carregadas.
+  const resolveExportRows = useCallback(async (): Promise<T[]> => {
+    if (exportFetch) {
+      try {
+        const all = await exportFetch();
+        if (all && all.length) return all;
+      } catch {
+        /* cai para os dados carregados */
+      }
+    }
+    return displayData;
+  }, [exportFetch, displayData]);
+
+  // --- Export CSV ---
+  const handleExport = useCallback(async () => {
+    if (onExport) { onExport(); return; }
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const rows = await resolveExportRows();
+      const header = exportColumns.map((c) => escapeCSV(c.header)).join(',');
+      const body = rows.map((row) => exportColumns.map((c) => escapeCSV(cellText(row, c))).join(','));
+      const csv = [header, ...body].join('\r\n');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${gridId}-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }, [onExport, exporting, resolveExportRows, exportColumns, cellText, gridId]);
+
+  // --- Export PDF (imprimível via IFRAME oculto — não é bloqueado por popup) ---
+  const handleExportPdf = useCallback(async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const rows = await resolveExportRows();
+      const esc = (s: string) => s.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] ?? ch));
+      const headers = exportColumns.map((c) => `<th>${esc(c.header)}</th>`).join('');
+      const tbody = rows
+        .map((row) => `<tr>${exportColumns.map((c) => `<td>${esc(cellText(row, c))}</td>`).join('')}</tr>`)
+        .join('');
+      const html =
+        `<!doctype html><html><head><meta charset="utf-8"><title>${esc(gridId)}</title>` +
+        '<style>body{font-family:system-ui,Segoe UI,sans-serif;padding:24px;color:#111}' +
+        'h1{font-size:15px;margin:0 0 12px}table{border-collapse:collapse;width:100%;font-size:11px}' +
+        'th,td{border:1px solid #d0d0d0;padding:5px 8px;text-align:left;vertical-align:top}' +
+        'th{background:#f3f4f6;font-weight:600}tr:nth-child(even) td{background:#fafafa}</style></head>' +
+        `<body><h1>${esc(gridId)}</h1><table><thead><tr>${headers}</tr></thead><tbody>${tbody}</tbody></table></body></html>`;
+
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentWindow?.document;
+      if (!doc) { document.body.removeChild(iframe); return; }
+      doc.open();
+      doc.write(html);
+      doc.close();
+      // Espera o layout e imprime; remove o iframe após o diálogo.
+      const cw = iframe.contentWindow!;
+      cw.onafterprint = () => { iframe.remove(); };
+      setTimeout(() => { cw.focus(); cw.print(); }, 200);
+      // Fallback de limpeza caso onafterprint não dispare.
+      setTimeout(() => { if (document.body.contains(iframe)) iframe.remove(); }, 60_000);
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting, resolveExportRows, exportColumns, cellText, gridId]);
 
   // --- Pagination ---
   const hasActiveFilters = Object.keys(filters).length > 0;

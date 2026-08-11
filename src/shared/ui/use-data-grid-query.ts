@@ -54,6 +54,8 @@ export interface UseDataGridQueryResult<T> {
   onFilterChange: (filters: Record<string, FilterValue>) => void;
   onRefresh: () => void;
   setSearch: (value: string) => void;
+  /** Busca TODAS as linhas do filtro/busca correntes (todas as páginas) para exportação. */
+  exportAll: () => Promise<T[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -227,6 +229,20 @@ export function useDataGridQuery<T>(
     refetch();
   }, [refetch]);
 
+  // Exporta o dataset FILTRADO completo: pagina por tudo com o filtro/busca/ordenação correntes.
+  const exportAll = useCallback(async (): Promise<T[]> => {
+    const acc: T[] = [];
+    const size = 500;
+    for (let p = 1; p <= 400; p++) { // teto de segurança (~200k linhas)
+      const res = await queryFn({ ...gridParams, page: p, pageSize: size });
+      const items = res.items ?? [];
+      acc.push(...items);
+      if (items.length < size) break;
+      if (res.totalCount && acc.length >= res.totalCount) break;
+    }
+    return acc;
+  }, [queryFn, gridParams]);
+
   return {
     data: data?.items ?? [],
     totalCount: data?.totalCount ?? 0,
@@ -244,5 +260,6 @@ export function useDataGridQuery<T>(
     onFilterChange,
     onRefresh,
     setSearch: setSearchInput,
+    exportAll,
   };
 }
