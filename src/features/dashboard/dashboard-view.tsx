@@ -17,9 +17,11 @@ import {
   Target,
   TrendingUp,
   ArrowUpRight,
+  Star,
   type LucideIcon,
 } from 'lucide-react';
-import { analyticsApi, intelligenceApi } from '@/shared/api/endpoints';
+import { analyticsApi, intelligenceApi, satisfactionApi } from '@/shared/api/endpoints';
+import type { SatisfactionSummaryResponse } from '@/shared/api/types';
 import { Select } from '@/shared/ui/select';
 import { LoadingState, ErrorState } from '@/shared/ui/states';
 import {
@@ -80,6 +82,11 @@ export function DashboardView() {
   const overview = useQuery({
     queryKey: ['intelligence', 'overview', days],
     queryFn: () => intelligenceApi.overview(days),
+  });
+  const csat = useQuery({
+    queryKey: ['satisfaction', 'summary', days],
+    queryFn: () => satisfactionApi.summary(days),
+    enabled: can('satisfaction.view'),
   });
 
   const trend = data?.trend ?? [];
@@ -208,6 +215,9 @@ export function DashboardView() {
               </ChartCard>
             </div>
 
+            {/* Satisfação do cliente (CSAT) */}
+            {can('satisfaction.view') && <SatisfactionBlock summary={csat.data} loading={csat.isLoading} />}
+
             {/* Bloco Inteligência */}
             <IntelligenceBlock t={t} overview={overview.data} loading={overview.isLoading} onOpen={toIntelligence} openLabel={openLabel} />
 
@@ -300,6 +310,54 @@ function IntelligenceBlock({
             hint={t('automationHint')}
             color="var(--orbit-color-warning)"
           />
+        </div>
+      )}
+    </ChartCard>
+  );
+}
+
+function SatisfactionBlock({ summary, loading }: { summary: SatisfactionSummaryResponse | undefined; loading: boolean }) {
+  const t = useTranslations('satisfaction');
+  const dist = summary?.distribution ?? [0, 0, 0, 0, 0];
+  const max = Math.max(1, ...dist);
+  const rounded = Math.round(summary?.average ?? 0);
+  return (
+    <ChartCard title={t('cardTitle')} icon={<Star className="h-4 w-4 text-primary" />}>
+      {loading ? (
+        <LoadingState />
+      ) : !summary || summary.responses === 0 ? (
+        <EmptyHint text={t('noData')} />
+      ) : (
+        <div className="grid gap-lg sm:grid-cols-[auto_1fr] sm:items-center">
+          <div className="flex flex-col items-center gap-1 sm:pr-lg">
+            <span className="text-3xl font-bold text-text">{summary.average.toFixed(1)}</span>
+            <div className="flex gap-0.5">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Star
+                  key={n}
+                  className={cn('h-4 w-4', n <= rounded ? 'text-warning' : 'text-dim')}
+                  style={{ fill: n <= rounded ? 'currentColor' : 'none' }}
+                  aria-hidden
+                />
+              ))}
+            </div>
+            <span className="text-xs text-muted">{t('responses', { count: summary.responses })}</span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {[5, 4, 3, 2, 1].map((star) => {
+              const c = dist[star - 1] ?? 0;
+              return (
+                <div key={star} className="flex items-center gap-2 text-xs">
+                  <span className="w-3 text-right text-dim">{star}</span>
+                  <Star className="h-3 w-3 text-warning" style={{ fill: 'currentColor' }} aria-hidden />
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-panel-2">
+                    <div className="h-full rounded-full bg-warning" style={{ width: `${(c / max) * 100}%` }} />
+                  </div>
+                  <span className="w-6 text-right tabular-nums text-muted">{c}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </ChartCard>

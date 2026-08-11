@@ -2599,6 +2599,16 @@
     "failed": "Falhou",
     "pending": "Pendente"
   },
+  "satisfaction": {
+    "title": "Satisfação (CSAT)",
+    "commentPlaceholder": "Comentário do cliente (opcional)",
+    "respondedAt": "Avaliado em {date}",
+    "submit": "Registrar avaliação",
+    "notRated": "Ainda não avaliado.",
+    "cardTitle": "Satisfação do cliente",
+    "noData": "Sem avaliações no período.",
+    "responses": "{count} respostas"
+  },
   "config": {
     "title": "Configurações",
     "subtitle": "Ajustes e chaves liga/desliga personalizáveis por cliente.",

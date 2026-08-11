@@ -2599,6 +2599,16 @@
     "failed": "Failed",
     "pending": "Pending"
   },
+  "satisfaction": {
+    "title": "Satisfaction (CSAT)",
+    "commentPlaceholder": "Customer comment (optional)",
+    "respondedAt": "Rated on {date}",
+    "submit": "Submit rating",
+    "notRated": "Not rated yet.",
+    "cardTitle": "Customer satisfaction",
+    "noData": "No ratings in the period.",
+    "responses": "{count} responses"
+  },
   "config": {
     "title": "Settings",
     "subtitle": "Adjustable options and on/off toggles customizable per client.",

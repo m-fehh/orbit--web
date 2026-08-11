@@ -2599,6 +2599,16 @@
     "failed": "Falló",
     "pending": "Pendiente"
   },
+  "satisfaction": {
+    "title": "Satisfacción (CSAT)",
+    "commentPlaceholder": "Comentario del cliente (opcional)",
+    "respondedAt": "Evaluado el {date}",
+    "submit": "Registrar evaluación",
+    "notRated": "Aún no evaluado.",
+    "cardTitle": "Satisfacción del cliente",
+    "noData": "Sin evaluaciones en el período.",
+    "responses": "{count} respuestas"
+  },
   "config": {
     "title": "Configuración",
     "subtitle": "Ajustes y toggles activar/desactivar personalizables por cliente.",

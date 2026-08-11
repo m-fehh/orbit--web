@@ -1189,6 +1189,23 @@ export interface ConfigItemResponse {
   isOverridden: boolean;
 }
 
+/* ---- Satisfação (CSAT) ---- */
+export interface SatisfactionResponse {
+  ticketId: number;
+  rating: number;
+  comment: string | null;
+  respondedAt: string;
+}
+
+export interface SatisfactionSummaryResponse {
+  /** Média das notas (1–5) no período. */
+  average: number;
+  /** Total de respostas no período. */
+  responses: number;
+  /** Contagem por nota: distribution[0]=nota 1 … distribution[4]=nota 5. */
+  distribution: number[];
+}
+
 /* ---- Knowledge Assets ---- */
 export interface KnowledgeAssetResponse {
   id: number;

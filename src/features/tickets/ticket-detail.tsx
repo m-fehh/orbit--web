@@ -35,6 +35,7 @@ import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { cn, stripHtml } from '@/shared/lib/utils';
 import { SlaPanel } from './sla-panel';
+import { SatisfactionPanel } from './satisfaction-panel';
 import { TicketTimeline } from './timeline';
 import { tokenStore } from '@/shared/api/token-store';
 import { Portal } from '@/shared/ui/portal';
@@ -401,6 +402,9 @@ export function TicketDetail({ id }: { id: number }) {
                 remainingMinutes={ticket.remainingMinutes}
                 canSuggest={ticket.status !== 'Resolved' && ticket.status !== 'Closed' && ticket.status !== 'Cancelled'}
               />
+
+              {/* Satisfação do cliente (CSAT) — card autocontido */}
+              <SatisfactionPanel ticketId={id} />
             </aside>
           </div>
         )}

@@ -65,6 +65,8 @@ import type {
   KnowledgeAssetResponse,
   KnowledgeAssetVersionResponse,
   ConfigItemResponse,
+  SatisfactionResponse,
+  SatisfactionSummaryResponse,
   KpiSnapshot,
   SlaComplianceResult,
   TeamMetrics,
@@ -529,6 +531,14 @@ export const configApi = {
   list: () => api.get<ConfigItemResponse[]>('/configuration'),
   set: (key: string, value: string) => api.put<void>(`/configuration/${encodeURIComponent(key)}`, { value }),
   reset: (key: string) => api.delete<void>(`/configuration/${encodeURIComponent(key)}`),
+};
+
+export const satisfactionApi = {
+  /** Avaliação CSAT de um ticket (data null quando ainda não avaliado). */
+  get: (ticketId: number) => api.get<SatisfactionResponse | null>(`/tickets/${ticketId}/satisfaction`),
+  submit: (ticketId: number, rating: number, comment?: string | null) =>
+    api.post<SatisfactionResponse>(`/tickets/${ticketId}/satisfaction`, { rating, comment: comment ?? null }),
+  summary: (days = 30) => api.get<SatisfactionSummaryResponse>(`/satisfaction/summary?days=${days}`),
 };
 
 /** Base de conhecimento (artigos reutilizáveis, versionados). */
