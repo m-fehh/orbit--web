@@ -12,8 +12,6 @@ import {
   UserCog,
   History,
   Gauge,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
   X,
   Milestone,
@@ -86,15 +84,13 @@ const SECTIONS: NavSection[] = [
       { loc: { kind: 'sla', params: {}, title: 'SLA', icon: 'admin' }, labelKey: 'sla', icon: Gauge, perm: ['sla.view', 'sla.manage'] },
       { loc: { kind: 'system', params: {}, title: 'Saúde do Sistema', icon: 'admin' }, labelKey: 'system', icon: Activity, perm: ['admin.system.migrate'] },
       { loc: { kind: 'webhooks', params: {}, title: 'Webhooks', icon: 'admin' }, labelKey: 'webhooks', icon: Webhook, perm: ['webhook.view'] },
-      { loc: { kind: 'config', params: {}, title: 'Configurações', icon: 'admin' }, labelKey: 'config', icon: SlidersHorizontal, perm: ['admin.system.migrate'] },
+      { loc: { kind: 'config', params: {}, title: 'Configurações', icon: 'admin' }, labelKey: 'config', icon: SlidersHorizontal, perm: ['config.view'] },
     ],
   },
 ];
 
-/** Sidebar responsiva: fixa no desktop (colapsável) e drawer no mobile. */
+/** Sidebar: fixa e sempre expandida no desktop; drawer no mobile. */
 export function Sidebar() {
-  const collapsed = useUiStore((s) => s.sidebarCollapsed);
-  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const mobileOpen = useUiStore((s) => s.mobileNavOpen);
   const setMobileNav = useUiStore((s) => s.setMobileNav);
   const tw = useTranslations('workspace');
@@ -105,23 +101,11 @@ export function Sidebar() {
       <nav
         data-tour="nav"
         aria-label="Primary"
-        className={cn(
-          'relative hidden shrink-0 flex-col border-r border-border bg-bg-subtle/50 transition-all md:flex',
-          collapsed ? 'w-16' : 'w-60',
-        )}
+        className="relative hidden w-60 shrink-0 flex-col border-r border-border bg-bg-subtle/50 md:flex"
       >
-        <button
-          type="button"
-          onClick={toggleSidebar}
-          aria-label={collapsed ? tw('forward') : tw('back')}
-          title={collapsed ? tw('forward') : tw('back')}
-          className="absolute -right-3 top-4 z-20 grid h-6 w-6 place-items-center rounded-full border border-border bg-panel text-muted shadow-sm transition-colors hover:border-primary hover:text-primary"
-        >
-          {collapsed ? <ChevronRight className="h-3.5 w-3.5" aria-hidden /> : <ChevronLeft className="h-3.5 w-3.5" aria-hidden />}
-        </button>
-        <SidebarNav collapsed={collapsed} />
+        <SidebarNav />
         <div data-tour="user" className="border-t border-border p-2">
-          <UserMenu variant="sidebar" collapsed={collapsed} />
+          <UserMenu variant="sidebar" />
         </div>
       </nav>
 
@@ -144,7 +128,7 @@ export function Sidebar() {
                 <X className="h-4 w-4" aria-hidden />
               </button>
             </div>
-            <SidebarNav collapsed={false} onNavigate={() => setMobileNav(false)} />
+            <SidebarNav onNavigate={() => setMobileNav(false)} />
             <div className="border-t border-border p-2">
               <UserMenu variant="sidebar" />
             </div>
@@ -155,7 +139,7 @@ export function Sidebar() {
   );
 }
 
-function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
+function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const t = useTranslations('nav');
   const router = useRouter();
   const { canAny } = usePermissions();
@@ -192,14 +176,12 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
         type="button"
         onClick={() => open(loc)}
         aria-current={active ? 'page' : undefined}
-        title={collapsed ? t(labelKey) : undefined}
         className={cn(
           'group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
           active ? 'bg-primary/10 font-semibold text-primary' : 'text-muted hover:bg-panel-2 hover:text-text',
-          collapsed && 'justify-center px-0',
         )}
       >
-        {active && !collapsed && (
+        {active && (
           <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" aria-hidden />
         )}
         <span
@@ -210,28 +192,12 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
         >
           <Icon className="h-4 w-4" aria-hidden />
         </span>
-        {!collapsed && <span className="truncate">{t(labelKey)}</span>}
+        <span className="truncate">{t(labelKey)}</span>
       </button>
     );
   }
 
-  // Modo colapsado: lista plana de ícones, grupos separados por divisória.
-  if (collapsed) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-sm">
-        {visibleSections.map((section, i) => (
-          <div key={section.titleKey} className="flex flex-col gap-0.5">
-            {i > 0 && <div className="mx-2 my-1 border-t border-border/60" aria-hidden />}
-            {section.items.map(({ loc, labelKey, icon }) => (
-              <NavButton key={loc.kind} loc={loc} labelKey={labelKey} Icon={icon} />
-            ))}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Modo expandido: grupos colapsáveis (accordion). O grupo ativo abre por padrão.
+  // Grupos colapsáveis (accordion). O grupo ativo abre por padrão.
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-sm">
       {visibleSections.map((section) => {

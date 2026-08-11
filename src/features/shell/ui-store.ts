@@ -3,7 +3,6 @@ import { create } from 'zustand';
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 const THEME_KEY = 'orbit.theme';
-const SIDEBAR_KEY = 'orbit.sidebar';
 
 function readTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'system';
@@ -22,18 +21,15 @@ export function applyThemeClass(mode: ThemeMode): void {
 
 interface UiState {
   theme: ThemeMode;
-  sidebarCollapsed: boolean;
   /** Drawer da sidebar no mobile (overlay). */
   mobileNavOpen: boolean;
   setTheme: (theme: ThemeMode) => void;
-  toggleSidebar: () => void;
   setMobileNav: (open: boolean) => void;
   hydrate: () => void;
 }
 
-export const useUiStore = create<UiState>((set, get) => ({
+export const useUiStore = create<UiState>((set) => ({
   theme: 'system',
-  sidebarCollapsed: false,
   mobileNavOpen: false,
 
   setTheme: (theme) => {
@@ -42,19 +38,11 @@ export const useUiStore = create<UiState>((set, get) => ({
     set({ theme });
   },
 
-  toggleSidebar: () => {
-    const next = !get().sidebarCollapsed;
-    if (typeof window !== 'undefined') window.localStorage.setItem(SIDEBAR_KEY, String(next));
-    set({ sidebarCollapsed: next });
-  },
-
   setMobileNav: (open) => set({ mobileNavOpen: open }),
 
   hydrate: () => {
     const theme = readTheme();
-    const collapsed =
-      typeof window !== 'undefined' && window.localStorage.getItem(SIDEBAR_KEY) === 'true';
     applyThemeClass(theme);
-    set({ theme, sidebarCollapsed: collapsed });
+    set({ theme });
   },
 }));
